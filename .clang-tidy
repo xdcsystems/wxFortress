@@ -1,0 +1,107 @@
+﻿Checks: '*,-fuchsia-*,-llvmlibc-*,-abseil-*,-altera-*,-llvm-include-order,-readability-named-parameter,-google-build-using-namespace,-google-readability-todo,-cppcoreguidelines-avoid-magic-numbers,-readability-magic-numbers,-google-explicit-constructor,-hicpp-explicit-conversions,-google-runtime-int,-google-runtime-references,-modernize-pass-by-value,-cert-msc30-c,-cert-msc50-cpp,-cppcoreguidelines-pro-bounds-constant-array-index,-llvm-header-guard,-cppcoreguidelines-macro-usage,-llvm-namespace-comment,-misc-non-private-member-variables-in-classes,-cppcoreguidelines-non-private-member-variables-in-classes,-bugprone-macro-parentheses,-hicpp-use-override,-google-default-arguments,-cppcoreguidelines-special-member-functions,-hicpp-special-member-functions,-modernize-use-using,-cppcoreguidelines-avoid-c-arrays,-google-readability-casting,-hicpp-avoid-c-arrays,-modernize-avoid-c-arrays,-cppcoreguidelines-pro-bounds-pointer-arithmetic,-readability-implicit-bool-conversion,-cppcoreguidelines-pro-type-vararg,-google-readability-namespace-comments,-cert-dcl50-cpp,-cppcoreguidelines-pro-bounds-array-to-pointer-decay,-hicpp-no-array-decay,-hicpp-uppercase-literal-suffix,-readability-uppercase-literal-suffix,-hicpp-signed-bitwise,-bugprone-forward-declaration-namespace,-readability-avoid-const-params-in-decls,-hicpp-vararg,-modernize-use-trailing-return-type,-readability-convert-member-functions-to-static,-llvm-qualified-auto,-hicpp-use-noexcept,-modernize-use-noexcept,-hicpp-use-equals-default,-cppcoreguidelines-c-copy-assignment-signature,-hicpp-deprecated-headers,-cert-oop11-cpp,-hicpp-named-parameter,-readability-use-anyofallof,-hicpp-use-auto,-misc-no-recursion,-hicpp-move-const-arg,-hicpp-braces-around-statements,-google-readability-braces-around-statements,-hicpp-noexcept-move,-cert-oop54-cpp,-hicpp-invalid-access-moved,-bugprone-easily-swappable-parameters,-readability-container-data-pointer,-concurrency-mt-unsafe'
+
+WarningsAsErrors: '*'
+
+# исключаем из анализа файлы *.pb.h, сгенерированные по protobuf описанию.
+HeaderFilterRegex: '.*server[\/\\](src|modules).*(?:(?!\.pb)...\.h[a-z]*|\.c[a-z]*)$'
+AnalyzeTemporaryDtors: true
+
+CheckOptions:
+  - { key: hicpp-special-member-functions.AllowSoleDefaultDtor, value: '1' } # When set to 1 this check doesn’t flag classes with a sole, explicitly defaulted destructor.
+  - { key: modernize-use-override.IgnoreDestructors,     value: '1' } # If set to non-zero, this check will not diagnose destructors.
+  - { key: readability-function-size.LineThreshold,      value: '200' } # Flag functions exceeding this number of lines.
+  - { key: readability-function-size.StatementThreshold, value: '500' } # Flag functions exceeding this number of statements.
+  - { key: readability-function-size.BranchThreshold,    value: '50' }   # Flag functions exceeding this number of control statements.
+  - { key: readability-function-size.ParameterThreshold, value: '20' }   # Flag functions that exceed a specified number of parameters.
+  - { key: readability-function-size.NestingThreshold,   value: '10' }   # Flag compound statements which create next nesting level after NestingThreshold.
+  - { key: readability-function-size.VariableThreshold,  value: '20' }   # Flag functions exceeding this number of variables declared in the body.
+  - { key: readability-identifier-length.MinimumVariableNameLength, value: '1' } # минимальная длина имени переменной
+  - { key: readability-identifier-length.MinimumParameterNameLength, value: '1' } # минимальная длина имени переменной
+  - { key: readability-identifier-length.MinimumLoopCounterNameLength, value: '1' } # минимальная длина имени переменной
+  - { key: readability-identifier-length.MinimumExceptionNameLength, value: '1' } # минимальная длина имени переменной
+  - { key: readability-identifier-naming.ClassCase,      value: CamelCase }
+  - { key: readability-identifier-naming.FunctionCase,   value: CamelCase }
+  - { key: readability-identifier-naming.MethodCase,     value: camelBack }
+  - { key: readability-identifier-naming.VariableCase,   value: camelBack }
+  - { key: readability-identifier-naming.MemberPrefix,   value: m_ }
+  - { key: readability-identifier-naming.ParameterCase,  value: camelBack }
+  - { key: readability-identifier-naming.StaticVariablePrefix, value: s_ }
+  - { key: readability-identifier-naming.StaticConstantPrefix, value: s_ }
+  - { key: readability-identifier-naming.GlobalConstantPrefix, value: g_ }
+  - { key: readability-identifier-naming.GlobalVariablePrefix, value: g_ }
+  - { key: readability-function-cognitive-complexity.IgnoreMacros, value: true } # оценка сложности метода, не учитывать макросы
+
+###############################
+
+# примечания:
+# fuchsia-* - правила для сурово зарезанной embedded-разработки, где выключена куча возможностей C++. для нас неактуально.
+# llvmlibc-* - правила для библиотек llvm
+# abseil-* - правила использования библиотеки abseil со всякими полезностями. У нас не используется.
+# altera-* - правила для разработки под OpenCL
+# cppcoreguidelines-pro-type-vararg - алиас для hicpp-vararg, поэтому оставлен только он
+# google-readability-namespace-comments - комментарии на закрывающей скобке неймспейса. Не используем, ибо за этим следит clang-format
+# cert-dcl50-cpp - запрет на методы с C-variadic параметрами: void get(...); но нам такие нужны.
+# cppcoreguidelines-pro-bounds-array-to-pointer-decay,hicpp-no-array-decay - преобразования массива в указатель. не хочется терять возможность const char[] -> const char*
+#bugprone-forward-declaration-namespace - проверка на одинаковые имена классов в разных namespace
+#readability-avoid-const-params-in-decls - запрет на использование const-параметров в декларации методов
+#hicpp-vararg - запрет на вызов C-методов с varargs. не могу согласиться, оно нам нужно для SFINAE
+#modernize-use-trailing-return-type - замена int function(); на auto function() -> int. "This transformation is purely stylistic"
+#readability-convert-member-functions-to-static - замена константных методов, которым не нужен this на static. Очень сомнительная микрооптимизация...
+#llvm-qualified-auto - алиас для readability-qualified-auto
+#hicpp-use-noexcept, modernize-use-noexcept - замена throw на noexcept
+#hicpp-use-equals-default - алиас для modernize-use-equals-default
+#cppcoreguidelines-c-copy-assignment-signature - алиас для misc-unconventional-assign-operator
+#hicpp-deprecated-headers - алиас для modernize-deprecated-headers
+#cert-oop11-cpp - алиас для performance-move-constructor-init
+#google-readability-casting - алиас cppcoreguidelines-pro-type-cstyle-cast
+#hicpp-use-auto - алиас для modernize-use-auto
+#misc-no-recursion - рекурсия не является неприемлемой
+#hicpp-move-const-arg - алиас для performance-move-const-arg
+#hicpp-braces-around-statements - алиас для readability-braces-around-statements
+#google-readability-braces-around-statements - алиас для readability-braces-around-statements
+#hicpp-noexcept-move - алиас для performance-noexcept-move-constructor
+#cert-oop54-cpp - алиас для bugprone-unhandled-self-assignment
+#hicpp-invalid-access-moved - алиас для bugprone-use-after-move
+
+# обработчики ошибок, которые надо бы включить обратно
+#google-runtime-int = замена long на int32
+#cppcoreguidelines-special-member-functions,hicpp-special-member-functions - требование явно указывать, что делать с удалёнными конструкторами и операторами=
+#modernize-use-using - требование испольовать using вместо typedef
+#bugprone-easily-swappable-parameters - два параметра с одинаковым типом, которые легко можно перепутать: void f(int a, int b);
+#readability-container-data-pointer - замена &str[0] на str.data(), проблема в том, что data() у нас пока что константный
+#concurrency-mt-unsafe - использование не thread-safe функций
+
+# сомнительные выключенные ошибки, может быть стоит их игнорировать, а может и нет
+#misc-non-private-member-variables-in-classes,cppcoreguidelines-non-private-member-variables-in-classes - запрет на не-приватные члены в классах
+#bugprone-macro-parentheses - требование заключать результат макроса в скобки, местами невозможно, когда из него собираем имя класса, например
+#google-default-arguments - запрет на параметры по умолчанию в виртуальных методах
+#cppcoreguidelines-avoid-c-arrays,hicpp-avoid-c-arrays,modernize-avoid-c-arrays - запрет использования C-массивов
+#hicpp-signed-bitwise - разрешены битовые операции только с unsigned-типами
+#cppcoreguidelines-pro-bounds-pointer-arithmetic - запрещена арифметика с указателями
+#readability-implicit-bool-conversion - запрет сравнения не-булева значения, как булево. например, указателей: if (ptr) {
+#hicpp-named-parameter - запрет безымянных параметров в методах, конфликтует со студийной проверкой "неиспользуемый параметр"
+
+## C++20: Нет у нас такого в библиотеке пока...
+#readability-use-anyofallof
+
+
+#############################
+
+# Полезный шорткат для MSVC:
+#
+# Tools -> External Tools...
+# Кнопка <Add>
+# Заполнить поля:
+#   Title: Tidy-check
+#   Command: $(ProjectDir)/tidy-check.bat
+#   Arguments: "$(ItemPath)"
+# Поставить галочку "Use Output window"
+#
+# Нажать <OK>. В меню Tools появится команда Tidy-check, выбрав которую можно проверить только текущий cpp-файл.
+# Это полезно при исправлениях, когда проверка всего проекта выполняется очень долго, а правки вносились только в один файл.
+#
+# Кроме того, можно добавить удобный шорткат - запомнить номер позиции добавленного пункта (или поднять его на самый верх кнопкой <Move Up>)
+# Tools -> Options -> Keyboard -> Tools.ExternalCommand<номер позиции>, назначить шорткат. Теперь по его нажатию будет проверяться текущий cpp
+#
+# Кроме tidy-check.bat ещё полезно добавить tidy-check-project.bat по аналогичному сценарию, чтобы проверять весь проект целиком.
+# В поле "Arguments" при этом указывать ничего не нужно
