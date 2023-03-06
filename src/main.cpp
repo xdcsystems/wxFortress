@@ -11,11 +11,14 @@
     #error "This programm only works with wxUSE_EXCEPTIONS == 1"
 #endif // !wxUSE_EXCEPTIONS
 
+#if !wxUSE_GLCANVAS
+    #error "OpenGL required: set wxUSE_GLCANVAS to 1 and rebuild the library"
+#endif
 
 #include "App.h"
 #include "MainFrame.h"
 
-#include "../resources/sample.xpm"
+#include "resources/sample.xpm"
 
 
 bool App::OnInit()
@@ -28,6 +31,7 @@ bool App::OnInit()
             // Give it an icon
             m_mainFrame->SetIcon( sample_xpm );
             m_mainFrame->Show();
+
             return true;
         }
     }

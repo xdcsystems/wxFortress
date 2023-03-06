@@ -10,8 +10,8 @@
 #include <wx/dc.h>
 #include <wx/dcbuffer.h>
 
-#include "../Tools.h"
-#include "../Shapes/ShapesManager.h"
+#include "Common/Tools.h"
+#include "Shapes/ShapesManager.h"
 
 #include "Counter.hpp"
 #include "Panel.h"
@@ -27,7 +27,7 @@ END_EVENT_TABLE()
 Panel::Panel( wxWindow* parent, wxWindowID id, const wxPoint& pos, const wxSize& size, long style, const wxString& name)
     :wxWindow( parent, id, pos, size, style, name )
 {
-    Hide();  // Initialy hide it
+    Hide();
     init();
 }
 
@@ -37,17 +37,16 @@ void Panel::init()
     SetBackgroundColour( *wxBLACK );
 
     m_bitmapPanelBuffer = Tools::Instance().loadBitmapFromFile(
-        wxT( "/../resources/images/ControlPanel/panel.png" )
+        "/../resources/images/ControlPanel/panel.png"
     );
     m_bitmapPanelLaunchedBuffer = Tools::Instance().loadBitmapFromFile(
-        wxT( "/../resources/images/ControlPanel/panel_launched.png" )
+        "/../resources/images/ControlPanel/panel_launched.png"
     );
     m_bitmapControlBgBuffer = Tools::Instance().loadBitmapFromFile(
-        wxT( "/../resources/images/ControlPanel/control/background.png" )
+        "/../resources/images/ControlPanel/control/background.png"
     );
-
     m_numbers = Tools::Instance().loadBitmapFromFile(
-        wxT( "/../resources/images/ControlPanel/control/numbers.png" )
+        "/../resources/images/ControlPanel/control/numbers.png"
     );
 
     // hi score counter

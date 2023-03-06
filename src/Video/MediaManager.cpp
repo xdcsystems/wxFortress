@@ -10,7 +10,7 @@
 #include <wx/dcbuffer.h>
 #include <wx/mediactrl.h>
 
-#include "Tools.h"
+#include "Common/Tools.h"
 #include "MediaManager.h"
 
 DEFINE_LOCAL_EVENT_TYPE( wxEVT_VIDEO_FINISHED )
@@ -109,7 +109,7 @@ void MediaManager::OnMediaFinished( wxMediaEvent& event )
 void MediaManager::playIntro()
 {
     createMediaControl();
-    m_mediaControl->Load( Tools::Instance().getFullFileName( wxT( "/../resources/video/Intro.mp4" ) ) );
+    m_mediaControl->Load( Tools::Instance().getFullFileName( "/../resources/video/Intro.mp4" ) );
 }
 
 void MediaManager::showSkipMessage( bool show )

@@ -7,16 +7,36 @@
     #include "wx/wx.h"
 #endif
 
-#include "../Tools.h"
+#include "Common/Tools.h"
+#include "Renderer/ResourceManager.h"
+#include "Renderer/SpriteRenderer.h"
 #include "Base.h"
 #include "Brick.h"
 #include "Bricks.h"
 
 using namespace Shapes;
 
+Bricks::Bricks()
+{
+    for ( const auto& brick : s_bricksMap )
+    {
+        if ( brick.second.empty() )
+        {
+            s_brickSprites[ brick.first ] = nullptr;
+            continue;
+        }
+
+        s_brickSprites[ brick.first ] = ResourceManager::LoadTexture(
+            "/../resources/images/Bricks/" + brick.second,
+            true,
+            "brick_" + static_cast< int >( brick.first )
+        );
+    }
+}
+
 void Bricks::loadLevel( unsigned short level )
 {
-    const auto bricks = std::move( Tools::Instance().loadLevelFromFile( wxT( "/../resources/levels.txt" ), level ) );
+    const auto bricks = std::move( Tools::Instance().loadLevelFromFile( "/../resources/levels.txt", level ) );
 
     const int rows = bricks.size();
     const int cols = bricks[ 0 ].size();
@@ -32,21 +52,22 @@ void Bricks::loadLevel( unsigned short level )
                 std::make_shared<Brick>(
                     col,
                     row + startRow,
-                    m_bricksMap.at( static_cast< BrickType >( bricks[ row ][ col ] ) ) ) );
+                    s_brickSprites.at( static_cast< BrickType >( bricks[ row ][ col ] ) ) ) );
 }
 
-void Bricks::render( bool bRun, wxDC &dc, const std::function<bool( BrickPtr )> &checkIntersects ) const
+void Bricks::render( bool bRun, rendererPtr renderer, const std::function<bool( brickPtr )>& checkIntersects ) const
 {
     bool directionSwitched = false;
+    int count = 0;
 
     for ( const auto& brick : m_bricks )
     {
         if ( !brick->isAlive() )
             continue;
-        
+
         if ( bRun && !directionSwitched )
             directionSwitched = checkIntersects( brick );
 
-        brick->draw( dc );
+        brick->draw( renderer );
     }
 }

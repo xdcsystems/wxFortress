@@ -13,16 +13,18 @@ namespace Shapes
 
     class Ball final : public Base
     {
+        using rendererPtr = std::shared_ptr<SpriteRenderer>;
+
         public:
             using enum ContactPosition;
 
             Ball();
-            void clear( wxDC& dc ) const;
-            ContactPosition intersect( const wxRect& rect ) const;
+            ContactPosition intersect( const wxRect2DDouble& rect ) const;
+
+            double radius() { return m_radius; }
 
         private:
-            std::shared_ptr<wxBitmap> m_bitmapClear;
-            int m_radius = 0;
-            int m_radiusSquared = 0;
+            double m_radius = 0;
+            double m_radiusSquared = 0;
     };
 }

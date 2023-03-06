@@ -9,29 +9,15 @@
 
 #include <wx/mediactrl.h>
 
-#include "Timer.h"
-#include "shapes/ShapesManager.h"
-#include "MediaManager.h"
+#include "Common/Timer.h"
+#include "Shapes/ShapesManager.h"
+#include "Video/MediaManager.h"
 #include "MainFrame.h"
-#include "RenderWindow.h"
+#include "Renderer/RenderWindow.h"
 #include "ControlPanel/Panel.h"
 
 
 BEGIN_EVENT_TABLE( MainFrame, wxFrame )
-    // some useful events
-    /*
-     EVT_MOTION(MainFrame::mouseMoved)
-     EVT_LEFT_DOWN(MainFrame::mouseDown)
-     EVT_LEFT_UP(MainFrame::mouseReleased)
-     EVT_RIGHT_DOWN(MainFrame::rightClick)
-     EVT_LEAVE_WINDOW(MainFrame::mouseLeftWindow)
-     EVT_KEY_DOWN(MainFrame::keyPressed)
-     EVT_KEY_UP(MainFrame::keyReleased)
-     EVT_MOUSEWHEEL(MainFrame::mouseWheelMoved)
-     EVT_PAINT( MainFrame::OnPaint )
-     EVT_ERASE_BACKGROUND( OnEraseBackGround )
-     */
-
     EVT_SIZE( OnSize )
     EVT_CLOSE( OnClose )
     EVT_COMMAND( wxID_ANY, wxEVT_CURRENT_SCORE_INCREASED, OnScoreIncreased )
@@ -82,7 +68,7 @@ void MainFrame::init()
     m_mediaManager = std::make_shared <MediaManager>( this, wxID_ANY, wxDefaultPosition, size );
     m_mediaManager->playIntro();
 
-    m_renderSurface = std::make_shared<RenderWindow>( this, wxID_ANY, wxPoint( 0, 0 ), wxSize( 800, size.y ) );
+    m_renderSurface = std::make_shared<RenderWindow>( this, wxID_ANY, nullptr,  wxPoint( 0, 0 ), wxSize( 800, size.y ) );
     m_controlPanel = std::make_shared<ControlPanel::Panel>( this, wxID_ANY, wxPoint(800, 0), wxSize( size.x - 800, size.y ));
 
     wxBoxSizer* bSizer = new wxBoxSizer( wxHORIZONTAL );
@@ -90,7 +76,7 @@ void MainFrame::init()
     bSizer->Add( m_controlPanel.get(), wxEXPAND | wxALL );
 
     SetSizer( bSizer );
-
+    
     m_timer = std::make_shared<Timer>();
     m_timer->start();
 }
@@ -98,7 +84,6 @@ void MainFrame::init()
 void MainFrame::start()
 {
     m_controlPanel->Show();
-    m_renderSurface->Show();
 
     m_renderSurface->start();
     m_isRunning = true;
@@ -114,7 +99,7 @@ void MainFrame::start()
     m_mediaManager->reset();
 }
 
-void MainFrame::OnVideoFinished( wxCommandEvent& WXUNUSED( event ) )
+void MainFrame::OnVideoFinished( wxCommandEvent& )
 {
     start();
 }
@@ -138,6 +123,7 @@ void MainFrame::render( wxIdleEvent& event )
     if ( m_isRunning && m_timer->getElapsedTimeInMicroSec() > 3000 )
     {
         m_timer->stop();
+        m_renderSurface->update( m_timer->getElapsedTimeInSec() );
         m_renderSurface->paintNow();
         m_timer->start();
     }

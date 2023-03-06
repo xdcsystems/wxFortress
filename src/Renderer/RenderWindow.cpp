@@ -9,16 +9,32 @@
 
 #include <map>
 
-#include "Tools.h"
-#include "SoundManager.h"
-#include "shapes/ShapesManager.h"
+#include <GL/glew.h>
+
+#if defined (_MSC_VER)
+    #include <GL/wglew.h>
+#endif
+
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtx/transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
+#include "Common/Tools.h"
+#include "Shader.h"
+#include "SpriteRenderer.h"
+#include "Sounds/SoundManager.h"
+#include "Shapes/ShapesManager.h"
+#include "Shapes/ParticleGenerator.h"
 #include "Overlay.h"
 #include "RenderWindow.h"
+#include "ResourceManager.h"
+
 
 DEFINE_LOCAL_EVENT_TYPE( wxEVT_LAUNCH_PRESSED )
 DEFINE_LOCAL_EVENT_TYPE( wxEVT_NEW_ROUND_STARTED )
 
-BEGIN_EVENT_TABLE( RenderWindow, wxWindow )
+BEGIN_EVENT_TABLE( RenderWindow, wxGLCanvas )
     EVT_PAINT( OnPaint )
     EVT_KEY_DOWN( OnKeyPressed )
     EVT_SIZE( OnSize )
@@ -30,22 +46,87 @@ BEGIN_EVENT_TABLE( RenderWindow, wxWindow )
 END_EVENT_TABLE()
 
 
-RenderWindow::RenderWindow( wxWindow* parent, wxWindowID id, const wxPoint& pos, const wxSize& size, long style, const wxString& name)
-    :wxWindow( parent, id, pos, size, style, name )
+RenderWindow::RenderWindow(
+    wxWindow* parent,
+    wxWindowID id,
+    const int* attribList,
+    const wxPoint& pos,
+    const wxSize& size,
+    long style,
+    const wxString& name,
+    const wxPalette& palette )
+    : wxGLCanvas( parent, id, attribList, pos, size, style, name, palette )
 {
-    Hide();  // Initialy hide it
     init();
 }
 
 void RenderWindow::init()
 {
-    SetBackgroundStyle( wxBG_STYLE_PAINT );
-    SetBackgroundColour( *wxBLACK );
-    
-    m_shapesManager = std::make_shared<Shapes::ShapesManager>( this );
+    m_context = std::make_unique<wxGLContext>( this );
 
+    SetCurrent( *m_context );
+    InitializeGLEW();
+    SetupGraphics();
+    
     m_soundManager = std::make_shared<SoundManager>();
     m_soundManager->init();
+}
+
+RenderWindow::~RenderWindow()
+{
+    SetCurrent( *m_context );
+    ResourceManager::Clear();
+}
+
+void RenderWindow::InitializeGLEW()
+{
+    glewExperimental = true;
+    GLenum err = glewInit();
+    if ( err != GLEW_OK )
+    {
+        const GLubyte* msg = glewGetErrorString( err );
+        throw std::exception( reinterpret_cast< const char* >( msg ) );
+    }
+}
+
+void RenderWindow::SetupGraphics()
+{
+#if defined (_MSC_VER)
+    wglSwapIntervalEXT( 0 );
+#elif defined(_POSIX_VER)
+    glXSwapIntervalSGI( 0 );  //NOTE check for GLX_SGI_swap_control extension : http://www.opengl.org/wiki/Swap_Interval#In_Linux_.2F_GLXw
+#elif defined(_MACOSX_VER)
+    // aglSetInteger (AGL_SWAP_INTERVAL, 0);
+    wglSwapIntervalEXT( GetContext()->GetWXGLContext() );
+#endif
+
+    const auto size = GetClientSize();
+
+    // load shaders
+    ResourceManager::LoadShader( "/../data/shaders/Sprite.vs" , "/../data/shaders/Sprite.fraq", "", "sprite" );
+    ResourceManager::LoadShader( "/../data/shaders/Particle.vs", "/../data/shaders/Particle.frag", "", "particle" );
+    ResourceManager::LoadTexture( "/../resources/images/Particle.png", true, "particle" );
+
+    // configure shaders
+    glm::mat4 projection = glm::ortho( 0.0f, static_cast< float >( size.GetWidth() ), 0.0f, static_cast< float >( size.GetHeight() ), -1.0f, 1.0f );
+
+    ResourceManager::GetShader( "sprite" )->use().setInteger( "image", 0 );
+    ResourceManager::GetShader( "sprite" )->setMatrix4( "projection", projection );
+    ResourceManager::GetShader( "particle" )->use().setInteger( "sprite", 0 );
+    ResourceManager::GetShader( "particle" )->setMatrix4( "projection", projection );
+
+    // set render-specific controls
+    m_spriteRenderer = std::make_shared<SpriteRenderer>( ResourceManager::GetShader( "sprite" ) );
+
+    // set background to black
+    glClearColor( 0.0, 0.0, 0.0, 1.0 );
+    glEnable( GL_TEXTURE_2D );
+    glEnable( GL_COLOR_MATERIAL );
+    glEnable( GL_BLEND );
+    glDisable( GL_DEPTH_TEST );
+    glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+
+    m_shapesManager = std::make_shared<Shapes::ShapesManager>( this );
 }
 
 void RenderWindow::loadLevel( unsigned short level )
@@ -60,7 +141,6 @@ void RenderWindow::switchRun( )
 
     if ( m_state == NEWROUND )
     {
-        
         wxCommandEvent lounchPressedEvent( wxEVT_LAUNCH_PRESSED );
         ProcessEvent( lounchPressedEvent );
 
@@ -70,7 +150,7 @@ void RenderWindow::switchRun( )
         ProcessEvent( roundStartedEvent );
         
         m_state = COUNTDOWN;
-        for ( m_countDown = 0; m_countDown < 3; ++m_countDown )
+        for ( m_countDown = 3; m_countDown >= 1; --m_countDown )
         {
             paintNow();
             m_soundManager->playCountdown();
@@ -88,60 +168,52 @@ void RenderWindow::resize( const wxSize& size )
     if ( size.x < 1 || size.y < 1 )
         return;
 
-    m_bitmapBuffer = std::make_shared<wxBitmap>( size, 32 );
     m_overlay = std::make_shared<Overlay>( size );
     m_shapesManager->resize( size );
+}
+
+void RenderWindow::update( double deltaTime )
+{
+    m_shapesManager->update( deltaTime );
 }
 
 void RenderWindow::OnPaint( wxPaintEvent& event )
 {
     wxPaintDC dc( this );
-    render( dc );
+    render();
 }
 
 void RenderWindow::paintNow()
 {
-    wxClientDC dc( this );
-    render( dc );
+    render();
 }
 
-void RenderWindow::render( wxDC& dc )
+void RenderWindow::render()
 {
-    if ( !m_isRunning )
+    if ( !m_isRunning || !IsShown() )
         return;
 
-    const auto &clientSize = GetClientSize();
-    if ( !m_mdc )
-    {
-        if ( !m_bitmapBuffer || clientSize.x < 1 || clientSize.y < 1 )
-            return;
-
-        m_mdc = std::make_shared<wxMemoryDC>();
-        m_mdc->CopyAttributes( dc );
-        m_mdc->SetDeviceOrigin( 0, -clientSize.y );
-        m_mdc->SetAxisOrientation( 1, 1 );
-        m_mdc->SetBrush( *wxBLACK_BRUSH );
-    }
-    m_mdc->SelectObject( *m_bitmapBuffer );
+    SetCurrent( *m_context );
+    
+    glClear( GL_COLOR_BUFFER_BIT );
 
     checkKeysState();
     
-    m_shapesManager->renderFrame( *m_mdc );
+    m_shapesManager->renderFrame( m_spriteRenderer );
 
     switch ( m_state )
     {
         case PAUSE:
-            m_overlay->showPause( m_mdc.get(), &dc );
+            m_overlay->showPause( m_spriteRenderer );
             break;
         case COUNTDOWN:
-            m_overlay->showCountDown( m_mdc.get(), &dc, m_countDown );
+            m_overlay->showCountDown( m_spriteRenderer, m_countDown );
             break;
         default:
-            dc.Blit( 0, 0, clientSize.x, clientSize.y, m_mdc.get(), 0, -clientSize.y );
             break;
     }
 
-    m_mdc->SelectObject( wxNullBitmap );
+    SwapBuffers();
 }
 
 void RenderWindow::checkKeysState()
@@ -209,8 +281,7 @@ void RenderWindow::OnRoundCompleted( wxCommandEvent& event )
     m_soundManager->playLevelComplete();
     m_state = NEWROUND;
     
-    Refresh( false );
-    Update();
+    render();
 
     event.Skip();
 } 
@@ -220,8 +291,7 @@ void RenderWindow::OnBallLost( wxCommandEvent& event )
     m_soundManager->playBallLost();
     m_state = NEWROUND;
 
-    Refresh( false );
-    Update();
+    render();
 
     event.Skip();
 }

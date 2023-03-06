@@ -1,22 +1,41 @@
 #pragma once
 
+#include <memory>
+#include <glm/glm.hpp>
+
+// Forward declarations
+class Texture2D;
+class SpriteRenderer;
+
+class wxRect2DDouble;
+
 namespace Shapes
 {
     class Base
     {
+        using rendererPtr = std::shared_ptr<SpriteRenderer>;
+        using texture2DPtr = std::shared_ptr<Texture2D>;
+
         public:
             virtual ~Base() {};
-            virtual void load( const std::wstring& filename );
-            virtual void moveTo( int x, int y );
-            virtual void moveTo( const wxPoint& position );
+            virtual void load( texture2DPtr sprite );
+            virtual void moveTo( double x, double y );
+            virtual void moveTo( const wxPoint2DDouble& position );
 
-            virtual wxRect bounds() const { return { m_position, m_size }; };
-            virtual void clear( wxDC& dc ) const;
-            virtual void draw( wxDC& dc ) const;
+            virtual glm::vec2 position() { return m_position; }
+            virtual glm::vec2 velocity()  { return m_velocity; }
+
+            virtual wxRect2DDouble  bounds() const { 
+                return { m_position.x, m_position.y, m_size.x, m_size.y };
+            }
+
+            virtual void draw( rendererPtr renderer ) const;
 
         protected:
-            std::shared_ptr<wxBitmap> m_bitmap;
-            wxPoint m_position;
-            wxSize m_size;
+            glm::vec2 m_position, m_size, m_velocity;
+            texture2DPtr m_sprite;
     };
+
+    using basePtr = std::shared_ptr<Base>;
 }
+

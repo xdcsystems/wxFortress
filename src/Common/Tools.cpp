@@ -16,7 +16,7 @@
 #include "Tools.h"
 
 
-wxString Tools::getFullFileName( const std::wstring& filename ) const
+std::string Tools::getFullFileName( const std::string& filename ) const
 {
     wxFileName fileName( wxStandardPaths::Get().GetDataDir() + filename );
     fileName.Normalize( wxPATH_NORM_ABSOLUTE | wxPATH_NORM_DOTS );
@@ -27,10 +27,10 @@ wxString Tools::getFullFileName( const std::wstring& filename ) const
         throw std::runtime_error( "Error loading resource: " + filename );
     }
 
-    return fullFileName;
+    return fullFileName.ToStdString();
 }
 
-std::shared_ptr<wxBitmap> Tools::loadBitmapFromFile( const std::wstring& filename ) const
+std::shared_ptr<wxBitmap> Tools::loadBitmapFromFile( const std::string& filename ) const
 {
     const auto &fullFileName = getFullFileName( filename );
     auto bitmap = std::make_shared<wxBitmap>( fullFileName, wxBITMAP_TYPE_PNG );
@@ -42,9 +42,9 @@ std::shared_ptr<wxBitmap> Tools::loadBitmapFromFile( const std::wstring& filenam
     return bitmap;
 }
 
-std::vector< std::vector<int>> Tools::loadLevelFromFile( const std::wstring &filename, unsigned short levelNum ) const
+std::vector< std::vector<int>> Tools::loadLevelFromFile( const std::string &filename, unsigned short levelNum ) const
 {
-    wxFileInputStream input( getFullFileName( wxT( "/../resources/levels.txt" ) ) );
+    wxFileInputStream input( getFullFileName( "/../resources/levels.txt" ) );
     
     if ( !input.IsOk() )
         throw std::runtime_error( "Error loading level map file" );

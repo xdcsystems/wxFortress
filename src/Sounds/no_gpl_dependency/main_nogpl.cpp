@@ -1,9 +1,10 @@
-
-#include<iostream>
-#include<AL/al.h>
-#include<AL/alc.h>
-#include<dr_lib/dr_wav.h>
+#include <iostream>
+#include <AL/al.h>
+#include <AL/alc.h>
 #include <vector>
+
+#include "Sounds/dr_lib/dr_wav.h"
+
 
 //OpenAL error checking
 #define OpenAL_ErrorCheck(message)\
@@ -19,7 +20,7 @@
 FUNCTION_CALL;\
 OpenAL_ErrorCheck(FUNCTION_CALL)
 
-#define ENABLE_NO_GPL_MAIN 1
+#define ENABLE_NO_GPL_MAIN 0
 #if ENABLE_NO_GPL_MAIN
 int main()
 {

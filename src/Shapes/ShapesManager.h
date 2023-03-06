@@ -6,6 +6,10 @@ DECLARE_LOCAL_EVENT_TYPE( wxEVT_BALL_LOST, wxID_ANY )
 DECLARE_LOCAL_EVENT_TYPE( wxEVT_PING, wxID_ANY )
 DECLARE_LOCAL_EVENT_TYPE( wxEVT_PONG, wxID_ANY )
 
+// Forward declarations
+class SpriteRenderer;
+class ParticleGenerator;
+
 namespace Shapes
 {
     class Ball;
@@ -15,6 +19,9 @@ namespace Shapes
 
     class ShapesManager : public wxObject
     {
+        using rendererPtr = std::shared_ptr<SpriteRenderer>;
+        using particlesPtr = std::shared_ptr<ParticleGenerator>;
+
         public:
             enum class MoveDirection : char
             {
@@ -57,7 +64,10 @@ namespace Shapes
             ~ShapesManager() wxOVERRIDE {};
 
             void loadLevel( unsigned short level );
-            void renderFrame( wxMemoryDC& dc );
+            
+            void update( double deltaTime );
+            void renderFrame( rendererPtr spriteRenderer );
+
             void resize( const wxSize& size );
             bool switchRun( bool bNewRound = false );
             void moveBoard( int sizeMove ) { m_boardMove = sizeMove; }
@@ -68,7 +78,7 @@ namespace Shapes
             void changeMoveDirection( ContactPosition contactPosition, TypeContact typeContact = WallContact );
             void offsetBoard();
             void offsetBall();
-            wxRect updateBallPosition( const wxRect& boardBounds ) const;
+            wxRect2DDouble updateBallPosition( const wxRect2DDouble& boardBounds ) const;
 
             template <MoveDirection direction>
             void checkDirection( ContactPosition contactPosition );
@@ -81,18 +91,20 @@ namespace Shapes
             bool m_isRobot = true;
             
             int m_boardMove = 0;
-            int m_ballTopLimit = 0;
-            int m_ballBottomLimit = 0;
+            double m_ballTopLimit = 0;
+            double m_ballBottomLimit = 0;
 
             double m_diagonal = 0;
             double m_angle = 90;
 
-            std::vector<wxPoint> m_trajectory;
-            std::vector<wxPoint>::const_iterator m_currentTrajectoryPoint;
+            std::vector<wxPoint2DDouble> m_trajectory;
+            std::vector<wxPoint2DDouble>::const_iterator m_currentTrajPoint;
 
             std::shared_ptr<Ball> m_ball;
             std::shared_ptr<Board> m_board;
             std::shared_ptr<Bricks> m_bricks;
+
+            std::shared_ptr<ParticleGenerator> m_particles;
 
             wxEvtHandler* m_eventHandler = nullptr;
             wxCommandEvent m_eventCurrentScoreInc;
