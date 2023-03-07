@@ -14,9 +14,6 @@
 
 using namespace Shapes;
 
-// default brick size
-const glm::vec2 Brick::s_defaultSize = { 57.f, 27.f };
-
 Brick::Brick( double x, double y, texture2DPtr sprite )
  : Base()
 {

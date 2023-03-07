@@ -15,6 +15,7 @@ class Texture2D
         
         // generates texture from image data
         void generate( wxImage* image );
+        void generate_old( wxImage* image );
         
         // binds the texture as the current active GL_TEXTURE_2D texture object
         void bind() const;

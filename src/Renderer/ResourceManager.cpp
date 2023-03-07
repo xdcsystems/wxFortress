@@ -49,11 +49,11 @@ void ResourceManager::Clear()
 {
     // (properly) delete all shaders	
     for ( auto iter : s_shaders )
-        glDeleteProgram( iter.second->ID );
+        GL_CHECK( glDeleteProgram( iter.second->ID ));
     
     // (properly) delete all textures
     for ( auto iter : s_textures )
-        glDeleteTextures( 1, &iter.second->ID );
+        GL_CHECK( glDeleteTextures( 1, &iter.second->ID ));
 }
 
 shaderPtr ResourceManager::LoadShaderFromFile( const std::string& vShaderFile, const std::string& fShaderFile, const std::string& gShaderFile )

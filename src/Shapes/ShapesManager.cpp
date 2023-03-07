@@ -44,11 +44,11 @@ ShapesManager::ShapesManager( wxWindow* parent )
     m_board = std::make_shared<Board>();
     m_bricks = std::make_shared<Bricks>();
 
-    // set render-specific controls
-    m_particles = std::make_shared<ParticleGenerator>(
+    // set render-specific controls TODO
+    /*m_particles = std::make_shared<ParticleGenerator>(
         ResourceManager::GetShader( "particle" ),
         ResourceManager::GetTexture( "particle" ),
-        500 );
+        500 );*/
 }
 
 bool ShapesManager::switchRun( bool bNewRound )
@@ -269,7 +269,7 @@ void ShapesManager::changeMoveDirection( ContactPosition contactPosition, TypeCo
 
 void ShapesManager::update( double deltaTime )
 {
-    m_particles->update( deltaTime, m_ball, 1, glm::vec2( m_ball->radius() / 2.0f ) );
+    // TODO: m_particles->update( deltaTime, m_ball, 1, glm::vec2( m_ball->radius() / 2.0f ) );
 }
 
 void ShapesManager::renderFrame( rendererPtr spriteRenderer )
@@ -294,7 +294,7 @@ void ShapesManager::renderFrame( rendererPtr spriteRenderer )
     if ( m_bRun )
     {
         offsetBall();
-        m_particles->draw();
+        // TODO: m_particles->draw();
     }
     else
         updateBallPosition( m_board->bounds() );

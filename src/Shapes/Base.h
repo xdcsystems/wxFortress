@@ -32,7 +32,10 @@ namespace Shapes
             virtual void draw( rendererPtr renderer ) const;
 
         protected:
-            glm::vec2 m_position, m_size, m_velocity;
+            glm::vec2 m_position = glm::vec2( 0 ),
+                          m_size = glm::vec2( 0 ),
+                          m_velocity = glm::vec2( 0 );
+
             texture2DPtr m_sprite;
     };
 

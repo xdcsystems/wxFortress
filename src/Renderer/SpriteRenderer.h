@@ -31,7 +31,7 @@ class SpriteRenderer
     private:
         // Render state
         shaderPtr    m_shader;
-        unsigned int m_quadVAO;
+        unsigned int m_VBO = 0;
 };
 
 using rendererPtr = std::shared_ptr<SpriteRenderer>;

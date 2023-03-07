@@ -8,11 +8,14 @@
 #endif
 
 #include <GL/glew.h>
+
+#include "Common/Tools.h"
 #include "texture.h"
 
 
 Texture2D::Texture2D()
-    : Width( -1 )
+    : ID( 0 )
+    , Width( -1 )
     , Height( -1 )
     , Internal_Format( GL_RGB )
     , Image_Format( GL_RGB )
@@ -21,7 +24,7 @@ Texture2D::Texture2D()
     , Filter_Min( GL_LINEAR )
     , Filter_Max( GL_LINEAR )
 {
-    glGenTextures( 1, &ID );
+    GL_CHECK( glGenTextures( 1, &ID ) );
 }
 
 void Texture2D::generate( wxImage* image )
@@ -30,8 +33,8 @@ void Texture2D::generate( wxImage* image )
     Height = image->GetHeight();
 
     // create Texture
-    glBindTexture( GL_TEXTURE_2D, ID );
-    glActiveTexture( ID );
+    GL_CHECK( glActiveTexture( GL_TEXTURE0  ) );
+    GL_CHECK( glBindTexture( GL_TEXTURE_2D, ID ) );
 
     // https://www.khronos.org/opengl/wiki/Common_Mistakes#The_Object_Oriented_Language_Problem
     //glPixelStorei( GL_UNPACK_ALIGNMENT, 4 );
@@ -67,11 +70,25 @@ void Texture2D::generate( wxImage* image )
         }
     }
 
-    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0 );
-    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0 );
+    // if only one texture
+    // GL_CHECK( glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0 ) );
+    // GL_CHECK( glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0 ) );
+
+    //// set Texture wrap and filter modes
+    // glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, Filter_Min );
+    // glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, Filter_Max );
+    // glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, Wrap_S );
+    // glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, Wrap_T );
+
+    // auto generate MIPMAP
+    GL_CHECK( glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT ) );
+    GL_CHECK( glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT ) );
+    GL_CHECK( glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR ) );
+    GL_CHECK( glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR ) );
+    GL_CHECK( glTexParameteri( GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_TRUE ) );
 
     // if yes, everything is fine
-    glTexImage2D( GL_TEXTURE_2D,
+    GL_CHECK( glTexImage2D( GL_TEXTURE_2D,
         0,
         image->HasAlpha() ? GL_RGBA8 : GL_RGB8, // bytesPerPixel
         Width,
@@ -79,28 +96,15 @@ void Texture2D::generate( wxImage* image )
         0,
         image->HasAlpha() ? GL_RGBA : GL_RGB,
         GL_UNSIGNED_BYTE,
-        imageData );
+        imageData ) );
 
     delete[] imageData;
 
-    //glGenerateMipmap( GL_TEXTURE_2D );  //Generate mipmaps now!!! - only from GL 3.0
-    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT );
-    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT );
-    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
-    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR );
-
-    // set Texture wrap and filter modes
-    //glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, Filter_Min );
-    //glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, Filter_Max );
-
-    //glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, Wrap_S );
-    //glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, Wrap_T );
-
     // unbind texture
-    glBindTexture( GL_TEXTURE_2D, 0 );
+    GL_CHECK( glBindTexture( GL_TEXTURE_2D, 0 ) );
 }
 
 void Texture2D::bind() const
 {
-    glBindTexture( GL_TEXTURE_2D, ID );
+    GL_CHECK( glBindTexture( GL_TEXTURE_2D, ID ) );
 }

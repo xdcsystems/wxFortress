@@ -14,7 +14,7 @@ namespace Shapes
             void kill() { m_alive = false; }
 
         private:
-            static const glm::vec2 s_defaultSize;
+            static inline const glm::vec2 s_defaultSize = { 57.f, 27.f };
             bool m_alive = true;
     };
     
