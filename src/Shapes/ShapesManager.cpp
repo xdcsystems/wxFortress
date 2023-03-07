@@ -7,18 +7,20 @@
 #include "wx/wx.h"
 #endif
 
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
 #include <random>
 
-#include <wx/dcbuffer.h>
-
-
-#include "../Tools.h"
+#include "Common/Tools.h"
 #include "Base.h"
 #include "Ball.h"
 #include "Brick.h"
 #include "Bricks.h"
 #include "Board.h"
+#include "ParticleGenerator.h"
 #include "ShapesManager.h"
+#include "Renderer/ResourceManager.h"
 
 
 DEFINE_LOCAL_EVENT_TYPE( wxEVT_CURRENT_SCORE_INCREASED )
@@ -41,6 +43,12 @@ ShapesManager::ShapesManager( wxWindow* parent )
     m_ball = std::make_shared<Ball>();
     m_board = std::make_shared<Board>();
     m_bricks = std::make_shared<Bricks>();
+
+    // set render-specific controls TODO
+    /*m_particles = std::make_shared<ParticleGenerator>(
+        ResourceManager::GetShader( "particle" ),
+        ResourceManager::GetTexture( "particle" ),
+        500 );*/
 }
 
 bool ShapesManager::switchRun( bool bNewRound )
@@ -64,14 +72,18 @@ bool ShapesManager::switchRun( bool bNewRound )
     return m_bRun;
 };
 
-wxRect ShapesManager::updateBallPosition( const wxRect &boardBounds ) const
+wxRect2DDouble ShapesManager::updateBallPosition( const wxRect2DDouble &boardBounds ) const
 {
     if ( m_size.x < 1 || m_size.y < 1 || !m_trajectory.empty() )
         return {};
 
     // set ball on board
     const auto &ballBounds = m_ball->bounds();
-    m_ball->moveTo( boardBounds.x + ( ( boardBounds.width - ballBounds.width ) >> 1 ), boardBounds.y + boardBounds.height );
+    
+    m_ball->moveTo( 
+        boardBounds.m_x + ( boardBounds.m_width - ballBounds.m_width ) / 2,
+        boardBounds.m_y + boardBounds.m_height );
+
     return m_ball->bounds();
 }
 
@@ -89,14 +101,14 @@ void ShapesManager::resize( const wxSize& size )
 
     // set board position 
     auto boardBounds = std::move( m_board->bounds() );
-    m_board->moveTo( ( ( m_size.x - boardBounds.width ) >> 1 ), 15 );
+    m_board->moveTo( ( m_size.x - boardBounds.m_width ) / 2, 15 );
 
     // set ball on board
     boardBounds = std::move( m_board->bounds() );
     const auto &ballBounds = updateBallPosition( boardBounds );
 
-    m_ballTopLimit = m_size.y - ballBounds.height;
-    m_ballBottomLimit = boardBounds.y + boardBounds.height;
+    m_ballTopLimit = m_size.y - ballBounds.m_height;
+    m_ballBottomLimit = boardBounds.m_y + boardBounds.m_height;
 
     m_eventHandler = m_parent->GetEventHandler();
     m_eventCurrentScoreInc.SetEventObject( this );
@@ -106,45 +118,38 @@ void ShapesManager::resize( const wxSize& size )
 
 void ShapesManager::calculateTrajectory()
 {
-    static auto d2r = []( double d ) { return ( d / 180.0 ) * ( ( double )M_PI ); };
-    const auto &bounds = m_ball->bounds();
+    const auto &ballBounds = m_ball->bounds();
+    const auto radAngle = glm::radians( m_angle );
 
-    int x = bounds.x + m_diagonal * cos( d2r( m_angle ) );
-    int y = bounds.y + m_diagonal * sin( d2r( m_angle ) );
+    const wxPoint2DDouble delta( m_diagonal * cos( radAngle ), m_diagonal * sin( radAngle ));
 
-    //////////////////////// TODO
+    m_trajectory.clear();
+    
+    const double Rab = delta.GetVectorLength();
+    for ( double Rac = 1; Rac <= Rab; ++Rac )
+    {
+        const auto k = Rac / Rab;
+        const auto Xc = ballBounds.m_x + delta.m_x * k;
+        const auto Yc = ballBounds.m_y + delta.m_y * k;
 
-    //const double deltaX = x - bounds.x;
-    //const double deltaY = y - bounds.y;
+        m_trajectory.push_back( { Xc, Yc } );
 
-    //m_trajectory.clear();
-    //const double Rab = sqrt( pow( deltaX, 2 ) + pow( deltaY, 2 ) );
-    //for ( double Rac = 1; Rac <= Rab; ++Rac )
-    //{
-    //    const auto k = Rac / Rab;
-    //    const auto Xc = bounds.x + deltaX * k;
-    //    const auto Yc = bounds.y + deltaY * k;
-
-    //    if ( Xc < 0 || Yc < 0 || Xc > m_size.x || Yc > m_size.y )
-    //        break;
-
-    //    m_trajectory.push_back( { Xc, Yc } );
-    //}
-
-    Tools::Instance().bhmLine( m_trajectory, bounds.x, bounds.y, x, y, m_size );
-    m_currentTrajectoryPoint = m_trajectory.begin();
+        if ( Xc < 0 || Yc < 0 || Xc > m_size.x || Yc > m_size.y )
+            break;
+    }
 
     if ( m_isRobot && ( m_moveDirection == DirectionLeftDown || m_moveDirection == DirectionRightDown ) )
     {
         const auto &boardBounds = m_board->bounds();
-        const auto pointItor = std::find_if( m_trajectory.begin(), m_trajectory.end(), [&boardBounds]( auto& point ) {
-                return point.y <= boardBounds.y + boardBounds.height;
-            } );
+        m_currentTrajPoint = std::find_if( m_trajectory.begin(), m_trajectory.end(), [ &boardBounds ]( auto& point ) {
+            return point.m_y <= boardBounds.GetBottom();
+        } );
 
-        if ( pointItor != m_trajectory.end() )
-            m_boardMove = pointItor->x + ( bounds.width >> 1 ) - boardBounds.x - ( boardBounds.width >> 1 );
+        if ( m_currentTrajPoint != m_trajectory.end() )
+            m_boardMove = m_currentTrajPoint->m_x + ( ballBounds.m_width - boardBounds.m_width ) / 2 - boardBounds.m_x;
     }
 
+    m_currentTrajPoint = m_trajectory.begin();
 }
 
 void ShapesManager::stop()
@@ -262,53 +267,57 @@ void ShapesManager::changeMoveDirection( ContactPosition contactPosition, TypeCo
     calculateTrajectory();
 }
 
-void ShapesManager::renderFrame( wxMemoryDC &dc )
+void ShapesManager::update( double deltaTime )
+{
+    // TODO: m_particles->update( deltaTime, m_ball, 1, glm::vec2( m_ball->radius() / 2.0f ) );
+}
+
+void ShapesManager::renderFrame( rendererPtr spriteRenderer )
 {
     ContactPosition contactPosition = Ball::ContactNull;
-    m_bricks->render( m_bRun, dc,  [ this, &dc, &contactPosition ]( std::shared_ptr<Brick> brick ) {
+    m_bricks->render( m_bRun, spriteRenderer, [this, &spriteRenderer, &contactPosition]( brickPtr brick ) {
         contactPosition = m_ball->intersect( brick->bounds() );
         if ( contactPosition == Ball::ContactNull )
             return false;
-        
-        brick->kill( dc );
+
+        brick->kill();
         changeMoveDirection( contactPosition, BrickContact );
 
         return true;
-    } );
-
-    m_board->clear( dc );
+        } );
 
     if ( m_boardMove )
         offsetBoard();
-    
-    m_board->draw( dc );
-    
-    m_ball->clear( dc );
+
+    m_board->draw( spriteRenderer );
 
     if ( m_bRun )
+    {
         offsetBall();
+        // TODO: m_particles->draw();
+    }
     else
         updateBallPosition( m_board->bounds() );
 
-    m_ball->draw( dc );
+    m_ball->draw( spriteRenderer );
 }
 
 void ShapesManager::offsetBoard()
 {
     auto boardBounds = std::move( m_board->bounds() );
-    boardBounds.x += m_boardMove;
+    boardBounds.m_x += m_boardMove;
 
-    if ( m_boardMove > 0 && !( boardBounds.x + boardBounds.width < m_size.x ) ) // move to right
+    if ( m_boardMove > 0 && !( boardBounds.GetRight() < m_size.x ) ) // move to right
     {
-        m_board->moveTo( m_size.x - boardBounds.width, boardBounds.y );
+        m_board->moveTo( m_size.x - boardBounds.m_width, boardBounds.m_y );
     }
-    else if ( m_boardMove < 0 && !( boardBounds.x > 0 ) ) // move to left
+    else if ( m_boardMove < 0 && !( boardBounds.m_x > 0 ) ) // move to left
     {
-        m_board->moveTo( 0, boardBounds.y );
+        m_board->moveTo( 0, boardBounds.m_y );
     }
     else
     {
-        m_board->moveTo( boardBounds.x, boardBounds.y );
+        m_board->moveTo( boardBounds.m_x, boardBounds.m_y );
     }
 
     if ( m_isRobot )
@@ -317,14 +326,16 @@ void ShapesManager::offsetBoard()
 
 void ShapesManager::offsetBall()
 {
-    if ( m_currentTrajectoryPoint != m_trajectory.end() )
+    if ( m_currentTrajPoint != m_trajectory.end() )
     {
-        //auto CurrentSpeed = 1;
-        m_ball->moveTo( *m_currentTrajectoryPoint++ );
-        /*if ( std::distance<std::vector<wxPoint>::const_iterator>( m_currentTrajectoryPoint, m_trajectory.end() ) > CurrentSpeed )
-            m_currentTrajectoryPoint += CurrentSpeed;
+        //auto currentSpeed = 2;
+        m_ball->moveTo( *m_currentTrajPoint++ );
+        /*if ( std::distance<std::vector<wxPoint2DDouble>::const_iterator>( m_currentTrajPoint, m_trajectory.end() ) > currentSpeed )
+            m_currentTrajPoint += currentSpeed;
         else
-            m_currentTrajectoryPoint++;*/
+            ++m_currentTrajPoint;*/
+
+        //m_ball->moveTo( *m_currentTrajPoint );
     }
 
     const auto &ballBounds = m_ball->bounds();
@@ -334,30 +345,30 @@ void ShapesManager::offsetBall()
         case DirectionTopRight:
             if ( ballBounds.GetRight() >= m_size.x )
                 changeMoveDirection( Ball::ContactRight );
-            else if ( ballBounds.y >= m_ballTopLimit )
+            else if ( ballBounds.m_y >= m_ballTopLimit )
                 changeMoveDirection( Ball::ContactBottom );
         break;
 
         case DirectionTopLeft:
-            if ( ballBounds.x <= 0 )
+            if ( ballBounds.m_x <= 0 )
                 changeMoveDirection( Ball::ContactLeft );
-            else if ( ballBounds.y >= m_ballTopLimit )
+            else if ( ballBounds.m_y >= m_ballTopLimit )
                 changeMoveDirection( Ball::ContactBottom );
         break;
 
         case DirectionRightDown:
             if ( ballBounds.GetRight() >= m_size.x )
                 changeMoveDirection( Ball::ContactRight );
-            else if ( ballBounds.y < m_ballBottomLimit )
+            else if ( ballBounds.m_y < m_ballBottomLimit )
                 changeMoveDirection( Ball::ContactTop,
                     m_ball->intersect( m_board->admissibleBounds( ballBounds ) ) == Ball::ContactNull ? BallLost : PaddleContact );
         break;
 
         case DirectionLeftDown:
-            if ( ballBounds.y < m_ballBottomLimit )
+            if ( ballBounds.m_y < m_ballBottomLimit )
                 changeMoveDirection( Ball::ContactBottom,
                     m_ball->intersect( m_board->admissibleBounds( ballBounds ) ) == Ball::ContactNull ? BallLost : PaddleContact );
-            else if ( ballBounds.x <= 0 )
+            else if ( ballBounds.m_x <= 0 )
                 changeMoveDirection( Ball::ContactLeft );
         break;
     }

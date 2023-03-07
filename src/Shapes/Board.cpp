@@ -7,6 +7,7 @@
     #include "wx/wx.h"
 #endif
 
+#include "Renderer/ResourceManager.h"
 #include "Base.h"
 #include "Board.h"
 
@@ -15,10 +16,13 @@ using namespace Shapes;
 Board::Board()
  : Base()
 {
-    load( wxT( "/../resources/images/simple_board.png" ) );
+    load( ResourceManager::LoadTexture( "/../resources/images/SimpleBoard.png", true, "simple_board" ) );
 }
 
-wxRect Board::admissibleBounds( const wxRect& bounds ) const
+wxRect2DDouble Board::admissibleBounds( const wxRect2DDouble& bounds ) const
 {
-    return Base::bounds().Inflate( bounds.GetWidth() >> 1, 0 );
+    auto boundsRect = std::move( Base::bounds() );
+    boundsRect.Inset( bounds.m_width / 2, 0.0 );
+    
+    return boundsRect;
 }

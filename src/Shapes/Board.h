@@ -6,6 +6,6 @@ namespace Shapes
     {
         public:
             Board();
-            wxRect admissibleBounds( const wxRect &bounds ) const;
+            wxRect2DDouble admissibleBounds( const wxRect2DDouble& bounds ) const;
     };
 }

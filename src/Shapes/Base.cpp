@@ -5,40 +5,36 @@
 // need because it includes almost all "standard" wxWidgets headers)
 #ifndef WX_PRECOMP
     #include "wx/wx.h"
-    #include <wx/dc.h>
 #endif
 
-#include "../Tools.h"
+#include "Common/Tools.h"
+#include "Renderer/Texture.h"
+#include "Renderer/SpriteRenderer.h"
 #include "Base.h"
 
 using namespace Shapes;
 
-void Base::load( const std::wstring& filename )
+void Base::load( texture2DPtr sprite )
 {
-    m_bitmap = Tools::Instance().loadBitmapFromFile( filename );
-    m_size = m_bitmap->GetSize();
+    m_sprite = sprite;
+    m_size = { m_sprite->Width, m_sprite->Height };
 }
 
-void Base::moveTo( int x, int y )
+void Base::moveTo( double x, double y )
 {
     m_position.x = x;
     m_position.y = y;
 }
 
-void Base::moveTo( const wxPoint& position )
+void Base::moveTo( const wxPoint2DDouble& position )
 {
-    moveTo( position.x, position.y );
+    moveTo( position.m_x, position.m_y );
 }
 
-void Base::draw( wxDC& dc ) const
+void Base::draw( rendererPtr renderer ) const
 {
-    if ( !m_bitmap )
+    if ( !m_sprite )
         return;
-    
-    dc.DrawBitmap( *m_bitmap, m_position, true );
-}
 
-void Base::clear( wxDC& dc ) const
-{
-    dc.DrawRectangle( bounds() );
+    renderer->drawSprite( m_sprite, m_position, m_size );
 }

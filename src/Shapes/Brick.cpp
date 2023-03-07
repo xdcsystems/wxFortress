@@ -7,39 +7,23 @@
     #include "wx/wx.h"
 #endif
 
+#include "Renderer/Texture.h"
+#include "Renderer/SpriteRenderer.h"
 #include "Base.h"
 #include "Brick.h"
 
 using namespace Shapes;
 
-// default brick size
-const wxSize Brick::s_defaultSize = { 57, 27 };
-
-Brick::Brick( int x, int y, const std::wstring& filename )
+Brick::Brick( double x, double y, texture2DPtr sprite )
  : Base()
 {
-    if ( filename.empty() ) // empty place
+    if ( !sprite ) // empty place
     {
         m_size = s_defaultSize;
         m_alive = false;
     }
     else
-        load( wxT( "/../resources/images/Bricks/" ) + filename );
+        load( sprite );
 
-    m_position = { x * m_size.GetWidth(), y * m_size.GetHeight() };
-}
-
-void Brick::draw( wxDC& dc )
-{
-    if ( m_painted )
-        return;
-
-    Base::draw( dc );
-    m_painted = true;
-}
-
-void Brick::kill( wxDC& dc )
-{
-    clear( dc );
-    m_alive = false;
+    m_position = { x * m_size.x, y * m_size.y };
 }

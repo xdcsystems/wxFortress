@@ -1,18 +1,9 @@
-// For compilers that support precompilation, includes "wx/wx.h".
-#include "wx/wxprec.h"
-
-// for all others, include the necessary headers (this file is usually all you
-// need because it includes almost all "standard" wxWidgets headers)
-#ifndef WX_PRECOMP
-#include "wx/wx.h"
-#endif
-
 #include<iostream>
 #include<AL/al.h>
 #include <AL/alc.h>
-#include "sounds/AudioFile/AudioFile.h"
 
-#include "Tools.h"
+#include "AudioFile/AudioFile.h"
+#include "Common/Tools.h"
 #include "SoundManager.h"
 
 
@@ -37,11 +28,11 @@ SoundManager::~SoundManager()
 	alcCloseDevice( m_device );
 }
 
-int SoundManager::loadBuffer( AudioFile<float>& soundFile, const std::wstring &fileName, ALuint* buffer )
+int SoundManager::loadBuffer( AudioFile<float>& soundFile, const std::string &fileName, ALuint* buffer )
 {
 	std::vector<uint8_t> PCMDataBytes;
 
-	if ( !soundFile.load( Tools::Instance().getFullFileName( wxT( "/../resources/sounds/" + fileName ) ).ToStdString() ))
+	if ( !soundFile.load( Tools::Instance().getFullFileName( "/../resources/sounds/" + fileName ) ) )
 	{
 		std::cerr << "failed to load sound file" << std::endl;
 		return -1;
@@ -101,16 +92,16 @@ int SoundManager::init()
 
 	// Create buffers that hold our sound data; these are shared between contexts and ar defined at a device level
 	AudioFile<float> soundFile;
-	loadBuffer( soundFile, wxT("Rocket.wav"), &m_monoSoundBuffer );
+	loadBuffer( soundFile, "Rocket.wav", &m_monoSoundBuffer );
 
 	// load a stereo files into a buffers
-	loadBuffer( soundFile, wxT( "Launch.wav" ), &m_stereoLounchSoundBuffer );
-	loadBuffer( soundFile, wxT( "Countdown.wav" ), &m_stereoCountdownSoundBuffer );
-	loadBuffer( soundFile, wxT( "DesroyBrick.wav" ), &m_stereoDesroyBrickSoundBuffer );
-	loadBuffer( soundFile, wxT( "Ping.wav" ), &m_stereoPingSoundBuffer );
-	loadBuffer( soundFile, wxT( "Pong.wav" ), &m_stereoPongSoundBuffer );
-	loadBuffer( soundFile, wxT( "LevelComplete.wav" ), &m_stereoLevelCompleteSoundBuffer );
-	loadBuffer( soundFile, wxT( "BallLost.wav" ), &m_stereoBallLostSoundBuffer );
+	loadBuffer( soundFile, "Launch.wav", &m_stereoLounchSoundBuffer );
+	loadBuffer( soundFile, "Countdown.wav", &m_stereoCountdownSoundBuffer );
+	loadBuffer( soundFile, "DesroyBrick.wav", &m_stereoDesroyBrickSoundBuffer );
+	loadBuffer( soundFile, "Ping.wav", &m_stereoPingSoundBuffer );
+	loadBuffer( soundFile, "Pong.wav", &m_stereoPongSoundBuffer );
+	loadBuffer( soundFile, "LevelComplete.wav", &m_stereoLevelCompleteSoundBuffer );
+	loadBuffer( soundFile, "BallLost.wav", &m_stereoBallLostSoundBuffer );
 		
 	// create a sound source for our stereo sound; note 3d positioning doesn't work with stereo files because
 	// stereo files are typically used for music. stereo files come out of both ears so it is hard to know
