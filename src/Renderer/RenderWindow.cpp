@@ -110,19 +110,15 @@ void RenderWindow::SetupGraphics()
 
     // load shaders
     ResourceManager::LoadShader( "/../data/shaders/Sprite.vs", "/../data/shaders/Sprite.fraq", "", "sprite" );
-    //ResourceManager::LoadShader( "/../data/shaders/Particle.vs", "/../data/shaders/Particle.frag", "", "particle" );
-    //ResourceManager::LoadTexture( "/../resources/images/Particle.png", true, "particle" );
+    ResourceManager::LoadShader( "/../data/shaders/Particle.vs", "/../data/shaders/Particle.frag", "", "particle" );
 
     // configure shaders
     glm::mat4 projection = glm::ortho( 0.0f, static_cast< float >( size.GetWidth() ), 0.0f, static_cast< float >( size.GetHeight() ), -1.0f, 1.0f );
 
     ResourceManager::GetShader( "sprite" )->use().setInteger( "image", 0 );
     ResourceManager::GetShader( "sprite" )->setMatrix4( "projection", projection );
-    //ResourceManager::GetShader( "particle" )->use().setInteger( "sprite", 0 );
-    //ResourceManager::GetShader( "particle" )->setMatrix4( "projection", projection );
-
-    // set render-specific controls
-    m_spriteRenderer = std::make_shared<SpriteRenderer>( ResourceManager::GetShader( "sprite" ) );
+    ResourceManager::GetShader( "particle" )->use().setInteger( "sprite", 0 );
+    ResourceManager::GetShader( "particle" )->setMatrix4( "projection", projection );
 
     // set background to black
     GL_CHECK( glClearColor( 0.0, 0.0, 0.0, 1.0 ) );
@@ -132,6 +128,8 @@ void RenderWindow::SetupGraphics()
     GL_CHECK( glDisable( GL_DEPTH_TEST ) );
     GL_CHECK( glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA ) );
 
+    // set render-specific controls
+    m_spriteRenderer = std::make_shared<SpriteRenderer>( ResourceManager::GetShader( "sprite" ) );
     m_shapesManager = std::make_shared<Shapes::ShapesManager>( this );
 }
 
@@ -212,9 +210,11 @@ void RenderWindow::render()
         case PAUSE:
         m_overlay->showPause( m_spriteRenderer );
         break;
+    
         case COUNTDOWN:
         m_overlay->showCountDown( m_spriteRenderer, m_countDown );
         break;
+        
         default:
         break;
     }

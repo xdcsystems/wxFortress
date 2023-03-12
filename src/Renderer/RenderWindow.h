@@ -72,12 +72,12 @@ class RenderWindow final : public wxGLCanvas
 
     private:
         // Private data
-        std::shared_ptr<Shapes::ShapesManager> m_shapesManager;
-        std::shared_ptr <SoundManager> m_soundManager;
-
         std::unique_ptr<wxGLContext> m_context;
         std::shared_ptr<SpriteRenderer> m_spriteRenderer;
         std::shared_ptr<Overlay> m_overlay;
+
+        std::shared_ptr<Shapes::ShapesManager> m_shapesManager;
+        std::shared_ptr <SoundManager> m_soundManager;
 
         double m_accelerate = 0;
         bool m_isRunning = false;

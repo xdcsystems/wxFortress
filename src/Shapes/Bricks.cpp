@@ -58,7 +58,8 @@ void Bricks::loadLevel( unsigned short level )
 void Bricks::render( bool bRun, rendererPtr renderer, const std::function<bool( brickPtr )>& checkIntersects ) const
 {
     bool directionSwitched = false;
-    int count = 0;
+
+    renderer->selectShader();
 
     for ( const auto& brick : m_bricks )
     {

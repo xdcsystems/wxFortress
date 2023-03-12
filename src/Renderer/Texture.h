@@ -15,14 +15,13 @@ class Texture2D
         
         // generates texture from image data
         void generate( wxImage* image );
-        void generate_old( wxImage* image );
         
         // binds the texture as the current active GL_TEXTURE_2D texture object
         void bind() const;
 
     public:
         // holds the ID of the texture object, used for all texture operations to reference to this particular texture
-        unsigned int ID;
+        unsigned int ID = 0; // 0 is reserved, glGenBuffers() will return non-zero id if success
 
         // texture image dimensions
         int Width, Height; // width and height of loaded image in pixels
