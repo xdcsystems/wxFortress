@@ -17,7 +17,7 @@ namespace Shapes
         using texture2DPtr = std::shared_ptr<Texture2D>;
 
         public:
-            virtual ~Base() {};
+            virtual ~Base() = default;
             virtual void load( texture2DPtr sprite );
             virtual void moveTo( double x, double y );
             virtual void moveTo( const wxPoint2DDouble& position );

@@ -37,7 +37,7 @@ bool App::OnInit()
     }
     catch ( std::exception& e )
     {
-        MessageBoxA( NULL, e.what(), "Exception Caught", MB_OK );
+        wxMessageBox( e.what(), "Exception Caught", MB_OK );
     }
   
     // Something went wrong ...

@@ -33,10 +33,7 @@ void CheckOpenGLError( const char* stmt, const char* fname, int line )
             case GL_OUT_OF_MEMORY:                 error = "OUT_OF_MEMORY"; break;
             case GL_INVALID_FRAMEBUFFER_OPERATION: error = "INVALID_FRAMEBUFFER_OPERATION"; break;
         }
-        wxString what;
-        what.Printf( "[OpenGL ERROR : %s in file %s line ( %d ) - for %s", error, fname, line, stmt );
-
-        wxLogMessage( what );
+        wxLogMessage( "[OpenGL ERROR : %s in file %s line ( %d ) - for %s", error, fname, line, stmt );
     }
 }
 

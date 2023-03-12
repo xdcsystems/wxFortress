@@ -33,8 +33,8 @@ namespace Shapes
         using shaderPtr = std::shared_ptr<Shader>;
 
         public:
-
-            ParticleGenerator( shaderPtr shader, texture2DPtr texture, unsigned int amount );
+            ParticleGenerator( unsigned int amount );
+            ~ParticleGenerator();
 
             // update all particles
             void update( float dt, basePtr object, unsigned int newParticles, glm::vec2 offset = glm::vec2( 0.0f, 0.0f ) );
@@ -43,15 +43,6 @@ namespace Shapes
             void draw();
 
         private:
-            // state
-            std::vector<Particle> m_particles;
-            unsigned int m_amount;
-
-            // render state
-            shaderPtr m_shader;
-            texture2DPtr m_texture;
-            unsigned int m_VAO;
-
             // initializes buffer and vertex attributes
             void init();
 
@@ -60,5 +51,21 @@ namespace Shapes
 
             // respawns particle
             void respawnParticle( Particle& particle, basePtr object, glm::vec2 offset = glm::vec2( 0.0f, 0.0f ) );
+
+        private:
+            // state
+            unsigned short m_amount = 0;
+            unsigned int m_VBO = 0;
+            
+            int m_sizeVAO = 0;
+            
+            int m_attrPos = 0;
+            int m_attrIndex = 0;
+            
+            std::vector<Particle> m_particles;
+
+            // render state
+            shaderPtr m_shader;
+            texture2DPtr m_texture;
     };
 }

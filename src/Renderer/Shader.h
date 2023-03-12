@@ -14,9 +14,7 @@ class Shader
 {
     public:
         // state
-        unsigned int ID;
-
-        Shader() = default;
+        unsigned int ID = 0;
 
         // sets the current shader as active
         Shader& use();

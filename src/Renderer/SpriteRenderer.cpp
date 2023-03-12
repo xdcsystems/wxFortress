@@ -22,37 +22,41 @@ SpriteRenderer::SpriteRenderer( shaderPtr shader )
 
 SpriteRenderer::~SpriteRenderer()
 {
-    GL_CHECK( glDeleteVertexArrays( 1, &m_VBO ) );
+    GL_CHECK( glDeleteBuffers( 1, &m_VBO ) );
+}
+
+void SpriteRenderer::selectShader()
+{
+    m_shader->use();
 }
 
 void SpriteRenderer::drawSprite( texture2DPtr texture, glm::vec2 position, glm::vec2 size, glm::vec3 color, float rotate )
 {
     // prepare transformations
-    m_shader->use();
-
     glm::mat4 model = glm::mat4( 1.0f );
     model = glm::translate( model, glm::vec3( position, 0.0f ) );  // first translate (transformations are: scale happens first, then rotation, and then final translation happens; reversed order)
 
-    model = glm::translate( model, glm::vec3( 0.5f * size.x, 0.5f * size.y, 0.0f ) ); // move origin of rotation to center of quad
-    model = glm::rotate( model, glm::radians( rotate ), glm::vec3( 0.0f, 0.0f, 1.0f ) ); // then rotate
-    model = glm::translate( model, glm::vec3( -0.5f * size.x, -0.5f * size.y, 0.0f ) ); // move origin back
+    //model = glm::translate( model, glm::vec3( 0.5f * size.x, 0.5f * size.y, 0.0f ) ); // move origin of rotation to center of quad
+    //model = glm::rotate( model, glm::radians( rotate ), glm::vec3( 0.0f, 0.0f, 1.0f ) ); // then rotate
+    //model = glm::translate( model, glm::vec3( -0.5f * size.x, -0.5f * size.y, 0.0f ) ); // move origin back
 
-    model = glm::scale( model, glm::vec3( size, 1.0f ) ); // last scale
+    //model = glm::scale( model, glm::vec3( size, 1.0f ) ); // last scale
 
+    m_shader->setVector2f( "size", size );
     m_shader->setMatrix4( "model", model );
 
     // render textured quad
     m_shader->setVector3f( "spriteColor", color );
 
-    GL_CHECK( glActiveTexture( GL_TEXTURE0 ) );
-
     texture->bind();
 
     GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, m_VBO ) );
+    GL_CHECK( glEnableVertexAttribArray( m_attrVertex ) );
+    GL_CHECK( glVertexAttribPointer( 0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof( float ), ( void* )0 ) );
 
-    //glBindVertexArray( m_quadVAO );
     GL_CHECK( glDrawArrays( GL_TRIANGLE_STRIP, 0, 4 ) );
-    //glBindVertexArray( 0 );
+
+    GL_CHECK( glDisableVertexAttribArray( m_attrVertex ) );
 }
 
 void SpriteRenderer::initRenderData()
@@ -66,17 +70,10 @@ void SpriteRenderer::initRenderData()
         1.0f, 1.0f, 1.0f, 1.0f,
     };
 
-    // glGenVertexArrays( 1, &m_quadVAO );
+    GL_CHECK( m_attrVertex = glGetAttribLocation( m_shader->ID, "vertex" ) );
 
     GL_CHECK( glGenBuffers( 1, &m_VBO ) );
     GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, m_VBO ) );
     GL_CHECK( glBufferData( GL_ARRAY_BUFFER, sizeof( vertices ), vertices, GL_STATIC_DRAW ) );
-
-    //glBindVertexArray( m_quadVAO );
-
-    GL_CHECK( glEnableVertexAttribArray( 0 ) );
-    GL_CHECK( glVertexAttribPointer( 0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof( float ), ( void* )0 ) );
     GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, 0 ) );
-
-    //glBindVertexArray( 0 );
 }

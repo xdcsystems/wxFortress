@@ -21,6 +21,7 @@
 #include "ParticleGenerator.h"
 #include "ShapesManager.h"
 #include "Renderer/ResourceManager.h"
+#include "Renderer/SpriteRenderer.h"
 
 
 DEFINE_LOCAL_EVENT_TYPE( wxEVT_CURRENT_SCORE_INCREASED )
@@ -44,11 +45,8 @@ ShapesManager::ShapesManager( wxWindow* parent )
     m_board = std::make_shared<Board>();
     m_bricks = std::make_shared<Bricks>();
 
-    // set render-specific controls TODO
-    /*m_particles = std::make_shared<ParticleGenerator>(
-        ResourceManager::GetShader( "particle" ),
-        ResourceManager::GetTexture( "particle" ),
-        500 );*/
+    // set render-specific controls
+    m_particles = std::make_shared<ParticleGenerator>( 500 );
 }
 
 bool ShapesManager::switchRun( bool bNewRound )
@@ -269,13 +267,13 @@ void ShapesManager::changeMoveDirection( ContactPosition contactPosition, TypeCo
 
 void ShapesManager::update( double deltaTime )
 {
-    // TODO: m_particles->update( deltaTime, m_ball, 1, glm::vec2( m_ball->radius() / 2.0f ) );
+    m_particles->update( deltaTime, m_ball, 1, glm::vec2( m_ball->radius() / 2.0f ) );
 }
 
 void ShapesManager::renderFrame( rendererPtr spriteRenderer )
 {
     ContactPosition contactPosition = Ball::ContactNull;
-    m_bricks->render( m_bRun, spriteRenderer, [this, &spriteRenderer, &contactPosition]( brickPtr brick ) {
+    m_bricks->render( m_bRun, spriteRenderer, [this, &contactPosition]( brickPtr brick ) {
         contactPosition = m_ball->intersect( brick->bounds() );
         if ( contactPosition == Ball::ContactNull )
             return false;
@@ -284,7 +282,7 @@ void ShapesManager::renderFrame( rendererPtr spriteRenderer )
         changeMoveDirection( contactPosition, BrickContact );
 
         return true;
-        } );
+    } );
 
     if ( m_boardMove )
         offsetBoard();
@@ -294,11 +292,12 @@ void ShapesManager::renderFrame( rendererPtr spriteRenderer )
     if ( m_bRun )
     {
         offsetBall();
-        // TODO: m_particles->draw();
+        m_particles->draw();
     }
     else
         updateBallPosition( m_board->bounds() );
 
+    spriteRenderer->selectShader();
     m_ball->draw( spriteRenderer );
 }
 

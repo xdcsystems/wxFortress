@@ -93,9 +93,7 @@ shaderPtr ResourceManager::LoadShaderFromFile( const std::string& vShaderFile, c
     }
     catch ( std::exception e )
     {
-        wxString what;
-        what.Printf( "ERROR::SHADER: Failed to read shader files, \"%s\"", e.what() );
-        wxLogMessage( what );
+        wxLogMessage( "ERROR::SHADER: Failed to read shader files, \"%s\"", e.what() );
     }
     const char* vShaderCode = vertexCode.c_str();
     const char* fShaderCode = fragmentCode.c_str();
