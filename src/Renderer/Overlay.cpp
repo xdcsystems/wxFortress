@@ -38,14 +38,14 @@ void Overlay::showPause( rendererPtr renderer )
 {
     renderer->drawSprite(
         m_bitmapPause,
-        glm::vec2( 0.0f, m_size.y - m_bitmapPause->Height ),
-        glm::vec2( m_bitmapPause->Width, m_bitmapPause->Height ) );
+        { 0.0f, m_size.y - m_bitmapPause->Height },
+        { m_bitmapPause->Width, m_bitmapPause->Height } );
 }
 
 void Overlay::showCountDown( rendererPtr renderer, unsigned char count )
 {
     renderer->drawSprite(
         s_countdownSprites[ count ],
-        glm::vec2( 0.0f, 0.0f ),
-        glm::vec2( s_countdownSprites[ count ]->Width, s_countdownSprites[ count ]->Height ) );
+        { 0.0f, 0.0f },
+        { s_countdownSprites[ count ]->Width, s_countdownSprites[ count ]->Height } );
 }

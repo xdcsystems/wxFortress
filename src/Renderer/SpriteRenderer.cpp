@@ -30,17 +30,17 @@ void SpriteRenderer::selectShader()
     m_shader->use();
 }
 
-void SpriteRenderer::drawSprite( texture2DPtr texture, glm::vec2 position, glm::vec2 size, glm::vec3 color, float rotate )
+void SpriteRenderer::drawSprite( texture2DPtr texture, const glm::vec2& position, glm::vec2 size, glm::vec3 color, float rotate )
 {
     // prepare transformations
-    glm::mat4 model = glm::mat4( 1.0f );
-    model = glm::translate( model, glm::vec3( position, 0.0f ) );  // first translate (transformations are: scale happens first, then rotation, and then final translation happens; reversed order)
+    glm::mat4 model( 1.0f );
+    model = glm::translate( model, { position, 0.0f } );  // first translate (transformations are: scale happens first, then rotation, and then final translation happens; reversed order)
 
     //model = glm::translate( model, glm::vec3( 0.5f * size.x, 0.5f * size.y, 0.0f ) ); // move origin of rotation to center of quad
     //model = glm::rotate( model, glm::radians( rotate ), glm::vec3( 0.0f, 0.0f, 1.0f ) ); // then rotate
     //model = glm::translate( model, glm::vec3( -0.5f * size.x, -0.5f * size.y, 0.0f ) ); // move origin back
 
-    //model = glm::scale( model, glm::vec3( size, 1.0f ) ); // last scale
+    //model = glm::scale( model, { size, 1.0f } ); // last scale
 
     m_shader->setVector2f( "size", size );
     m_shader->setMatrix4( "model", model );

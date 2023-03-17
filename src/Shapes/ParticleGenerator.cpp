@@ -11,6 +11,7 @@
 #include <glm/glm.hpp>
 
 #include "Common/Tools.h"
+#include "Common/xRect.hpp"
 #include "Renderer/ResourceManager.h"
 #include "Renderer/Shader.h"
 #include "Renderer/Texture.h"
@@ -37,6 +38,9 @@ ParticleGenerator::~ParticleGenerator()
 
 void ParticleGenerator::update( float dt, basePtr object, unsigned int newParticles, glm::vec2 offset )
 {
+    if ( m_updated )
+        return;
+
     // add new particles 
     for ( unsigned int i = 0; i < newParticles; ++i )
     {
@@ -54,6 +58,8 @@ void ParticleGenerator::update( float dt, basePtr object, unsigned int newPartic
             particle.Color.a -= dt * 2.5f;
         }
     }
+
+    m_updated = true;
 }
 
 // render all particles
@@ -94,6 +100,8 @@ void ParticleGenerator::draw()
 
     // don't forget to reset to default blending mode
     GL_CHECK( glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA ) );
+
+    m_updated = false;
 }
 
 void ParticleGenerator::init()
@@ -110,7 +118,7 @@ void ParticleGenerator::init()
         1.0f, 1.0f,   1.0f, 1.0f,   0.0f,
     };
 
-    m_sizeVAO = sizeof( vertices );
+    const auto sizeVAO = sizeof( vertices );
 
     GL_CHECK( m_attrPos = glGetAttribLocation( m_shader->ID, "vertex" ) );
     GL_CHECK( m_attrIndex = glGetAttribLocation( m_shader->ID, "index" ) );
@@ -120,15 +128,21 @@ void ParticleGenerator::init()
 
     // fill mesh buffer
     GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, m_VBO ) );
-    GL_CHECK( glBufferData( GL_ARRAY_BUFFER, m_sizeVAO * m_amount, 0, GL_STATIC_DRAW ) );
+    GL_CHECK( glBufferData( GL_ARRAY_BUFFER, sizeVAO * m_amount, 0, GL_STATIC_DRAW ) );
     
     for ( unsigned short index = 0; index < m_amount; ++index )
     {
         vertices[ 4 ] = vertices[ 9 ] = vertices[ 14 ] = vertices[ 19 ] = vertices[ 24 ] = vertices[ 29 ]= index;
-        GL_CHECK( glBufferSubData( GL_ARRAY_BUFFER, m_sizeVAO * index, m_sizeVAO, vertices ) );
+        GL_CHECK( glBufferSubData( GL_ARRAY_BUFFER, sizeVAO * index, sizeVAO, vertices ) );
     }
 
     GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, 0 ) );
+}
+
+void ParticleGenerator::clear()
+{
+    for ( auto& particle : m_particles )
+        particle.Life = 0.f;
 }
 
 unsigned int ParticleGenerator::firstUnusedParticle()
@@ -136,7 +150,7 @@ unsigned int ParticleGenerator::firstUnusedParticle()
     // first search from last used particle, this will usually return almost instantly
     const auto iter = std::find_if( m_particles.begin(), m_particles.end(), []( const auto& patrticle ) {
         return patrticle.Life <= 0;
-        } );
+    } );
     return iter == m_particles.end() ? 0 : std::distance( m_particles.begin(), iter );
 }
 

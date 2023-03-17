@@ -8,7 +8,7 @@ namespace Shapes
         using rendererPtr = std::shared_ptr<SpriteRenderer>;
 
         public:
-            Brick( double x, double y, texture2DPtr sprite );
+            Brick( float x, float y, texture2DPtr sprite );
 
             bool isAlive() const { return m_alive; }
             void kill() { m_alive = false; }

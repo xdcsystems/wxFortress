@@ -32,9 +32,6 @@ class MainFrame final : public wxFrame
             int style = ( wxDEFAULT_FRAME_STYLE | wxTAB_TRAVERSAL | wxCLIP_CHILDREN ) & ~( wxRESIZE_BORDER | wxMAXIMIZE_BOX ),
             const wxString& name = wxASCII_STR( wxFrameNameStr ) );
 
-        ~MainFrame();
-
-        void render( wxIdleEvent& );
         bool isRunning() const { return m_isRunning; };
         void start();
         void stop();
@@ -57,7 +54,10 @@ class MainFrame final : public wxFrame
         std::shared_ptr<RenderWindow> m_renderSurface;
         std::shared_ptr<ControlPanel::Panel> m_controlPanel;
         std::shared_ptr <MediaManager> m_mediaManager;
-        std::shared_ptr<Timer> m_timer;
+
+#if wxUSE_LOGWINDOW
+        wxLogWindow* m_logWindow = nullptr;
+#endif // wxUSE_LOGWINDOW
 
         bool m_isRunning = false;
 

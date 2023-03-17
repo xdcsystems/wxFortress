@@ -12,7 +12,8 @@
 #include <GL/glew.h>
 
 #if defined (_MSC_VER)
-#include <GL/wglew.h>
+    #include <GL/wglew.h>
+    #include <dwmapi.h>
 #endif
 
 #include <glm/glm.hpp>
@@ -20,7 +21,9 @@
 #include <glm/gtx/transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include "Common/Timer.h"
 #include "Common/Tools.h"
+#include "Common/xRect.hpp"
 #include "Shader.h"
 #include "SpriteRenderer.h"
 #include "Sounds/SoundManager.h"
@@ -30,19 +33,22 @@
 #include "RenderWindow.h"
 #include "ResourceManager.h"
 
+#if defined (_MSC_VER)
+    #pragma comment(lib,"../external/directX/x86/dwmapi.lib")
+#endif
 
 DEFINE_LOCAL_EVENT_TYPE( wxEVT_LAUNCH_PRESSED )
 DEFINE_LOCAL_EVENT_TYPE( wxEVT_NEW_ROUND_STARTED )
 
 BEGIN_EVENT_TABLE( RenderWindow, wxGLCanvas )
-EVT_PAINT( OnPaint )
-EVT_KEY_DOWN( OnKeyPressed )
-EVT_SIZE( OnSize )
-EVT_COMMAND( wxID_ANY, wxEVT_CURRENT_SCORE_INCREASED, OnScoreIncreased )
-EVT_COMMAND( wxID_ANY, wxEVT_ROUND_COMLETED, OnRoundCompleted )
-EVT_COMMAND( wxID_ANY, wxEVT_BALL_LOST, OnBallLost )
-EVT_COMMAND( wxID_ANY, wxEVT_PING, OnPaddleContact )
-EVT_COMMAND( wxID_ANY, wxEVT_PONG, OnPaddleContact )
+    EVT_PAINT( OnPaint )
+    EVT_KEY_DOWN( OnKeyPressed )
+    EVT_SIZE( OnSize )
+    EVT_COMMAND( wxID_ANY, wxEVT_CURRENT_SCORE_INCREASED, OnScoreIncreased )
+    EVT_COMMAND( wxID_ANY, wxEVT_ROUND_COMLETED, OnRoundCompleted )
+    EVT_COMMAND( wxID_ANY, wxEVT_BALL_LOST, OnBallLost )
+    EVT_COMMAND( wxID_ANY, wxEVT_PING, OnPaddleContact )
+    EVT_COMMAND( wxID_ANY, wxEVT_PONG, OnPaddleContact )
 END_EVENT_TABLE()
 
 
@@ -63,13 +69,18 @@ RenderWindow::RenderWindow(
 void RenderWindow::init()
 {
     m_context = std::make_unique<wxGLContext>( this );
-    SetCurrent( *m_context );
+    SetCurrent( *m_context ); // TODO move to resize
 
     InitializeGLEW();
     SetupGraphics();
 
     m_soundManager = std::make_shared<SoundManager>();
     m_soundManager->init();
+
+    SetExtraStyle( wxWS_EX_PROCESS_IDLE );
+    wxIdleEvent::SetMode( wxIDLE_PROCESS_SPECIFIED );
+
+    m_timer = std::make_shared<Timer>( false );
 }
 
 RenderWindow::~RenderWindow()
@@ -91,16 +102,10 @@ void RenderWindow::InitializeGLEW()
 
 void RenderWindow::SetupGraphics()
 {
-#ifdef _DEBUG
-    auto logWindow = new wxLogWindow( nullptr, wxT( "Log" ), true, false );
-    logWindow->SetVerbose( TRUE );
-    wxLog::SetActiveTarget( logWindow );
-#endif
-
 #if defined (_MSC_VER)
-    wglSwapIntervalEXT( 0 );
+    wglSwapIntervalEXT( -1 );
 #elif defined(_POSIX_VER)
-    glXSwapIntervalSGI( 0 );  //NOTE check for GLX_SGI_swap_control extension : http://www.opengl.org/wiki/Swap_Interval#In_Linux_.2F_GLXw
+    glXSwapIntervalSGI( -1 );  //NOTE check for GLX_SGI_swap_control extension : http://www.opengl.org/wiki/Swap_Interval#In_Linux_.2F_GLXw
 #elif defined(_MACOSX_VER)
     // aglSetInteger (AGL_SWAP_INTERVAL, 0);
     wglSwapIntervalEXT( GetContext()->GetWXGLContext() );
@@ -120,7 +125,6 @@ void RenderWindow::SetupGraphics()
     ResourceManager::GetShader( "particle" )->use().setInteger( "sprite", 0 );
     ResourceManager::GetShader( "particle" )->setMatrix4( "projection", projection );
 
-    // set background to black
     GL_CHECK( glClearColor( 0.0, 0.0, 0.0, 1.0 ) );
     GL_CHECK( glEnable( GL_TEXTURE_2D ) );
     GL_CHECK( glEnable( GL_COLOR_MATERIAL ) );
@@ -131,6 +135,18 @@ void RenderWindow::SetupGraphics()
     // set render-specific controls
     m_spriteRenderer = std::make_shared<SpriteRenderer>( ResourceManager::GetShader( "sprite" ) );
     m_shapesManager = std::make_shared<Shapes::ShapesManager>( this );
+}
+
+void RenderWindow::start() 
+{
+    Bind( wxEVT_IDLE, &RenderWindow::OnIdle, this );
+    m_isRunning = true; 
+}
+
+void RenderWindow::stop()
+{ 
+    m_isRunning = false;
+    Unbind( wxEVT_IDLE, &RenderWindow::OnIdle, this );
 }
 
 void RenderWindow::loadLevel( unsigned short level )
@@ -156,7 +172,7 @@ void RenderWindow::switchRun()
         m_state = COUNTDOWN;
         for ( m_countDown = 3; m_countDown >= 1; --m_countDown )
         {
-            paintNow();
+            render();
             m_soundManager->playCountdown();
         }
         m_state = NEWROUND;
@@ -172,13 +188,10 @@ void RenderWindow::resize( const wxSize& size )
     if ( size.x < 1 || size.y < 1 )
         return;
 
+    //GL_CHECK( glViewport( 0, 0, ( GLint )size.GetWidth(), ( GLint )size.GetHeight() ) );
+
     m_overlay = std::make_shared<Overlay>( size );
     m_shapesManager->resize( size );
-}
-
-void RenderWindow::update( double deltaTime )
-{
-    m_shapesManager->update( deltaTime );
 }
 
 void RenderWindow::OnPaint( wxPaintEvent& event )
@@ -187,12 +200,21 @@ void RenderWindow::OnPaint( wxPaintEvent& event )
     render();
 }
 
-void RenderWindow::paintNow()
+void RenderWindow::OnIdle( wxIdleEvent& event )
 {
-    render();
+    if ( m_isRunning )
+    {
+        m_elapsedTime = m_timer->getElapsedTimeInMilliSec();
+        if ( m_elapsedTime >= 16 )
+        {
+            m_timer->start();
+            render( m_elapsedTime );
+        }
+    }
+    event.RequestMore();
 }
 
-void RenderWindow::render()
+void RenderWindow::render( double deltaTime )
 {
     if ( !m_isRunning || !IsShown() )
         return;
@@ -201,9 +223,7 @@ void RenderWindow::render()
 
     GL_CHECK( glClear( GL_COLOR_BUFFER_BIT ) );
 
-    checkKeysState();
-
-    m_shapesManager->renderFrame( m_spriteRenderer );
+    m_shapesManager->renderFrame( m_spriteRenderer, deltaTime );
 
     switch ( m_state )
     {
@@ -220,27 +240,10 @@ void RenderWindow::render()
     }
 
     SwapBuffers();
-}
 
-void RenderWindow::checkKeysState()
-{
-    using namespace Shapes;
-
-    if ( wxGetKeyState( WXK_LEFT ) )
-    {
-        m_accelerate += 0.03;
-        m_shapesManager->moveBoard( ShapesManager::DirectionLeft - m_accelerate );
-    }
-    else if ( wxGetKeyState( WXK_RIGHT ) )
-    {
-        m_accelerate += 0.03;
-        m_shapesManager->moveBoard( ShapesManager::DirectionRight + m_accelerate );
-    }
-    else if ( m_accelerate != 0 )
-    {
-        m_accelerate = 0;
-        m_shapesManager->moveBoard( 0 );
-    }
+#if defined (_MSC_VER)
+    DwmFlush();
+#endif
 }
 
 void RenderWindow::OnSize( wxSizeEvent& event )
@@ -253,15 +256,19 @@ void RenderWindow::OnKeyPressed( wxKeyEvent& event )
     switch ( event.GetKeyCode() )
     {
         case WXK_SPACE:
-        switchRun();
+        {
+            switchRun();
+            m_timer->stop();
+            m_timer->start();
+        }
         break;
 
         case WXK_F1:
-        //... give help ...
+            //... give help ...
         break;
 
         case WXK_ESCAPE:
-        m_parent->Close();
+            m_parent->Close();
         break;
     }
 }

@@ -7,6 +7,7 @@
     #include "wx/wx.h"
 #endif
 
+#include "Common/xRect.hpp"
 #include "Renderer/ResourceManager.h"
 #include "Base.h"
 #include "Board.h"
@@ -19,7 +20,7 @@ Board::Board()
     load( ResourceManager::LoadTexture( "/../resources/images/SimpleBoard.png", true, "simple_board" ) );
 }
 
-wxRect2DDouble Board::admissibleBounds( const wxRect2DDouble& bounds ) const
+xRect Board::admissibleBounds( const xRect& bounds ) const
 {
     auto boundsRect = std::move( Base::bounds() );
     boundsRect.Inset( bounds.m_width / 2, 0.0 );

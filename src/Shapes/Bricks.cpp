@@ -8,6 +8,7 @@
 #endif
 
 #include "Common/Tools.h"
+#include "Common/xRect.hpp"
 #include "Renderer/ResourceManager.h"
 #include "Renderer/SpriteRenderer.h"
 #include "Base.h"
@@ -55,20 +56,27 @@ void Bricks::loadLevel( unsigned short level )
                     s_brickSprites.at( static_cast< BrickType >( bricks[ row ][ col ] ) ) ) );
 }
 
-void Bricks::render( bool bRun, rendererPtr renderer, const std::function<bool( brickPtr )>& checkIntersects ) const
+void Bricks::render( bool bRun, const std::function<bool( brickPtr )>& checkIntersects ) const
 {
-    bool directionSwitched = false;
-
-    renderer->selectShader();
+    bool hasContact = false;
 
     for ( const auto& brick : m_bricks )
     {
         if ( !brick->isAlive() )
             continue;
 
-        if ( bRun && !directionSwitched )
-            directionSwitched = checkIntersects( brick );
-
-        brick->draw( renderer );
+        if ( bRun && !hasContact )
+        {
+            hasContact = checkIntersects( brick );
+            if ( hasContact )
+                brick->kill();
+        }
     }
+}
+
+void Bricks::paint( rendererPtr renderer )
+{
+    for ( const auto& brick : m_bricks )
+        if ( brick->isAlive() )
+            brick->draw( renderer );
 }

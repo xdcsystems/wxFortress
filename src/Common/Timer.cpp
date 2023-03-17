@@ -11,7 +11,8 @@
 #include <stdlib.h>
 
 
-Timer::Timer()
+Timer::Timer( bool initialState )
+    : stopped( initialState )
 {
 #if defined(WIN32) || defined(_WIN32)
     QueryPerformanceFrequency( &frequency );
@@ -21,14 +22,8 @@ Timer::Timer()
     startCount.tv_sec = startCount.tv_usec = 0;
     endCount.tv_sec = endCount.tv_usec = 0;
 #endif
-
-    stopped = 0;
     startTimeInMicroSec = 0;
     endTimeInMicroSec = 0;
-}
-
-Timer::~Timer()
-{
 }
 
 ///////////////////////////////////////////////////////////////////////////////

@@ -42,6 +42,9 @@ namespace Shapes
             // render all particles
             void draw();
 
+            // clear all particles
+            void clear();
+
         private:
             // initializes buffer and vertex attributes
             void init();
@@ -56,11 +59,11 @@ namespace Shapes
             // state
             unsigned short m_amount = 0;
             unsigned int m_VBO = 0;
-            
-            int m_sizeVAO = 0;
-            
+
             int m_attrPos = 0;
             int m_attrIndex = 0;
+
+            bool m_updated = false;
             
             std::vector<Particle> m_particles;
 

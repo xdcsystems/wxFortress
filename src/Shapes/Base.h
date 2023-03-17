@@ -7,7 +7,7 @@
 class Texture2D;
 class SpriteRenderer;
 
-class wxRect2DDouble;
+class xRect;
 
 namespace Shapes
 {
@@ -19,26 +19,22 @@ namespace Shapes
         public:
             virtual ~Base() = default;
             virtual void load( texture2DPtr sprite );
-            virtual void moveTo( double x, double y );
-            virtual void moveTo( const wxPoint2DDouble& position );
+            virtual void moveTo( float x, float y );
+            virtual void moveTo( const glm::vec2& position );
 
             virtual glm::vec2 position() { return m_position; }
             virtual glm::vec2 velocity()  { return m_velocity; }
-
-            virtual wxRect2DDouble  bounds() const { 
-                return { m_position.x, m_position.y, m_size.x, m_size.y };
-            }
+            virtual xRect  bounds() const { return { m_position, m_size }; }
 
             virtual void draw( rendererPtr renderer ) const;
 
         protected:
-            glm::vec2 m_position = glm::vec2( 0 ),
-                          m_size = glm::vec2( 0 ),
-                          m_velocity = glm::vec2( 0 );
+            glm::vec2 m_position = { 0, 0 },
+                          m_size = { 0, 0 },
+                          m_velocity = { 0, 0 };
 
             texture2DPtr m_sprite;
     };
 
     using basePtr = std::shared_ptr<Base>;
 }
-

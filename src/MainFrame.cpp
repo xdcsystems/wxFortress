@@ -10,6 +10,7 @@
 #include <wx/mediactrl.h>
 
 #include "Common/Timer.h"
+#include "Common/xRect.hpp"
 #include "Shapes/ShapesManager.h"
 #include "Video/MediaManager.h"
 #include "MainFrame.h"
@@ -48,20 +49,19 @@ bool MainFrame::Create( wxWindow* parent, int id, wxString title, wxPoint pos, w
     return returnVal;
 }
 
-MainFrame::~MainFrame()
-{
-    if ( m_timer )
-        m_timer->stop();
-}
-
 void MainFrame::init()
 {
+#ifdef wxUSE_LOGWINDOW
+        m_logWindow = new wxLogWindow( nullptr, wxT( "Log" ), true, false );
+        m_logWindow->SetVerbose( TRUE );
+        wxLog::SetActiveTarget( m_logWindow );
+        
+        m_logWindow->GetFrame()->SetFocus();
+#endif
+
     SetBackgroundColour( *wxBLACK );
 
     wxInitAllImageHandlers();
-
-    SetExtraStyle( wxWS_EX_PROCESS_IDLE );
-    wxIdleEvent::SetMode( wxIDLE_PROCESS_SPECIFIED );
 
     const auto &size = GetSize();
 
@@ -76,9 +76,6 @@ void MainFrame::init()
     bSizer->Add( m_controlPanel.get(), wxEXPAND | wxALL );
 
     SetSizer( bSizer );
-    
-    m_timer = std::make_shared<Timer>();
-    m_timer->start();
 }
 
 void MainFrame::start()
@@ -93,8 +90,6 @@ void MainFrame::start()
 
     GetSizer()->Layout();
 
-    Bind( wxEVT_IDLE, &MainFrame::render, this );
-
     m_mediaManager->Hide();
     m_mediaManager->reset();
 }
@@ -106,8 +101,6 @@ void MainFrame::OnVideoFinished( wxCommandEvent& )
 
 void MainFrame::stop() 
 { 
-    Unbind( wxEVT_IDLE, &MainFrame::render, this );
-
     m_isRunning = false; 
     m_renderSurface->stop();
 };
@@ -116,18 +109,6 @@ void MainFrame::OnClose( wxCloseEvent& event )
 {
     stop();
     event.Skip();
-}
-
-void MainFrame::render( wxIdleEvent& event )
-{
-    if ( m_isRunning && m_timer->getElapsedTimeInMicroSec() > 3000 )
-    {
-        m_timer->stop();
-        m_renderSurface->update( m_timer->getElapsedTimeInSec() );
-        m_renderSurface->paintNow();
-        m_timer->start();
-    }
-    event.RequestMore();
 }
 
 void MainFrame::OnScoreIncreased( wxCommandEvent& )

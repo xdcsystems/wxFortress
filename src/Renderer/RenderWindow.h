@@ -3,6 +3,8 @@
 #include <memory> 
 #include "wx/glcanvas.h" 
 
+#define DEFAULT_DELTATIME 16
+
 DECLARE_LOCAL_EVENT_TYPE( wxEVT_LAUNCH_PRESSED, wxID_ANY )
 DECLARE_LOCAL_EVENT_TYPE( wxEVT_NEW_ROUND_STARTED, wxID_ANY )
 
@@ -41,16 +43,11 @@ class RenderWindow final : public wxGLCanvas
         RenderWindow& operator=( const RenderWindow& ) = delete;
         RenderWindow& operator=( RenderWindow&& ) = delete;
 
-        void stop() { m_isRunning = false; };
-        void start() { m_isRunning = true; };
+        void stop();
+        void start();
         void loadLevel( unsigned short level );
 
-        void update( double deltaTime );
-        void paintNow();
-
     private:
-        //static const int TIMER_INTERVAL; // milliseconds
-
          // Event Handlers
         void OnPaint( wxPaintEvent& );
         void OnSize( wxSizeEvent& );
@@ -59,13 +56,13 @@ class RenderWindow final : public wxGLCanvas
         void OnPaddleContact( wxCommandEvent& );
         void OnRoundCompleted( wxCommandEvent& );
         void OnBallLost( wxCommandEvent& );
+        void OnIdle( wxIdleEvent& );
 
         // Helper functions
         void init();
         void resize( const wxSize& size );
         void switchRun();
-        void checkKeysState();
-        void render();
+        void render( double dt = DEFAULT_DELTATIME );
 
         void InitializeGLEW();
         void SetupGraphics();
@@ -79,7 +76,10 @@ class RenderWindow final : public wxGLCanvas
         std::shared_ptr<Shapes::ShapesManager> m_shapesManager;
         std::shared_ptr <SoundManager> m_soundManager;
 
-        double m_accelerate = 0;
+        std::shared_ptr<Timer> m_timer;
+
+        double m_elapsedTime = 0;
+        
         bool m_isRunning = false;
         unsigned char m_countDown = 0;
 

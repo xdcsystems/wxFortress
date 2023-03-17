@@ -19,12 +19,12 @@ namespace Shapes
             using enum ContactPosition;
 
             Ball();
-            ContactPosition intersect( const wxRect2DDouble& rect ) const;
+            ContactPosition intersect( const xRect& rect ) const;
 
-            double radius() { return m_radius; }
+            float radius() { return m_radius; }
 
         private:
-            double m_radius = 0;
-            double m_radiusSquared = 0;
+            float m_radius = 0;
+            float m_radiusSquared = 0;
     };
 }

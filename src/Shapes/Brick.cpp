@@ -7,6 +7,7 @@
     #include "wx/wx.h"
 #endif
 
+#include "Common/xRect.hpp"
 #include "Renderer/Texture.h"
 #include "Renderer/SpriteRenderer.h"
 #include "Base.h"
@@ -14,7 +15,7 @@
 
 using namespace Shapes;
 
-Brick::Brick( double x, double y, texture2DPtr sprite )
+Brick::Brick( float x, float y, texture2DPtr sprite )
  : Base()
 {
     if ( !sprite ) // empty place

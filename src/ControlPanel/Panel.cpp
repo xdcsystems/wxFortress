@@ -11,6 +11,7 @@
 #include <wx/dcbuffer.h>
 
 #include "Common/Tools.h"
+#include "Common/xRect.hpp"
 #include "Shapes/ShapesManager.h"
 
 #include "Counter.hpp"

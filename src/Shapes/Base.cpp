@@ -8,6 +8,7 @@
 #endif
 
 #include "Common/Tools.h"
+#include "Common/xRect.hpp"
 #include "Renderer/Texture.h"
 #include "Renderer/SpriteRenderer.h"
 #include "Base.h"
@@ -20,15 +21,15 @@ void Base::load( texture2DPtr sprite )
     m_size = { m_sprite->Width, m_sprite->Height };
 }
 
-void Base::moveTo( double x, double y )
+void Base::moveTo( float x, float y )
 {
     m_position.x = x;
     m_position.y = y;
 }
 
-void Base::moveTo( const wxPoint2DDouble& position )
+void Base::moveTo( const glm::vec2& position )
 {
-    moveTo( position.m_x, position.m_y );
+    moveTo( position.x, position.y );
 }
 
 void Base::draw( rendererPtr renderer ) const
