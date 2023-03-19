@@ -51,7 +51,7 @@ bool MainFrame::Create( wxWindow* parent, int id, wxString title, wxPoint pos, w
 
 void MainFrame::init()
 {
-#ifdef wxUSE_LOGWINDOW
+#if defined( wxUSE_LOGWINDOW ) && defined( _USE_LOG )
         m_logWindow = new wxLogWindow( nullptr, wxT( "Log" ), true, false );
         m_logWindow->SetVerbose( TRUE );
         wxLog::SetActiveTarget( m_logWindow );

@@ -36,6 +36,7 @@ void Base::draw( rendererPtr renderer ) const
 {
     if ( !m_sprite )
         return;
-
-    renderer->drawSprite( m_sprite, m_position, m_size );
+    
+    m_sprite->bind();
+    renderer->drawSprite( m_position, m_size );
 }

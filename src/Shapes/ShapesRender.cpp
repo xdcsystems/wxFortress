@@ -7,6 +7,7 @@
 #include "wx/wx.h"
 #endif
 
+#include <map>
 #include <thread>
 #include <future>
 
@@ -32,7 +33,7 @@ using namespace Shapes;
 using enum ShapesRender::MoveDirection;
 
 ShapesRender::ShapesRender( wxWindow* parent )
-    : m_parent( parent )
+    : m_eventHandler( parent->GetEventHandler() )
     , m_trajectory( NUM_OF_CALCULATED_POINTS, { .0f, .0f } )
     , m_eventCurrentScoreInc( wxEVT_CURRENT_SCORE_INCREASED )
     , m_eventRoundCompleted( wxEVT_ROUND_COMLETED )
@@ -91,21 +92,16 @@ void ShapesRender::resize( const wxSize& size )
     m_ballTopLimit = m_size.y - ballBounds.m_height;
     m_ballBottomLimit = boardBounds.m_y + boardBounds.m_height;
 
-    m_eventHandler = m_parent->GetEventHandler();
-    //m_eventCurrentScoreInc.SetEventObject( this );
-    //m_eventPing.SetEventObject( this );
-    //m_eventPong.SetEventObject( this );
-
     // calc worker
     if ( !m_asyncWorker.valid() )
         m_asyncWorker = std::async( std::launch::async, [this]() {
-        while ( m_keepGoing.load() )
-        {
-            update( 16 );
-            pause.store( true );
-            checkWorkerPaused();
-        }
-            } );
+            while ( m_keepGoing.load() )
+            {
+                update( 16 );
+                pause.store( true );
+                checkWorkerPaused();
+            }
+        } );
     else
         resumeWorker();
 }
@@ -124,14 +120,14 @@ void ShapesRender::calculateTrajectory()
         k = Rac / m_diagonal;
         Rac += m_ball->velocity().x;
         return { ballBounds.m_x + delta.x * k, ballBounds.m_y + delta.y * k };
-        } );
+     } );
 
     if ( m_isRobot && ( m_moveDirection == DirectionLeftDown || m_moveDirection == DirectionRightDown ) )
     {
         const auto& boardBounds = m_board->bounds();
         m_currentTrajPoint = std::find_if( m_trajectory.cbegin(), m_trajectory.cend(), [&boardBounds]( auto& point ) {
             return point.y <= boardBounds.GetBottom();
-            } );
+        } );
 
         if ( m_currentTrajPoint != m_trajectory.end() )
             m_boardMove = m_currentTrajPoint->x + ( ballBounds.m_width - boardBounds.m_width ) / 2 - boardBounds.m_x;
@@ -151,27 +147,27 @@ void ShapesRender::changeMoveDirection( ContactPosition contactPosition, TypeCon
     switch ( typeContact )
     {
         case BrickContact:
-        m_eventHandler->AddPendingEvent( m_eventCurrentScoreInc );
-        if ( m_bricks->empty() )
-        {
-            stop();
-            m_eventHandler->AddPendingEvent( m_eventRoundCompleted );
-            return;
-        }
+            m_eventHandler->AddPendingEvent( m_eventCurrentScoreInc );
+            if ( m_bricks->empty() )
+            {
+                stop();
+                m_eventHandler->AddPendingEvent( m_eventRoundCompleted );
+                return;
+            }
         break;
 
         case PaddleContact:
-        m_eventHandler->AddPendingEvent( m_eventPing );
+            m_eventHandler->AddPendingEvent( m_eventPing );
         break;
 
         case WallContact:
-        m_eventHandler->AddPendingEvent( m_eventPong );
+            m_eventHandler->AddPendingEvent( m_eventPong );
         break;
 
         case BallLost:
-        stop();
-        m_eventHandler->AddPendingEvent( m_eventBallLost );
-        return;
+            stop();
+            m_eventHandler->AddPendingEvent( m_eventBallLost );
+            return;
         break;
     }
 
@@ -202,18 +198,15 @@ void ShapesRender::update( double deltaTime )
 
         if ( m_currentTrajPoint != m_trajectory.end() )
             m_ball->moveTo( *m_currentTrajPoint );
-    }
 
-    ContactPosition contactPosition = Ball::ContactNull;
-    m_bricks->render( m_bRun, [this, &contactPosition]( brickPtr brick ) {
-        contactPosition = m_ball->intersect( brick->bounds() );
-        return contactPosition != Ball::ContactNull;
-    } );
+        ContactPosition contactPosition = Ball::ContactNull;
+        m_bricks->render( m_bRun, [this, &contactPosition]( brickPtr brick ) {
+            contactPosition = m_ball->intersect( brick->bounds() );
+            return contactPosition != Ball::ContactNull;
+        } );
 
-    if ( m_bRun )
-    {
         if ( contactPosition == Ball::ContactNull )
-            checkPaddleContact();
+            checkBallContact();
         else
             changeMoveDirection( contactPosition, BrickContact );
     }
@@ -223,10 +216,10 @@ void ShapesRender::update( double deltaTime )
     checkKeysState();
 
     if ( m_boardMove )
-        offsetBoard();
+        moveBoard();
 }
 
-void ShapesRender::offsetBoard()
+void ShapesRender::moveBoard()
 {
     auto boardBounds = std::move( m_board->bounds() );
     boardBounds.m_x += m_boardMove;
@@ -248,65 +241,63 @@ void ShapesRender::offsetBoard()
         m_boardMove = 0;
 }
 
-void ShapesRender::checkPaddleContact()
+void ShapesRender::checkBallContact()
 {
     const auto& ballBounds = m_ball->bounds();
 
     switch ( m_moveDirection )
     {
         case DirectionTopRight:
-        if ( ballBounds.GetRight() >= m_size.x )
-            changeMoveDirection( Ball::ContactRight );
-        else if ( ballBounds.m_y >= m_ballTopLimit )
-            changeMoveDirection( Ball::ContactBottom );
+            if ( ballBounds.GetRight() >= m_size.x )
+                changeMoveDirection( Ball::ContactRight );
+            else if ( ballBounds.m_y >= m_ballTopLimit )
+                changeMoveDirection( Ball::ContactBottom );
         break;
 
         case DirectionTopLeft:
-        if ( ballBounds.m_x <= 0 )
-            changeMoveDirection( Ball::ContactLeft );
-        else if ( ballBounds.m_y >= m_ballTopLimit )
-            changeMoveDirection( Ball::ContactBottom );
+            if ( ballBounds.m_x <= 0 )
+                changeMoveDirection( Ball::ContactLeft );
+            else if ( ballBounds.m_y >= m_ballTopLimit )
+                changeMoveDirection( Ball::ContactBottom );
         break;
 
         case DirectionRightDown:
-        if ( ballBounds.GetRight() >= m_size.x )
-            changeMoveDirection( Ball::ContactRight );
-        else if ( ballBounds.m_y < m_ballBottomLimit )
-            changeMoveDirection( Ball::ContactTop,
-                m_ball->intersect( m_board->admissibleBounds( ballBounds ) ) == Ball::ContactNull ? BallLost : PaddleContact );
+            if ( ballBounds.GetRight() >= m_size.x )
+                changeMoveDirection( Ball::ContactRight );
+            else if ( ballBounds.m_y < m_ballBottomLimit )
+                changeMoveDirection( Ball::ContactTop,
+                    m_ball->intersect( m_board->admissibleBounds( ballBounds ) ) == Ball::ContactNull ? BallLost : PaddleContact );
         break;
 
         case DirectionLeftDown:
-        if ( ballBounds.m_y < m_ballBottomLimit )
-            changeMoveDirection( Ball::ContactBottom,
-                m_ball->intersect( m_board->admissibleBounds( ballBounds ) ) == Ball::ContactNull ? BallLost : PaddleContact );
-        else if ( ballBounds.m_x <= 0 )
-            changeMoveDirection( Ball::ContactLeft );
+            if ( ballBounds.m_y < m_ballBottomLimit )
+                changeMoveDirection( Ball::ContactBottom,
+                    m_ball->intersect( m_board->admissibleBounds( ballBounds ) ) == Ball::ContactNull ? BallLost : PaddleContact );
+            else if ( ballBounds.m_x <= 0 )
+                changeMoveDirection( Ball::ContactLeft );
         break;
     }
 }
 
 void ShapesRender::checkKeysState()
 {
-    using namespace Shapes;
-
     if ( wxGetKeyState( WXK_LEFT ) )
     {
         m_accelerate += 0.32;
-        moveBoard( DirectionLeft - m_accelerate );
+        m_boardMove = DirectionLeft - m_accelerate;
         return;
     }
 
     if ( wxGetKeyState( WXK_RIGHT ) )
     {
         m_accelerate += 0.32;
-        moveBoard( DirectionRight + m_accelerate );
+        m_boardMove= DirectionRight + m_accelerate;
         return;
     }
 
     if ( m_accelerate != 0 )
     {
         m_accelerate = 0;
-        moveBoard( 0 );
+        m_boardMove = 0;
     }
 }

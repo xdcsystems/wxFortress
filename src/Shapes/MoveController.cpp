@@ -19,67 +19,51 @@ using enum MoveController::MoveDirection;
 template <>
 void MoveController::checkDirection<DirectionTopRight>( ContactPosition contactPosition )
 {
-    if ( ( contactPosition == Ball::ContactRight ) ||
-        ( contactPosition == Ball::ContactLeft ) )
+    if ( contactPosition == Ball::ContactRight )
     {
         m_angle += ( 90 - m_angle ) * 2;
         m_moveDirection = DirectionTopLeft;
+        return;
     }
-    else if ( ( contactPosition == Ball::ContactBottom ) ||
-        ( contactPosition == Ball::ContactTop ) )
-    {
-        m_angle *= -1;
-        m_moveDirection = DirectionRightDown;
-    }
+    m_angle *= -1;
+    m_moveDirection = DirectionRightDown;
 }
 
 template <>
 void MoveController::checkDirection<DirectionTopLeft>( ContactPosition contactPosition )
 {
-    if ( ( contactPosition == Ball::ContactLeft ) ||
-        ( contactPosition == Ball::ContactRight ) )
+    if ( contactPosition == Ball::ContactLeft )
     {
         m_angle = 90 - ( m_angle - 90 );
         m_moveDirection = DirectionTopRight;
+        return;
     }
-    else if ( ( contactPosition == Ball::ContactBottom ) ||
-        ( contactPosition == Ball::ContactTop ) )
-    {
-        m_angle += ( 180 - m_angle ) * 2;
-        m_moveDirection = DirectionLeftDown;
-    }
+    m_angle *= -1;
+    m_moveDirection = DirectionLeftDown;
 }
 
 template <>
 void MoveController::checkDirection<DirectionRightDown>( ContactPosition contactPosition )
 {
-    if ( ( contactPosition == Ball::ContactRight ) ||
-        ( contactPosition == Ball::ContactLeft ) ||
-        ( contactPosition == Ball::ContactBottom ) )
+    if ( contactPosition == Ball::ContactRight )
     {
         m_angle -= ( 90 - fabs( m_angle ) ) * 2;
         m_moveDirection = DirectionLeftDown;
+        return;
     }
-    else if ( contactPosition == Ball::ContactTop )
-    {
-        m_angle *= -1;
-        m_moveDirection = DirectionTopRight;
-    }
+    m_angle *= -1;
+    m_moveDirection = DirectionTopRight;
 }
 
 template <>
 void MoveController::checkDirection<DirectionLeftDown>( ContactPosition contactPosition )
 {
-    if ( ( contactPosition == Ball::ContactBottom ) ||
-        ( contactPosition == Ball::ContactTop ) )
-    {
-        m_angle *= -1;
-        m_moveDirection = DirectionTopLeft;
-    }
-    else if ( ( contactPosition == Ball::ContactLeft ) ||
-        ( contactPosition == Ball::ContactRight ) )
+    if ( contactPosition == Ball::ContactLeft ) 
     {
         m_angle -= ( 90 + m_angle ) * 2;
         m_moveDirection = DirectionRightDown;
+        return;
     }
+    m_angle *= -1;
+    m_moveDirection = DirectionTopLeft;
 }

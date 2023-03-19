@@ -13,8 +13,6 @@ namespace Shapes
 
     class Ball final : public Base
     {
-        using rendererPtr = std::shared_ptr<SpriteRenderer>;
-
         public:
             using enum ContactPosition;
 

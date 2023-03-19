@@ -23,9 +23,10 @@ namespace Shapes
             virtual void moveTo( const glm::vec2& position );
 
             virtual glm::vec2 position() { return m_position; }
+            virtual glm::vec2 size() { return m_size; }
             virtual glm::vec2 velocity()  { return m_velocity; }
             virtual xRect  bounds() const { return { m_position, m_size }; }
-
+            virtual unsigned int VBO() { return m_VBO; }
             virtual void draw( rendererPtr renderer ) const;
 
         protected:
@@ -34,6 +35,7 @@ namespace Shapes
                           m_velocity = { 0, 0 };
 
             texture2DPtr m_sprite;
+            unsigned int m_VBO = 0;
     };
 
     using basePtr = std::shared_ptr<Base>;

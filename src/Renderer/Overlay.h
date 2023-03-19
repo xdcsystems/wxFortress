@@ -25,7 +25,7 @@ class Overlay
         void showCountDown( rendererPtr renderer, unsigned char count );
 
     private:
-        texture2DPtr m_bitmapPause;
+        texture2DPtr m_pauseTex;
         
         const wxFont m_font;
         const wxSize m_size;

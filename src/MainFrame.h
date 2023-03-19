@@ -5,6 +5,8 @@ class Timer;
 class RenderWindow;
 class MediaManager;
 
+//#define _USE_LOG 1
+
 namespace ControlPanel
 {
     class Panel;
@@ -55,7 +57,7 @@ class MainFrame final : public wxFrame
         std::shared_ptr<ControlPanel::Panel> m_controlPanel;
         std::shared_ptr <MediaManager> m_mediaManager;
 
-#if wxUSE_LOGWINDOW
+#if defined( wxUSE_LOGWINDOW ) && defined( _USE_LOG )
         wxLogWindow* m_logWindow = nullptr;
 #endif // wxUSE_LOGWINDOW
 

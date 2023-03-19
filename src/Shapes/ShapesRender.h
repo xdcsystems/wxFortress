@@ -40,15 +40,12 @@ namespace Shapes
             void update( double deltaTime );
             void calculateTrajectory();
             void changeMoveDirection( ContactPosition contactPosition, TypeContact typeContact = WallContact );
-            void moveBoard( int sizeMove ) { m_boardMove = sizeMove; }
-            void offsetBoard();
-            void checkPaddleContact();
+            void moveBoard();
+            void checkBallContact();
             void checkKeysState();
             xRect updateBallPosition( const xRect& boardBounds ) const;
 
         protected:
-            wxWindow* m_parent = nullptr;
-
             wxSize m_size;
             bool m_bRun = false;
             bool m_isRobot = true;

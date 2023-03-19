@@ -61,7 +61,7 @@ void ShapesManager::renderFrame( rendererPtr spriteRenderer, double deltaTime )
 
     spriteRenderer->selectShader();
 
-    m_bricks->paint( spriteRenderer );
+    m_bricks->draw( spriteRenderer );
     m_board->draw( spriteRenderer );
 
     if ( m_bRun )
