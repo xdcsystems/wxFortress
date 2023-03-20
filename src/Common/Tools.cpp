@@ -15,6 +15,7 @@
 #include <wx/txtstrm.h>
 #include <wx/tokenzr.h>
 
+#include "Common/defs.h"
 #include "Tools.h"
 
 void CheckOpenGLError( const char* stmt, const char* fname, int line )

@@ -5,8 +5,6 @@ class Timer;
 class RenderWindow;
 class MediaManager;
 
-//#define _USE_LOG 1
-
 namespace ControlPanel
 {
     class Panel;

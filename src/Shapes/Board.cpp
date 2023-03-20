@@ -7,6 +7,7 @@
     #include "wx/wx.h"
 #endif
 
+#include "Common/defs.h"
 #include "Common/xRect.hpp"
 #include "Renderer/ResourceManager.h"
 #include "Base.h"
@@ -15,9 +16,9 @@
 using namespace Shapes;
 
 Board::Board()
- : Base()
 {
     load( ResourceManager::LoadTexture( "/../resources/images/SimpleBoard.png", true, "simple_board" ) );
+    m_velocity = { BEGIN_BOARD_VELOCITY, BEGIN_BOARD_VELOCITY };
 }
 
 xRect Board::admissibleBounds( const xRect& bounds ) const

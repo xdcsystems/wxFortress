@@ -4,8 +4,6 @@
 class wxMediaCtrl;
 class wxMediaEvent;
 
-#define PLAYER_CONTROLS_PANEL_HEIGHT 20
-
 DECLARE_LOCAL_EVENT_TYPE( wxEVT_VIDEO_FINISHED, wxID_ANY )
 
 class MediaManager final : public wxWindow

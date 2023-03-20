@@ -10,9 +10,9 @@
 #include <wx/dc.h>
 #include <wx/dcbuffer.h>
 
+#include "Common/defs.h"
 #include "Common/Tools.h"
 #include "Common/xRect.hpp"
-#include "Shapes/ShapesManager.h"
 
 #include "Counter.hpp"
 #include "Panel.h"

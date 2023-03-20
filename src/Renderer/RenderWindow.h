@@ -3,8 +3,6 @@
 #include <memory> 
 #include "wx/glcanvas.h" 
 
-#define DEFAULT_DELTATIME 16
-
 DECLARE_LOCAL_EVENT_TYPE( wxEVT_LAUNCH_PRESSED, wxID_ANY )
 DECLARE_LOCAL_EVENT_TYPE( wxEVT_NEW_ROUND_STARTED, wxID_ANY )
 

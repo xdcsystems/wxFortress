@@ -40,3 +40,8 @@ void Base::draw( rendererPtr renderer ) const
     m_sprite->bind();
     renderer->drawSprite( m_position, m_size );
 }
+
+glm::vec2 Base::center() const
+{
+    return { m_position.x + m_size.x / 2, m_position.y + m_size.y / 2 };
+}

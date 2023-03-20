@@ -1,7 +1,5 @@
 #pragma once
 
-#define INITIAL_LIVES_VALUE 9
-
 namespace ControlPanel
 {
     // Forward declarations

@@ -1,7 +1,8 @@
 #pragma once
+
 #include <mutex>
 
-static std::atomic<bool> pause = false;
+static std::atomic<bool> s_pause = false;
 
 class Semaphore
 {
@@ -9,28 +10,33 @@ class Semaphore
         std::cv_status pauseWorker()
         {
             std::unique_lock<std::mutex> lock( m_mutex );
-            if ( pause.load() ) // already paused
+            if ( s_pause.load() ) // already paused
             {
                 lock.unlock();
                 return std::cv_status::no_timeout;
             }
-            pause.store( true );
+            s_pause.store( true );
+
             std::cv_status retval = m_cv2.wait_for( lock, std::chrono::milliseconds( 100 ) );
+
             if ( retval == std::cv_status::timeout )
-            {
-                pause.store( false ); // not paused
-            }
+                s_pause.store( false ); // not paused
+
             lock.unlock();
             return retval;
         }
 
-        void checkWorkerPaused()
+        void checkWorkerPaused( bool value = false )
         {
             std::unique_lock<std::mutex> lock( m_mutex );
-            if ( pause.load() )
+
+            if ( value )
+                s_pause.store( true );
+
+            if ( s_pause.load() )
             {
                 m_cv2.notify_all();
-                m_cv1.wait( lock, []() { return pause.load() == false; } );
+                m_cv1.wait( lock, []() { return s_pause.load() == false; } );
             }
             lock.unlock();
         }
@@ -38,7 +44,7 @@ class Semaphore
         void resumeWorker()
         {
             std::scoped_lock lock( m_mutex );
-            pause.store( false );
+            s_pause.store( false );
             m_cv1.notify_all();
         }
 

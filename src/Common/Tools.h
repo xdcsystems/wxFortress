@@ -10,9 +10,7 @@ class wxSize;
 
 void CheckOpenGLError( const char* stmt, const char* fname, int line );
 
-#define _SKIP 1
-
-#if defined(_DEBUG) && !defined(_SKIP)
+#if defined(_DEBUG) && !defined(SKIP_GL_CHECKS)
 #define GL_CHECK(stmt) do { \
             stmt; \
             CheckOpenGLError(#stmt, __FILE__, __LINE__); \

@@ -45,11 +45,19 @@ namespace Shapes
             using enum TypeContact;
 
          protected:
-            template <MoveDirection direction>
-            void checkDirection( ContactPosition contactPosition );
+            void initDirection();
+            
+            bool isMovingHorizontal() const { 
+                return ( m_moveDirection == DirectionLeftDown || m_moveDirection == DirectionRightDown ); 
+            };
+
+            template <MoveDirection>
+            void changeDirection( ContactPosition contactPosition );
+            void changeDirection( const glm::vec2& ballCenter, const glm::vec2& paddleCenter );
 
         protected:
             double m_angle = 90;
+            double m_scaleDivisionValue = 1;
             MoveDirection m_moveDirection = DirectionTopRight;
     };
 }

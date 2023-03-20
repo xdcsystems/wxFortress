@@ -10,6 +10,7 @@
 #include <wx/dcbuffer.h>
 #include <wx/mediactrl.h>
 
+#include "Common/defs.h"
 #include "Common/Tools.h"
 #include "MediaManager.h"
 

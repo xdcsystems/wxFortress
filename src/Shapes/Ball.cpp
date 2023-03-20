@@ -7,6 +7,7 @@
 #include "wx/wx.h"
 #endif
 
+#include "Common/defs.h"
 #include "Common/Tools.h"
 #include "Common/xRect.hpp"
 #include "Renderer/ResourceManager.h"
@@ -23,7 +24,7 @@ Ball::Ball()
     m_radius = m_size.x / 2.0f;
     m_radiusSquared = m_radius * m_radius;
 
-    m_velocity = { 3.2f, 3.2f };
+    m_velocity = { BEGIN_BALL_VELOCITY, BEGIN_BALL_VELOCITY };
 }
 
 ContactPosition Ball::intersect( const xRect& rect ) const

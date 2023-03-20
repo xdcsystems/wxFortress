@@ -7,6 +7,9 @@
 #include "wx/wx.h"
 #endif
 
+#include <random>
+
+#include "Common/defs.h"
 #include "Common/xRect.hpp"
 #include "Base.h"
 #include "Ball.h"
@@ -16,8 +19,21 @@
 using namespace Shapes;
 using enum MoveController::MoveDirection;
 
+void MoveController::initDirection()
+{
+    std::random_device dev;
+    std::mt19937 rng( dev() );
+    std::uniform_int_distribution<std::mt19937::result_type> dist160( BEGIN_ANGLE, END_ANGLE ); // distribution in range [30, 150]
+
+    do {
+        m_angle = dist160( rng );
+    } while ( m_angle > END_RIGHT_ANGLE && m_angle < BEGIN_LEFT_ANGLE ); // > 70 && < 110
+
+    m_moveDirection = m_angle <= 90 ? DirectionTopRight : DirectionTopLeft;
+}
+
 template <>
-void MoveController::checkDirection<DirectionTopRight>( ContactPosition contactPosition )
+void MoveController::changeDirection<DirectionTopRight>( ContactPosition contactPosition )
 {
     if ( contactPosition == Ball::ContactRight )
     {
@@ -30,7 +46,7 @@ void MoveController::checkDirection<DirectionTopRight>( ContactPosition contactP
 }
 
 template <>
-void MoveController::checkDirection<DirectionTopLeft>( ContactPosition contactPosition )
+void MoveController::changeDirection<DirectionTopLeft>( ContactPosition contactPosition )
 {
     if ( contactPosition == Ball::ContactLeft )
     {
@@ -43,7 +59,7 @@ void MoveController::checkDirection<DirectionTopLeft>( ContactPosition contactPo
 }
 
 template <>
-void MoveController::checkDirection<DirectionRightDown>( ContactPosition contactPosition )
+void MoveController::changeDirection<DirectionRightDown>( ContactPosition contactPosition )
 {
     if ( contactPosition == Ball::ContactRight )
     {
@@ -56,7 +72,7 @@ void MoveController::checkDirection<DirectionRightDown>( ContactPosition contact
 }
 
 template <>
-void MoveController::checkDirection<DirectionLeftDown>( ContactPosition contactPosition )
+void MoveController::changeDirection<DirectionLeftDown>( ContactPosition contactPosition )
 {
     if ( contactPosition == Ball::ContactLeft ) 
     {
@@ -66,4 +82,37 @@ void MoveController::checkDirection<DirectionLeftDown>( ContactPosition contactP
     }
     m_angle *= -1;
     m_moveDirection = DirectionTopLeft;
+}
+
+// Paddle contact
+void MoveController::changeDirection( const glm::vec2 &ballCenter, const glm::vec2 &paddleCenter )
+{
+    m_angle *= -1;
+    m_angle += m_scaleDivisionValue * ( paddleCenter.x - ballCenter.x );
+
+    switch ( m_moveDirection )
+    {
+        case DirectionRightDown:
+            if ( m_angle > END_RIGHT_ANGLE )
+                m_angle = END_RIGHT_ANGLE;
+            else if ( m_angle < BEGIN_ANGLE )
+                m_angle = BEGIN_ANGLE;
+
+            m_moveDirection = DirectionTopRight;
+        break;
+        
+        case DirectionLeftDown:
+            if ( m_angle > END_ANGLE )
+                m_angle = END_ANGLE;
+            else if ( m_angle < BEGIN_LEFT_ANGLE )
+                m_angle = BEGIN_LEFT_ANGLE;
+
+            m_moveDirection = DirectionTopLeft;
+        break;
+
+        default:
+            // wrong direction, error
+            throw std::runtime_error( "Error: Wrong ball direction" );
+        break;
+    }
 }

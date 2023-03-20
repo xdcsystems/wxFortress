@@ -21,6 +21,7 @@
 #include <glm/gtx/transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include "Common/defs.h"
 #include "Common/Timer.h"
 #include "Common/Tools.h"
 #include "Common/xRect.hpp"
@@ -29,9 +30,10 @@
 #include "Sounds/SoundManager.h"
 #include "Shapes/ShapesManager.h"
 #include "Shapes/ParticleGenerator.h"
+#include "ResourceManager.h"
 #include "Overlay.h"
 #include "RenderWindow.h"
-#include "ResourceManager.h"
+
 
 #if defined (_MSC_VER)
     #pragma comment(lib,"../external/directX/x86/dwmapi.lib")
