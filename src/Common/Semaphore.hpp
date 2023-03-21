@@ -2,7 +2,7 @@
 
 #include <mutex>
 
-static std::atomic<bool> s_pause = false;
+static std::atomic<bool> s_pause { false };
 
 class Semaphore
 {

@@ -39,17 +39,17 @@ namespace Shapes
         protected:
             void stop();
             void update( double deltaTime );
-            void calculateTrajectory();
             void changeMoveDirection( ContactPosition contactPosition, TypeContact typeContact = WallContact );
             void moveBoard();
-            void checkBallContact();
             void checkKeysState();
+            void checkPaddleContact();
+            ContactPosition checkBrickContact( const glm::vec2& ballPosition, const glm::vec2& delta, float beginValue, float endValue, float increment );
             xRect updateBallPosition( const xRect& boardBounds ) const;
 
         protected:
             wxSize m_size;
             bool m_bRun = false;
-            bool m_isRobot = false;
+            bool m_isRobot = true;
 
             int m_boardMove = 0;
             float m_ballTopLimit = 0;

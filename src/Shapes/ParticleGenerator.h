@@ -63,8 +63,6 @@ namespace Shapes
             int m_attrPos = 0;
             int m_attrIndex = 0;
 
-            bool m_updated = false;
-            
             std::vector<Particle> m_particles;
 
             // render state

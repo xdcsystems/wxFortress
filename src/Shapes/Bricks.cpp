@@ -17,6 +17,7 @@
 #include "Bricks.h"
 
 using namespace Shapes;
+using enum ContactPosition;
 
 Bricks::Bricks()
 {
@@ -52,21 +53,15 @@ void Bricks::loadLevel( unsigned short level )
                 ) );
 }
 
-void Bricks::render( bool bRun, const std::function<bool( brickPtr )>& checkIntersects ) const
+void Bricks::checkContact( const std::function<bool( brickPtr )>& checkIntersects ) const
 {
-    bool hasContact = false;
-
     for ( const auto& brick : m_bricks )
     {
         if ( !brick->isAlive() )
             continue;
-
-        if ( bRun && !hasContact )
-        {
-            hasContact = checkIntersects( brick );
-            if ( hasContact )
-                brick->kill();
-        }
+        
+        if ( checkIntersects( brick ) )
+            break;
     }
 }
 

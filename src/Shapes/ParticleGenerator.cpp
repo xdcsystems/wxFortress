@@ -38,9 +38,6 @@ ParticleGenerator::~ParticleGenerator()
 
 void ParticleGenerator::update( float dt, basePtr object, unsigned int newParticles, glm::vec2 offset )
 {
-    if ( m_updated )
-        return;
-
     // add new particles 
     for ( unsigned int i = 0; i < newParticles; ++i )
     {
@@ -52,14 +49,12 @@ void ParticleGenerator::update( float dt, basePtr object, unsigned int newPartic
     for ( auto& particle : m_particles )
     {
         particle.Life -= dt; // reduce life
-        if ( particle.Life > 0.0f )
+        if ( particle.Life > .0f )
         {	// particle is alive, thus update
             particle.Position -= particle.Velocity * dt;
             particle.Color.a -= dt * 2.5f;
         }
     }
-
-    m_updated = true;
 }
 
 // render all particles
@@ -100,8 +95,6 @@ void ParticleGenerator::draw()
 
     // don't forget to reset to default blending mode
     GL_CHECK( glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA ) );
-
-    m_updated = false;
 }
 
 void ParticleGenerator::init()

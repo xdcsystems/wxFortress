@@ -1,6 +1,5 @@
 #pragma once
 
-#include <memory>
 #include <glm/glm.hpp>
 
 // Forward declarations
@@ -10,6 +9,15 @@ class xRect;
 
 namespace Shapes
 {
+    enum class ContactPosition : unsigned char
+    {
+        ContactNull,
+        ContactTop,
+        ContactRight,
+        ContactLeft,
+        ContactBottom
+    };
+
     class Base
     {
         using rendererPtr = std::shared_ptr<SpriteRenderer>;
@@ -21,19 +29,18 @@ namespace Shapes
         public:
             virtual ~Base() = default;
 
+            virtual inline glm::vec2 position() const { return m_position; }
+            virtual inline glm::vec2 size() const { return m_size; }
+            virtual inline glm::vec2 velocity() const { return m_velocity; }
+            virtual glm::vec2 center() const;
+            virtual inline xRect  bounds() const { return { m_position, m_size }; }
+            virtual unsigned int VBO() const { return m_VBO; }
+
             virtual void load( texture2DPtr sprite );
             virtual void moveTo( float x, float y );
             virtual void moveTo( const glm::vec2& position );
-
-            virtual glm::vec2 position() const { return m_position; }
-            virtual glm::vec2 size() const { return m_size; }
-            virtual glm::vec2 velocity() const { return m_velocity; }
-            virtual glm::vec2 center() const;
-            virtual xRect  bounds() const { return { m_position, m_size }; }
-            virtual unsigned int VBO() const { return m_VBO; }
-            virtual void draw( rendererPtr renderer ) const;
-
             virtual void increaseVelocity( float value ) { m_velocity += value; }
+            virtual void draw( rendererPtr renderer ) const;
 
         protected:
             glm::vec2 m_position = { 0, 0 },

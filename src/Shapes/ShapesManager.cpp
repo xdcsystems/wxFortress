@@ -21,8 +21,8 @@
 #include "Bricks.h"
 #include "Board.h"
 #include "ParticleGenerator.h"
-#include "ShapesManager.h"
 #include "Renderer/SpriteRenderer.h"
+#include "ShapesManager.h"
 
 
 DEFINE_LOCAL_EVENT_TYPE( wxEVT_CURRENT_SCORE_INCREASED )
@@ -32,6 +32,7 @@ DEFINE_LOCAL_EVENT_TYPE( wxEVT_PING )
 DEFINE_LOCAL_EVENT_TYPE( wxEVT_PONG )
 
 using namespace Shapes;
+using enum ContactPosition;
 
 ShapesManager::ShapesManager( wxWindow* parent )
     : m_eventHandler( parent->GetEventHandler() )
@@ -109,36 +110,6 @@ void ShapesManager::resize( const wxSize& size )
         resumeWorker();
 }
 
-void ShapesManager::calculateTrajectory()
-{
-    const auto& ballBounds = m_ball->bounds();
-    const auto radAngle = glm::radians( m_angle );
-
-    const glm::vec2 delta( m_diagonal * cos( radAngle ), m_diagonal * sin( radAngle ) );
-
-    double k = 0.0;
-    float Rac = .0f;
-
-    std::generate( m_trajectory.begin(), m_trajectory.end(), [this, &ballBounds, &delta, &k, &Rac]() -> glm::vec2 {
-        k = Rac / m_diagonal;
-        Rac += m_ball->velocity().x;
-        return { ballBounds.m_x + delta.x * k, ballBounds.m_y + delta.y * k };
-    } );
-
-    if ( m_isRobot && isMovingHorizontal() )
-    {
-        const auto& boardBounds = m_board->bounds();
-        m_currentTrajPoint = std::find_if( m_trajectory.cbegin(), m_trajectory.cend(), [&boardBounds]( auto& point ) {
-            return point.y <= boardBounds.GetBottom();
-        } );
-
-        if ( m_currentTrajPoint != m_trajectory.end() )
-            m_boardMove = m_currentTrajPoint->x + ( ballBounds.m_width - boardBounds.m_width ) / 2 - boardBounds.m_x;
-    }
-
-    m_currentTrajPoint = m_trajectory.begin();
-}
-
 void ShapesManager::stop()
 {
     m_bRun = false;
@@ -188,44 +159,6 @@ void ShapesManager::changeMoveDirection( ContactPosition contactPosition, TypeCo
     ( this->*( s_handlers[ m_moveDirection ] ) )( contactPosition );
 }
 
-void ShapesManager::update( double deltaTime )
-{
-    calculateTrajectory();
-    m_particles->update( deltaTime * 0.001, m_ball, 1, glm::vec2( m_ball->radius() / 2.0f ) );
-
-    if ( m_bRun )
-    {
-        if ( m_trajectory.empty() )
-            return;
-
-        /*if ( std::distance( m_currentTrajPoint, m_trajectory.cend() ) > step )
-            m_currentTrajPoint += step;
-        else*/
-        ++m_currentTrajPoint;
-
-        if ( m_currentTrajPoint != m_trajectory.end() )
-            m_ball->moveTo( *m_currentTrajPoint );
-
-        ContactPosition contactPosition = Ball::ContactNull;
-        m_bricks->render( m_bRun, [this, &contactPosition]( brickPtr brick ) {
-            contactPosition = m_ball->intersect( brick->bounds() );
-            return contactPosition != Ball::ContactNull;
-         } );
-
-        if ( contactPosition == Ball::ContactNull )
-            checkBallContact();
-        else
-            changeMoveDirection( contactPosition, BrickContact );
-    }
-    else
-        updateBallPosition( m_board->bounds() );
-
-    checkKeysState();
-
-    if ( m_boardMove )
-        moveBoard();
-}
-
 void ShapesManager::moveBoard()
 {
     auto boardBounds = std::move( m_board->bounds() );
@@ -248,7 +181,7 @@ void ShapesManager::moveBoard()
         m_boardMove = 0;
 }
 
-void ShapesManager::checkBallContact()
+void ShapesManager::checkPaddleContact()
 {
     const auto& ballBounds = m_ball->bounds();
 
@@ -256,32 +189,32 @@ void ShapesManager::checkBallContact()
     {
         case DirectionTopRight:
             if ( ballBounds.GetRight() >= m_size.x )
-                changeMoveDirection( Ball::ContactRight );
+                changeMoveDirection( ContactRight );
             else if ( ballBounds.m_y >= m_ballTopLimit )
-                changeMoveDirection( Ball::ContactBottom );
+                changeMoveDirection( ContactBottom );
         break;
 
         case DirectionTopLeft:
             if ( ballBounds.m_x <= 0 )
-                changeMoveDirection( Ball::ContactLeft );
+                changeMoveDirection( ContactLeft );
             else if ( ballBounds.m_y >= m_ballTopLimit )
-                changeMoveDirection( Ball::ContactBottom );
+                changeMoveDirection( ContactBottom );
         break;
 
         case DirectionRightDown:
             if ( ballBounds.GetRight() >= m_size.x )
-                changeMoveDirection( Ball::ContactRight );
+                changeMoveDirection( ContactRight );
             else if ( ballBounds.m_y < m_ballBottomLimit )
-                changeMoveDirection( Ball::ContactTop,
-                    m_ball->intersect( m_board->admissibleBounds( ballBounds ) ) == Ball::ContactNull ? BallLost : PaddleContact );
+                changeMoveDirection( ContactTop,
+                    m_ball->intersect( m_board->admissibleBounds( ballBounds ) ) == ContactNull ? BallLost : PaddleContact );
         break;
 
         case DirectionLeftDown:
             if ( ballBounds.m_y < m_ballBottomLimit )
-                changeMoveDirection( Ball::ContactBottom,
-                    m_ball->intersect( m_board->admissibleBounds( ballBounds ) ) == Ball::ContactNull ? BallLost : PaddleContact );
+                changeMoveDirection( ContactBottom,
+                    m_ball->intersect( m_board->admissibleBounds( ballBounds ) ) == ContactNull ? BallLost : PaddleContact );
             else if ( ballBounds.m_x <= 0 )
-                changeMoveDirection( Ball::ContactLeft );
+                changeMoveDirection( ContactLeft );
         break;
     }
 }
@@ -319,10 +252,94 @@ bool ShapesManager::switchRun( bool bNewRound )
     return m_bRun;
 };
 
+ContactPosition ShapesManager::checkBrickContact(
+    const glm::vec2& ballPosition,
+    const glm::vec2& delta,
+    float beginValue,
+    float endValue,
+    float increment )
+{
+    ContactPosition contactPosition = ContactNull;
+    glm::vec2 prevPosition = ballPosition;
+    const auto Rab = m_ball->velocity().x;
+    double k = 0.0;
+
+    for ( float Rac = beginValue; Rac <= endValue; Rac += increment )
+    {
+        k = Rac / Rab;
+
+        prevPosition = m_ball->position();
+        m_ball->moveTo( { ballPosition.x + delta.x * k, ballPosition.y + delta.y * k } );
+
+        m_bricks->checkContact( [ this, &contactPosition, &increment ]( brickPtr brick ) {
+            contactPosition = m_ball->intersect( brick->bounds() );
+            if ( contactPosition == ContactNull )
+                return false;
+
+            if ( increment != 1.f )
+                brick->kill();
+
+            return true;
+        } );
+
+        if ( contactPosition != ContactNull ) // there is a contact, clarify the position of the contact
+        {
+            if ( increment != 1.f )
+                break;
+
+            m_ball->moveTo( prevPosition );
+            Rac -= increment;
+            increment = INCREASE_VELOCITY_STEP;
+        }
+    }
+    return contactPosition;
+}
+
+void ShapesManager::update( double deltaTime )
+{
+    if ( m_bRun )
+    {
+        const auto& ballPosition = m_ball->position();
+        const auto Rab = m_ball->velocity().x;
+        const auto radAngle = glm::radians( m_angle );
+        const glm::vec2 delta( Rab * cos( radAngle ), Rab * sin( radAngle ) );
+        float cc;
+        const auto dc = modff( Rab, &cc );
+
+        auto contactPosition = checkBrickContact( ballPosition, delta, 1.f, cc, 1.f );
+
+        // if there is no contact and there is a remainder
+        if ( contactPosition == ContactNull && dc > 0 )
+            contactPosition= checkBrickContact( ballPosition, delta, cc, Rab, INCREASE_VELOCITY_STEP );
+
+        // if there was no contact, we check the contact of the ball with the paddle
+        if ( contactPosition == ContactNull )
+        {
+            if ( m_isRobot )
+            {
+                const auto& ballBounds = m_ball->bounds();
+                const auto& boardBounds = m_board->bounds();
+                m_boardMove = ballBounds.m_x + ( ballBounds.m_width - boardBounds.m_width ) / 2 - boardBounds.m_x;
+            }
+            checkPaddleContact();
+        }
+        else
+            changeMoveDirection( contactPosition, BrickContact );
+
+        // update the position of the particles according to the new position of the ball
+        m_particles->update( deltaTime * 0.001, m_ball, 2, glm::vec2( m_ball->radius() / 2.0f ) );
+    }
+    else
+        updateBallPosition( m_board->bounds() );
+
+    checkKeysState();
+
+    if ( m_boardMove )
+        moveBoard();
+}
+
 void ShapesManager::renderFrame( rendererPtr spriteRenderer, double deltaTime )
 {
-    const auto step = round( deltaTime / 16 );
-
     if ( pauseWorker() == std::cv_status::timeout )
     {
         wxLogDebug( "Can't pause Worker" );

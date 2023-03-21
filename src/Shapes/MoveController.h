@@ -47,7 +47,7 @@ namespace Shapes
          protected:
             void initDirection();
             
-            bool isMovingHorizontal() const { 
+            inline bool isMovingHorizontal() const { 
                 return ( m_moveDirection == DirectionLeftDown || m_moveDirection == DirectionRightDown ); 
             };
 

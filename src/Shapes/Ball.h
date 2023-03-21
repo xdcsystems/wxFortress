@@ -2,15 +2,6 @@
 
 namespace Shapes
 {
-    enum class ContactPosition : unsigned char
-    {
-        ContactNull,
-        ContactTop,
-        ContactRight,
-        ContactLeft,
-        ContactBottom
-    };
-
     class Ball final : public Base
     {
         public:

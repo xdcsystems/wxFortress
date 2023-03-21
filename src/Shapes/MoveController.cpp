@@ -12,12 +12,12 @@
 #include "Common/defs.h"
 #include "Common/xRect.hpp"
 #include "Base.h"
-#include "Ball.h"
 #include "MoveController.h"
 
 
 using namespace Shapes;
 using enum MoveController::MoveDirection;
+using enum ContactPosition;
 
 void MoveController::initDirection()
 {
@@ -35,7 +35,7 @@ void MoveController::initDirection()
 template <>
 void MoveController::changeDirection<DirectionTopRight>( ContactPosition contactPosition )
 {
-    if ( contactPosition == Ball::ContactRight )
+    if ( contactPosition == ContactRight )
     {
         m_angle += ( 90 - m_angle ) * 2;
         m_moveDirection = DirectionTopLeft;
@@ -48,7 +48,7 @@ void MoveController::changeDirection<DirectionTopRight>( ContactPosition contact
 template <>
 void MoveController::changeDirection<DirectionTopLeft>( ContactPosition contactPosition )
 {
-    if ( contactPosition == Ball::ContactLeft )
+    if ( contactPosition == ContactLeft )
     {
         m_angle = 90 - ( m_angle - 90 );
         m_moveDirection = DirectionTopRight;
@@ -61,7 +61,7 @@ void MoveController::changeDirection<DirectionTopLeft>( ContactPosition contactP
 template <>
 void MoveController::changeDirection<DirectionRightDown>( ContactPosition contactPosition )
 {
-    if ( contactPosition == Ball::ContactRight )
+    if ( contactPosition == ContactRight )
     {
         m_angle -= ( 90 - fabs( m_angle ) ) * 2;
         m_moveDirection = DirectionLeftDown;
@@ -74,7 +74,7 @@ void MoveController::changeDirection<DirectionRightDown>( ContactPosition contac
 template <>
 void MoveController::changeDirection<DirectionLeftDown>( ContactPosition contactPosition )
 {
-    if ( contactPosition == Ball::ContactLeft ) 
+    if ( contactPosition == ContactLeft ) 
     {
         m_angle -= ( 90 + m_angle ) * 2;
         m_moveDirection = DirectionRightDown;
