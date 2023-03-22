@@ -29,8 +29,6 @@ class Timer
         double getElapsedTimeInMicroSec();          // get elapsed time in micro-second
         bool    isStopped() const { return stopped; }
 
-    protected:
-
     private:
         double startTimeInMicroSec;                 // starting time in micro-second
         double endTimeInMicroSec;                   // ending time in micro-second

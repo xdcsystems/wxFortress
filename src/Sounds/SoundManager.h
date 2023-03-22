@@ -28,7 +28,7 @@ class SoundManager final
 		int init();
 		void playSiren();
 		void playCountdown();
-		void playRocket();
+		void playRocket() const;
 		void playDestroyBrick();
 		void playPing();
 		void playPong();
@@ -36,7 +36,7 @@ class SoundManager final
 		void playBallLost();
 
 	private:
-		int loadBuffer( AudioFile<float>& audioFile, const std::string& fileName, ALuint *buffer );
+		int loadBuffer( AudioFile<float>& soundFile, const std::string &fileName, ALuint *buffer );
 		ALuint getFreeStereoSource() const;
 		void cleanSources();
 		void playStereoSource( ALuint buffer, float gain = 1.f, bool playAsync = true );

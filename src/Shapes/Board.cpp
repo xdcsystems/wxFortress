@@ -8,7 +8,7 @@
 #endif
 
 #include "Common/defs.h"
-#include "Common/xRect.hpp"
+#include "Common/Rect.hpp"
 #include "Renderer/ResourceManager.h"
 #include "Base.h"
 #include "Board.h"
@@ -21,10 +21,10 @@ Board::Board()
     m_velocity = { BEGIN_BOARD_VELOCITY, BEGIN_BOARD_VELOCITY };
 }
 
-xRect Board::admissibleBounds( const xRect& bounds ) const
+Rect Board::admissibleBounds( const Rect& bounds ) const
 {
-    auto boundsRect = std::move( Base::bounds() );
-    boundsRect.Inset( bounds.m_width / 2, 0.0 );
+    auto boundsRect = Base::bounds();
+    boundsRect.inset( bounds.m_width / 2, 0.0 );
     
     return boundsRect;
 }

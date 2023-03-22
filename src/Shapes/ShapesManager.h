@@ -19,9 +19,8 @@ namespace Shapes
     class Ball;
     class Board;
     class Bricks;
-    enum class ContactPosition : unsigned char;
 
-    class ShapesManager: public MoveController, public Semaphore
+    class ShapesManager final: public MoveController, public Semaphore
     {
         using rendererPtr = std::shared_ptr<SpriteRenderer>;
         using particlesPtr = std::shared_ptr<ParticleGenerator>;
@@ -31,22 +30,24 @@ namespace Shapes
             virtual ~ShapesManager();
 
             bool switchRun( bool bNewRound = false );
-            void renderFrame( rendererPtr spriteRenderer, double deltaTime );
+            void renderFrame( rendererPtr spriteRenderer );
 
             void resize( const wxSize& size );
             void loadLevel( unsigned short level );
 
         protected:
+            // Helper functions
             void stop();
             void update( double deltaTime );
-            void changeMoveDirection( ContactPosition contactPosition, TypeContact typeContact = WallContact );
+            void changeMoveDirection( ContactPosition contactPosition, TypeContact typeContact = TypeContact::WallContact );
             void moveBoard();
             void checkKeysState();
             void checkPaddleContact();
             ContactPosition checkBrickContact( const glm::vec2& ballPosition, const glm::vec2& delta, float beginValue, float endValue, float increment );
-            xRect updateBallPosition( const xRect& boardBounds ) const;
+            Rect updateBallPosition( const Rect& boardBounds ) const;
 
-        protected:
+        private:
+            // Private data
             wxSize m_size;
             bool m_bRun = false;
             bool m_isRobot = true;
@@ -74,7 +75,7 @@ namespace Shapes
 
             std::shared_ptr<ParticleGenerator> m_particles;
 
-            std::atomic<bool> m_keepGoing{ true };
+            std::atomic<bool> m_keepGoing { true };
             std::future<void> m_asyncWorker;
     };
 }

@@ -8,11 +8,14 @@
 //////////////////////////////////////////////////////////////////////////////
 
 #include "Timer.h"
-#include <stdlib.h>
+#include <cstdlib>
 
 
 Timer::Timer( bool initialState )
     : stopped( initialState )
+    , frequency( { 0, 0 } )
+    , startCount( { 0, 0 } )
+    , endCount( { 0, 0 } )
 {
 #if defined(WIN32) || defined(_WIN32)
     QueryPerformanceFrequency( &frequency );
@@ -32,7 +35,7 @@ Timer::Timer( bool initialState )
 ///////////////////////////////////////////////////////////////////////////////
 void Timer::start()
 {
-    stopped = 0; // reset stop flag
+    stopped = false; // reset stop flag
 #if defined(WIN32) || defined(_WIN32)
     QueryPerformanceCounter( &startCount );
 #else
@@ -46,7 +49,7 @@ void Timer::start()
 ///////////////////////////////////////////////////////////////////////////////
 void Timer::stop()
 {
-    stopped = 1; // set timer stopped flag
+    stopped = true; // set timer stopped flag
 
 #if defined(WIN32) || defined(_WIN32)
     QueryPerformanceCounter( &endCount );
@@ -63,7 +66,9 @@ double Timer::getElapsedTimeInMicroSec()
 {
 #if defined(WIN32) || defined(_WIN32)
     if ( !stopped )
+    {
         QueryPerformanceCounter( &endCount );
+    }
 
     startTimeInMicroSec = startCount.QuadPart * ( 1000000.0 / frequency.QuadPart );
     endTimeInMicroSec = endCount.QuadPart * ( 1000000.0 / frequency.QuadPart );

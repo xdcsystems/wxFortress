@@ -24,7 +24,7 @@
 #include "Common/defs.h"
 #include "Common/Timer.h"
 #include "Common/Tools.h"
-#include "Common/xRect.hpp"
+#include "Common/Rect.hpp"
 #include "Shader.h"
 #include "SpriteRenderer.h"
 #include "Sounds/SoundManager.h"
@@ -43,14 +43,14 @@ DEFINE_LOCAL_EVENT_TYPE( wxEVT_LAUNCH_PRESSED )
 DEFINE_LOCAL_EVENT_TYPE( wxEVT_NEW_ROUND_STARTED )
 
 BEGIN_EVENT_TABLE( RenderWindow, wxGLCanvas )
-    EVT_PAINT( OnPaint )
-    EVT_KEY_DOWN( OnKeyPressed )
-    EVT_SIZE( OnSize )
-    EVT_COMMAND( wxID_ANY, wxEVT_CURRENT_SCORE_INCREASED, OnScoreIncreased )
-    EVT_COMMAND( wxID_ANY, wxEVT_ROUND_COMLETED, OnRoundCompleted )
-    EVT_COMMAND( wxID_ANY, wxEVT_BALL_LOST, OnBallLost )
-    EVT_COMMAND( wxID_ANY, wxEVT_PING, OnPaddleContact )
-    EVT_COMMAND( wxID_ANY, wxEVT_PONG, OnPaddleContact )
+    EVT_PAINT( onPaint )
+    EVT_KEY_DOWN( onKeyPressed )
+    EVT_SIZE( onSize )
+    EVT_COMMAND( wxID_ANY, wxEVT_CURRENT_SCORE_INCREASED, onScoreIncreased )
+    EVT_COMMAND( wxID_ANY, wxEVT_ROUND_COMLETED, onRoundCompleted )
+    EVT_COMMAND( wxID_ANY, wxEVT_BALL_LOST, onBallLost )
+    EVT_COMMAND( wxID_ANY, wxEVT_PING, onPaddleContact )
+    EVT_COMMAND( wxID_ANY, wxEVT_PONG, onPaddleContact )
 END_EVENT_TABLE()
 
 
@@ -73,8 +73,8 @@ void RenderWindow::init()
     m_context = std::make_unique<wxGLContext>( this );
     SetCurrent( *m_context ); // TODO move to resize
 
-    InitializeGLEW();
-    SetupGraphics();
+    initializeGLEW();
+    setupGraphics();
 
     m_soundManager = std::make_shared<SoundManager>();
     m_soundManager->init();
@@ -91,7 +91,7 @@ RenderWindow::~RenderWindow()
     ResourceManager::Clear();
 }
 
-void RenderWindow::InitializeGLEW()
+void RenderWindow::initializeGLEW()
 {
     glewExperimental = true;
     GLenum err = glewInit();
@@ -102,7 +102,7 @@ void RenderWindow::InitializeGLEW()
     }
 }
 
-void RenderWindow::SetupGraphics()
+void RenderWindow::setupGraphics()
 {
 #if defined (_MSC_VER)
     wglSwapIntervalEXT( -1 );
@@ -141,14 +141,14 @@ void RenderWindow::SetupGraphics()
 
 void RenderWindow::start() 
 {
-    Bind( wxEVT_IDLE, &RenderWindow::OnIdle, this );
+    Bind( wxEVT_IDLE, &RenderWindow::onIdle, this );
     m_isRunning = true; 
 }
 
 void RenderWindow::stop()
 { 
     m_isRunning = false;
-    Unbind( wxEVT_IDLE, &RenderWindow::OnIdle, this );
+    Unbind( wxEVT_IDLE, &RenderWindow::onIdle, this );
 }
 
 void RenderWindow::loadLevel( unsigned short level )
@@ -159,7 +159,9 @@ void RenderWindow::loadLevel( unsigned short level )
 void RenderWindow::switchRun()
 {
     if ( !m_isRunning )
+    {
         return;
+    }
 
     if ( m_state == NEWROUND )
     {
@@ -188,7 +190,9 @@ void RenderWindow::switchRun()
 void RenderWindow::resize( const wxSize& size )
 {
     if ( size.x < 1 || size.y < 1 )
+    {
         return;
+    }
 
     //GL_CHECK( glViewport( 0, 0, ( GLint )size.GetWidth(), ( GLint )size.GetHeight() ) );
 
@@ -196,13 +200,13 @@ void RenderWindow::resize( const wxSize& size )
     m_shapesManager->resize( size );
 }
 
-void RenderWindow::OnPaint( wxPaintEvent& event )
+void RenderWindow::onPaint( wxPaintEvent& )
 {
     wxPaintDC dc( this );
     render();
 }
 
-void RenderWindow::OnIdle( wxIdleEvent& event )
+void RenderWindow::onIdle( wxIdleEvent& event )
 {
     if ( m_isRunning )
     {
@@ -210,22 +214,24 @@ void RenderWindow::OnIdle( wxIdleEvent& event )
         if ( m_elapsedTime >= 16 )
         {
             m_timer->start();
-            render( m_elapsedTime );
+            render();
         }
     }
     event.RequestMore();
 }
 
-void RenderWindow::render( double deltaTime )
+void RenderWindow::render()
 {
     if ( !m_isRunning || !IsShown() )
+    {
         return;
+    }
 
     SetCurrent( *m_context );
 
     GL_CHECK( glClear( GL_COLOR_BUFFER_BIT ) );
 
-    m_shapesManager->renderFrame( m_spriteRenderer, deltaTime );
+    m_shapesManager->renderFrame( m_spriteRenderer );
 
     switch ( m_state )
     {
@@ -248,12 +254,12 @@ void RenderWindow::render( double deltaTime )
 #endif
 }
 
-void RenderWindow::OnSize( wxSizeEvent& event )
+void RenderWindow::onSize( wxSizeEvent& event )
 {
     resize( event.GetSize() );
 }
 
-void RenderWindow::OnKeyPressed( wxKeyEvent& event )
+void RenderWindow::onKeyPressed( wxKeyEvent& event )
 {
     switch ( event.GetKeyCode() )
     {
@@ -275,13 +281,13 @@ void RenderWindow::OnKeyPressed( wxKeyEvent& event )
     }
 }
 
-void RenderWindow::OnScoreIncreased( wxCommandEvent& event )
+void RenderWindow::onScoreIncreased( wxCommandEvent& event )
 {
     m_soundManager->playDestroyBrick();
     event.Skip();
 }
 
-void RenderWindow::OnPaddleContact( wxCommandEvent& event )
+void RenderWindow::onPaddleContact( wxCommandEvent& event )
 {
     static std::map<wxEventType, void ( SoundManager::* )( )> s_contactSound = {
         { wxEVT_PING, &SoundManager::playPing },
@@ -291,7 +297,7 @@ void RenderWindow::OnPaddleContact( wxCommandEvent& event )
     ( m_soundManager.get()->*( s_contactSound[ event.GetEventType() ] ) )( );
 }
 
-void RenderWindow::OnRoundCompleted( wxCommandEvent& event )
+void RenderWindow::onRoundCompleted( wxCommandEvent& event )
 {
     m_soundManager->playLevelComplete();
     m_state = NEWROUND;
@@ -301,7 +307,7 @@ void RenderWindow::OnRoundCompleted( wxCommandEvent& event )
     event.Skip();
 }
 
-void RenderWindow::OnBallLost( wxCommandEvent& event )
+void RenderWindow::onBallLost( wxCommandEvent& event )
 {
     m_soundManager->playBallLost();
     m_state = NEWROUND;

@@ -21,11 +21,13 @@ Overlay::Overlay( const wxSize& size )
  , m_size( size )
 {
     for ( const auto& countdown : s_countdownMap )
+    {
         s_countdownSprites[ countdown.first ] = ResourceManager::LoadTexture(
             "/../resources/images/Countdown/" + countdown.second,
             true,
             "countdown_" + static_cast< int >( countdown.first )
         );
+    }
     
     m_pauseTex = ResourceManager::LoadTexture(
         "/../resources/images/Pause.png",
@@ -34,7 +36,7 @@ Overlay::Overlay( const wxSize& size )
     );
 }
 
-void Overlay::showPause( rendererPtr renderer )
+void Overlay::showPause( const rendererPtr &renderer )
 {
     m_pauseTex->bind();
     renderer->drawSprite(
@@ -42,7 +44,7 @@ void Overlay::showPause( rendererPtr renderer )
         { m_pauseTex->Width, m_pauseTex->Height } );
 }
 
-void Overlay::showCountDown( rendererPtr renderer, unsigned char count )
+void Overlay::showCountDown( const rendererPtr &renderer, unsigned char count )
 {
     s_countdownSprites[ count ]->bind();
     renderer->drawSprite(

@@ -48,12 +48,16 @@ texture2DPtr ResourceManager::GetTexture( const std::string& name )
 void ResourceManager::Clear()
 {
     // (properly) delete all shaders	
-    for ( auto iter : s_shaders )
-        GL_CHECK( glDeleteProgram( iter.second->ID ));
+    for ( const auto &iter : s_shaders )
+    {
+        GL_CHECK( glDeleteProgram( iter.second->ID ) );
+    }
     
     // (properly) delete all textures
-    for ( auto iter : s_textures )
-        GL_CHECK( glDeleteTextures( 1, &iter.second->ID ));
+    for ( const auto &iter : s_textures )
+    {
+        GL_CHECK( glDeleteTextures( 1, &iter.second->ID ) );
+    }
 }
 
 shaderPtr ResourceManager::LoadShaderFromFile( const std::string& vShaderFile, const std::string& fShaderFile, const std::string& gShaderFile )
@@ -67,7 +71,8 @@ shaderPtr ResourceManager::LoadShaderFromFile( const std::string& vShaderFile, c
         // open files
         std::ifstream vertexShaderFile( Tools::Instance().getFullFileName( vShaderFile ) );
         std::ifstream fragmentShaderFile( Tools::Instance().getFullFileName( fShaderFile ) );
-        std::stringstream vShaderStream, fShaderStream;
+        std::stringstream vShaderStream;
+        std::stringstream fShaderStream;
         
         // read file's buffer contents into streams
         vShaderStream << vertexShaderFile.rdbuf();
@@ -91,7 +96,7 @@ shaderPtr ResourceManager::LoadShaderFromFile( const std::string& vShaderFile, c
             geometryCode = gShaderStream.str();
         }
     }
-    catch ( std::exception e )
+    catch ( std::exception &e )
     {
         wxLogMessage( "ERROR::SHADER: Failed to read shader files, \"%s\"", e.what() );
     }

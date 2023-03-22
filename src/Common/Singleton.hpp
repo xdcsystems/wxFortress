@@ -3,15 +3,15 @@
 //Mayers' Singleton Pattern implementation
 template<typename T>
 class Singleton {
-public:
-  static T& Instance();
+    public:
+      static T& Instance();
 
-  Singleton(const Singleton&) = delete;
-  Singleton& operator= (const Singleton) = delete;
+      Singleton(const Singleton&) = delete;
+      Singleton& operator= (const Singleton) = delete;
 
-protected:
-  Singleton() = default;
-  struct token {};
+    protected:
+      Singleton() = default;
+      struct token {};
 };
 
 template<typename T>

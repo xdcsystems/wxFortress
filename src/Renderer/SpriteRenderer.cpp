@@ -14,7 +14,7 @@
 #include "Shader.h"
 #include "SpriteRenderer.h"
 
-SpriteRenderer::SpriteRenderer( shaderPtr shader )
+SpriteRenderer::SpriteRenderer( const shaderPtr &shader )
 {
     m_shader = shader;
     initRenderData();

@@ -12,7 +12,7 @@
 
 #include "Common/defs.h"
 #include "Common/Tools.h"
-#include "Common/xRect.hpp"
+#include "Common/Rect.hpp"
 
 #include "Counter.hpp"
 #include "Panel.h"
@@ -21,7 +21,7 @@
 using namespace ControlPanel;
 
 BEGIN_EVENT_TABLE( Panel, wxWindow )
-    EVT_PAINT( OnPaint )
+    EVT_PAINT( onPaint )
 END_EVENT_TABLE()
 
 
@@ -76,7 +76,7 @@ void Panel::activate()
     Update();
 }
 
-void Panel::OnPaint( wxPaintEvent& event )
+void Panel::onPaint( wxPaintEvent& )
 {
     wxPaintDC dc( this );
     render( dc, m_bitmapPanelBuffer );
@@ -88,13 +88,15 @@ void Panel::paintLaunched()
     render( dc, m_bitmapPanelLaunchedBuffer );
 }
 
-void Panel::render( wxDC& dc, const bitmapPtr panel )
+void Panel::render( wxDC& dc, const bitmapPtr &panel )
 {
     const auto &clientSize = GetClientSize();
     if ( !m_mdc )
     {
         if ( !panel || clientSize.x < 1 || clientSize.y < 1 )
+        {
             return;
+        }
 
         m_mdc = std::make_shared<wxMemoryDC>();
         m_mdc->CopyAttributes( dc );
@@ -104,7 +106,9 @@ void Panel::render( wxDC& dc, const bitmapPtr panel )
     if ( !m_numbersDC )
     {
         if ( !m_numbers )
+        {
             return;
+        }
         
         m_numbersDC = std::make_shared<wxMemoryDC>();
         m_numbersDC->SelectObject( *m_numbers );
@@ -148,8 +152,10 @@ unsigned short Panel::increaseLevel()
     m_hiScore->reset( m_hiScore->value() + m_score->value() );
     m_score->reset();
 
-    if ( IsShown() ) 
+    if ( IsShown() )
+    {
         activate();
+    }
 
     return m_level->value();
 }

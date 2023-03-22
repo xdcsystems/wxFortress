@@ -8,14 +8,14 @@
 #endif
 
 #include "Common/Tools.h"
-#include "Common/xRect.hpp"
+#include "Common/Rect.hpp"
 #include "Renderer/Texture.h"
 #include "Renderer/SpriteRenderer.h"
 #include "Base.h"
 
 using namespace Shapes;
 
-void Base::load( texture2DPtr sprite )
+void Base::load( const texture2DPtr &sprite )
 {
     m_sprite = sprite;
     m_size = { m_sprite->Width, m_sprite->Height };
@@ -32,10 +32,12 @@ void Base::moveTo( const glm::vec2& position )
     moveTo( position.x, position.y );
 }
 
-void Base::draw( rendererPtr renderer ) const
+void Base::draw( const rendererPtr &renderer ) const
 {
     if ( !m_sprite )
+    {
         return;
+    }
     
     m_sprite->bind();
     renderer->drawSprite( m_position, m_size );

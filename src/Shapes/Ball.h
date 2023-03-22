@@ -8,9 +8,9 @@ namespace Shapes
             using enum ContactPosition;
 
             Ball();
-            ContactPosition intersect( const xRect& rect ) const;
+            ContactPosition intersect( const Rect& rect ) const;
 
-            float radius() { return m_radius; }
+            float radius() const { return m_radius; }
 
         private:
             float m_radius = 0;

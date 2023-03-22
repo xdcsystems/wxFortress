@@ -24,19 +24,17 @@ class MediaManager final : public wxWindow
 
     private:
         // Event Handlers
-        void OnTimer( wxTimerEvent& );
-        void OnCheckEnd( wxTimerEvent& );
-        void OnKeyPressed( wxKeyEvent& event );
-        void OnMediaLoaded( wxMediaEvent& event );
-        void OnMediaFinished( wxMediaEvent& event );
-        void OnMediaPlayStarted( wxMediaEvent& event );
+        void onTimer( wxTimerEvent& );
+        void onCheckEnd( wxTimerEvent& );
+        void onKeyPressed( wxKeyEvent& );
+        void onMediaLoaded( wxMediaEvent& );
+        void onMediaFinished( wxMediaEvent& );
+        void onMediaPlayStarted( wxMediaEvent& );
 
         // Helper functions
         void createMediaControl();
-        void destroyMediaContol();
         void showSkipMessage( bool show = true );
         
-    private:
         // Private data
         static const int s_timerInterval = 15000; // 15 sec
         static const int s_timerCheckEndInterval = 1000; // 1 sec
@@ -49,5 +47,5 @@ class MediaManager final : public wxWindow
         wxMediaCtrl* m_mediaControl = nullptr;
         bool m_isOK = false;
 
-        DECLARE_EVENT_TABLE()
+        wxDECLARE_EVENT_TABLE();
 };

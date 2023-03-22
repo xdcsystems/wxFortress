@@ -26,7 +26,7 @@ bool App::OnInit()
     try
     {
         m_mainFrame = new MainFrame(); // delete by wxApp at exit as top level window
-        if ( m_mainFrame->Create( NULL ) )
+        if ( m_mainFrame->Create( nullptr ) )
         {
             // Give it an icon
             m_mainFrame->SetIcon( sample_xpm );

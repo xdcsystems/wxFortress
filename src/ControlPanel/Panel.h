@@ -34,16 +34,15 @@ namespace ControlPanel
 
         private:
              // Event Handlers
-            void OnPaint( wxPaintEvent& event );
+            void onPaint( wxPaintEvent& event );
 
             // Helper functions
             void init();
-            void render( wxDC& dc, const bitmapPtr panel );
+            void render( wxDC& dc, const bitmapPtr &panel );
 
             template< typename T>
             void refreshDisplayValue( counterPtr<T> counter );
 
-        private:
             // Private data
             memoryDCPtr m_mdc;
             memoryDCPtr m_numbersDC;
@@ -58,6 +57,6 @@ namespace ControlPanel
             counterPtr<unsigned char> m_lives;
             counterPtr<unsigned short> m_level;
 
-            DECLARE_EVENT_TABLE()
+            wxDECLARE_EVENT_TABLE();
     };
 }

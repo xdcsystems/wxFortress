@@ -21,8 +21,8 @@ class Overlay
     public:
         Overlay( const wxSize& size );
 
-        void showPause( rendererPtr renderer );
-        void showCountDown( rendererPtr renderer, unsigned char count );
+        void showPause( const rendererPtr &renderer );
+        void showCountDown( const rendererPtr &renderer, unsigned char count );
 
     private:
         texture2DPtr m_pauseTex;

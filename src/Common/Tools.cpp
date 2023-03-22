@@ -20,7 +20,7 @@
 
 void CheckOpenGLError( const char* stmt, const char* fname, int line )
 {
-    GLenum errorCode;
+    GLenum errorCode( 0 );
     while ( ( errorCode = glGetError() ) != GL_NO_ERROR )
     {
         std::string error;
@@ -33,6 +33,7 @@ void CheckOpenGLError( const char* stmt, const char* fname, int line )
             case GL_STACK_UNDERFLOW:               error = "STACK_UNDERFLOW"; break;
             case GL_OUT_OF_MEMORY:                 error = "OUT_OF_MEMORY"; break;
             case GL_INVALID_FRAMEBUFFER_OPERATION: error = "INVALID_FRAMEBUFFER_OPERATION"; break;
+            default: break;
         }
         wxLogMessage( "[OpenGL ERROR : %s in file %s line ( %d ) - for %s", error, fname, line, stmt );
     }
@@ -66,10 +67,12 @@ std::shared_ptr<wxBitmap> Tools::loadBitmapFromFile( const std::string& filename
 
 std::vector< std::vector<int>> Tools::loadLevelFromFile( const std::string &filename, unsigned short levelNum ) const
 {
-    wxFileInputStream input( getFullFileName( "/../resources/levels.txt" ) );
+    wxFileInputStream input( getFullFileName( filename ) );
     
     if ( !input.IsOk() )
+    {
         throw std::runtime_error( "Error loading level map file" );
+    }
 
     wxTextInputStream text( input );
     wxString line;
@@ -79,10 +82,14 @@ std::vector< std::vector<int>> Tools::loadLevelFromFile( const std::string &file
 
     // Seek to level label
     while ( line != leveLabel && !input.Eof() )
+    {
         line = text.ReadLine();
+    }
 
     if ( input.Eof() )
+    {
         throw std::runtime_error( "Error loading level map file, file is corrupt or has wrong format" );
+    }
 
     std::vector< std::vector<int>> bricks;
     wxStringTokenizer tkz;
@@ -93,17 +100,23 @@ std::vector< std::vector<int>> Tools::loadLevelFromFile( const std::string &file
 
         line = text.ReadLine();
         if ( line.IsEmpty() || line.Contains( wxT( "Level " ) ) )
+        {
             break;
+        }
 
         tkz.SetString( line );
         while ( tkz.HasMoreTokens() )
+        {
             inner.push_back( wxAtoi( tkz.GetNextToken() ) );
+        }
 
         bricks.push_back( std::move( inner ) );
     }
 
     if ( bricks.empty() )
+    {
         throw std::runtime_error( "Error loading level map file, file is corrupt or has wrong format" );
+    }
 
     return bricks;
 }
@@ -144,7 +157,9 @@ void Tools::bhmLine( std::vector<wxPoint> &trajectory, int x1, int y1, int x2, i
             x1 += ix;
 
             if ( x1 >= -1 && y1 >= -1 && x1 <= limits.x + 1 && y1 <= limits.y )
-                trajectory.push_back( { x1, y1 } );
+            {
+                trajectory.emplace_back( x1, y1 );
+            }
         }
     }
     else
@@ -165,7 +180,9 @@ void Tools::bhmLine( std::vector<wxPoint> &trajectory, int x1, int y1, int x2, i
             y1 += iy;
 
             if ( x1 >= -1 && y1 >= -1 && x1 <= limits.x + 1 && y1 <= limits.y )
-                trajectory.push_back( { x1, y1 } );
+            {
+                trajectory.emplace_back( x1, y1 );
+            }
         }
     }
 }

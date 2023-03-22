@@ -41,23 +41,23 @@ namespace Shapes
                 BallLost
             };
 
-            using enum MoveDirection;
-            using enum TypeContact;
-
          protected:
             void initDirection();
             
-            inline bool isMovingHorizontal() const { 
-                return ( m_moveDirection == DirectionLeftDown || m_moveDirection == DirectionRightDown ); 
+            inline bool isMovingHorizontal() const {
+                using enum MoveController::MoveDirection;
+                return ( m_moveDirection == DirectionLeftDown || m_moveDirection == DirectionRightDown );
             };
 
             template <MoveDirection>
             void changeDirection( ContactPosition contactPosition );
             void changeDirection( const glm::vec2& ballCenter, const glm::vec2& paddleCenter );
 
-        protected:
+            void changeMoveDirection( ContactPosition contactPosition );
+
+            // Protected data
             double m_angle = 90;
             double m_scaleDivisionValue = 1;
-            MoveDirection m_moveDirection = DirectionTopRight;
+            MoveDirection m_moveDirection = MoveDirection::DirectionTopRight;
     };
 }

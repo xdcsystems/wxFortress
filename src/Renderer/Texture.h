@@ -21,7 +21,7 @@ class Texture2D
 
     public:
         // holds the ID of the texture object, used for all texture operations to reference to this particular texture
-        unsigned int ID = 0; // 0 is reserved, glGenBuffers() will return non-zero id if success
+        unsigned int ID; // 0 is reserved, glGenBuffers() will return non-zero id if success
 
         // texture image dimensions
         int Width, Height; // width and height of loaded image in pixels

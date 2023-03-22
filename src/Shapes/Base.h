@@ -5,7 +5,7 @@
 // Forward declarations
 class Texture2D;
 class SpriteRenderer;
-class xRect;
+class Rect;
 
 namespace Shapes
 {
@@ -33,16 +33,16 @@ namespace Shapes
             virtual inline glm::vec2 size() const { return m_size; }
             virtual inline glm::vec2 velocity() const { return m_velocity; }
             virtual glm::vec2 center() const;
-            virtual inline xRect  bounds() const { return { m_position, m_size }; }
+            virtual inline Rect  bounds() const { return { m_position, m_size }; }
             virtual unsigned int VBO() const { return m_VBO; }
 
-            virtual void load( texture2DPtr sprite );
+            virtual void load( const texture2DPtr &sprite );
             virtual void moveTo( float x, float y );
             virtual void moveTo( const glm::vec2& position );
             virtual void increaseVelocity( float value ) { m_velocity += value; }
-            virtual void draw( rendererPtr renderer ) const;
+            virtual void draw( const rendererPtr &renderer ) const;
 
-        protected:
+            // Protected data
             glm::vec2 m_position = { 0, 0 },
                           m_size = { 0, 0 },
                           m_velocity = { 0, 0 };

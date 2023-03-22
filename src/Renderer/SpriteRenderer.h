@@ -13,7 +13,7 @@ class SpriteRenderer
     using shaderPtr = std::shared_ptr<Shader>;
 
     public:
-        SpriteRenderer( shaderPtr shader );
+        SpriteRenderer( const shaderPtr &shader );
         ~SpriteRenderer();
 
         void selectShader();
@@ -37,7 +37,6 @@ class SpriteRenderer
         // Initializes and configures the quad's buffer and vertex attributes
         void initRenderData();
 
-    private:
         // Render state
         shaderPtr    m_shader;
         unsigned int m_VBO = 0;

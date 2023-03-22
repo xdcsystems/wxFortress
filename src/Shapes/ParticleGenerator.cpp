@@ -11,7 +11,7 @@
 #include <glm/glm.hpp>
 
 #include "Common/Tools.h"
-#include "Common/xRect.hpp"
+#include "Common/Rect.hpp"
 #include "Renderer/ResourceManager.h"
 #include "Renderer/Shader.h"
 #include "Renderer/Texture.h"
@@ -36,12 +36,12 @@ ParticleGenerator::~ParticleGenerator()
     GL_CHECK( glDeleteBuffers( 1, &m_VBO ) );
 }
 
-void ParticleGenerator::update( float dt, basePtr object, unsigned int newParticles, glm::vec2 offset )
+void ParticleGenerator::update( float dt, const basePtr &object, unsigned int newParticles, glm::vec2 offset )
 {
     // add new particles 
     for ( unsigned int i = 0; i < newParticles; ++i )
     {
-        int unusedParticle = firstUnusedParticle();
+        auto unusedParticle = firstUnusedParticle();
         respawnParticle( m_particles[ unusedParticle ], object, offset );
     }
 
@@ -68,7 +68,7 @@ void ParticleGenerator::draw()
 
     // set mesh attributes
     GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, m_VBO ) );
-    GL_CHECK( glVertexAttribPointer( m_attrPos, 4, GL_FLOAT, GL_FALSE, 5 * sizeof( float ), ( void* )0 ) );
+    GL_CHECK( glVertexAttribPointer( m_attrPos, 4, GL_FLOAT, GL_FALSE, 5 * sizeof( float ), ( void* )nullptr ) );
     GL_CHECK( glVertexAttribPointer( m_attrIndex, 1, GL_FLOAT, GL_FALSE, 5 * sizeof( float ), ( void* )( 4 * sizeof( float ) ) ) );
 
     GL_CHECK( glEnableVertexAttribArray( m_attrPos ) );
@@ -88,7 +88,9 @@ void ParticleGenerator::draw()
     }
 
     if ( index > 0 )
+    {
         GL_CHECK( glDrawArrays( GL_TRIANGLES, 0, 6 * index ) );
+    }
 
     GL_CHECK( glDisableVertexAttribArray( m_attrPos ) );
     GL_CHECK( glDisableVertexAttribArray( m_attrIndex ) );
@@ -121,7 +123,7 @@ void ParticleGenerator::init()
 
     // fill mesh buffer
     GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, m_VBO ) );
-    GL_CHECK( glBufferData( GL_ARRAY_BUFFER, sizeVAO * m_amount, 0, GL_STATIC_DRAW ) );
+    GL_CHECK( glBufferData( GL_ARRAY_BUFFER, sizeVAO * m_amount, nullptr, GL_STATIC_DRAW ) );
     
     for ( unsigned short index = 0; index < m_amount; ++index )
     {
@@ -135,7 +137,9 @@ void ParticleGenerator::init()
 void ParticleGenerator::clear()
 {
     for ( auto& particle : m_particles )
+    {
         particle.Life = 0.f;
+    }
 }
 
 unsigned int ParticleGenerator::firstUnusedParticle()
@@ -147,7 +151,7 @@ unsigned int ParticleGenerator::firstUnusedParticle()
     return iter == m_particles.end() ? 0 : std::distance( m_particles.begin(), iter );
 }
 
-void ParticleGenerator::respawnParticle( Particle& particle, basePtr object, glm::vec2 offset )
+void ParticleGenerator::respawnParticle( Particle& particle, const basePtr &object, glm::vec2 offset )
 {
     const auto& position = object->position();
 

@@ -10,7 +10,7 @@
 #include <random>
 
 #include "Common/defs.h"
-#include "Common/xRect.hpp"
+#include "Common/Rect.hpp"
 #include "Base.h"
 #include "MoveController.h"
 
@@ -115,4 +115,16 @@ void MoveController::changeDirection( const glm::vec2 &ballCenter, const glm::ve
             throw std::runtime_error( "Error: Wrong ball direction" );
         break;
     }
+}
+
+void MoveController::changeMoveDirection( ContactPosition contactPosition )
+{
+    static std::map<MoveDirection, void ( MoveController::* )( ContactPosition )> s_handlers = {
+        { DirectionTopRight, &MoveController::changeDirection<DirectionTopRight> },
+        { DirectionTopLeft, &MoveController::changeDirection<DirectionTopLeft> },
+        { DirectionRightDown, &MoveController::changeDirection<DirectionRightDown> },
+        { DirectionLeftDown, &MoveController::changeDirection<DirectionLeftDown> },
+    };
+
+    ( this->*( s_handlers[ m_moveDirection ] ) )( contactPosition );
 }
