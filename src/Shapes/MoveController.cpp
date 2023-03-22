@@ -7,6 +7,7 @@
 #include "wx/wx.h"
 #endif
 
+#include <map>
 #include <random>
 
 #include "Common/defs.h"
