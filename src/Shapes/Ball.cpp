@@ -4,7 +4,7 @@
 // for all others, include the necessary headers (this file is usually all you
 // need because it includes almost all "standard" wxWidgets headers)
 #ifndef WX_PRECOMP
-#include "wx/wx.h"
+    #include "wx/wx.h"
 #endif
 
 #include "Common/defs.h"
@@ -61,25 +61,25 @@ ContactPosition Ball::intersect( const Rect& rect ) const
             { rect.right(), rect.m_y },        // points[ 3 ] : F = right bottom corner
         };
 
-        const auto D2 = ( cBall.x - points[ 0 ].x ) * ( points[ 2 ].y - points[ 0 ].y ) - ( cBall.y - points[ 0 ].y ) * ( points[ 2 ].x - points[ 0 ].x );
-        const auto D1 = ( cBall.x - points[ 3 ].x ) * ( points[ 1 ].y - points[ 3 ].y ) - ( cBall.y - points[ 3 ].y ) * ( points[ 1 ].x - points[ 3 ].x );
+        const auto d2 = ( cBall.x - points[ 0 ].x ) * ( points[ 2 ].y - points[ 0 ].y ) - ( cBall.y - points[ 0 ].y ) * ( points[ 2 ].x - points[ 0 ].x );
+        const auto d1 = ( cBall.x - points[ 3 ].x ) * ( points[ 1 ].y - points[ 3 ].y ) - ( cBall.y - points[ 3 ].y ) * ( points[ 1 ].x - points[ 3 ].x );
 
-        if ( D1 < 0 && D2 > 0 )
+        if ( d1 < 0 && d2 > 0 )
         {
             return ContactPosition::ContactBottom;
         }
         
-        if ( D1 < 0 && D2 < 0 )
+        if ( d1 < 0 && d2 < 0 )
         {
             return ContactPosition::ContactRight;
         }
 
-        if ( D1 > 0 && D2 < 0 )
+        if ( d1 > 0 && d2 < 0 )
         {
             return ContactPosition::ContactTop;
         }
 
-        if ( D1 > 0 && D2 > 0 )
+        if ( d1 > 0 && d2 > 0 )
         {
             return ContactPosition::ContactLeft;
         }

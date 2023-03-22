@@ -30,7 +30,7 @@ SoundManager::~SoundManager()
 
 int SoundManager::loadBuffer( AudioFile<float>& soundFile, const std::string &fileName, ALuint* buffer )
 {
-	std::vector<uint8_t> PCMDataBytes;
+	std::vector<uint8_t> dataBytesPCM;
 
 	if ( !soundFile.load( Tools::Instance().getFullFileName( "/../resources/sounds/" + fileName ) ) )
 	{
@@ -53,10 +53,10 @@ int SoundManager::loadBuffer( AudioFile<float>& soundFile, const std::string &fi
 		return -1; // this shouldn't happen!
 	};
 
-	soundFile.writePCMToBuffer( PCMDataBytes ); //remember, we added this function to the AudioFile library
+	soundFile.writePCMToBuffer( dataBytesPCM ); //remember, we added this function to the AudioFile library
 
 	alec( alGenBuffers( 1, buffer ) );
-	alec( alBufferData( *buffer, convertFileToOpenALFormat( soundFile ), PCMDataBytes.data(), PCMDataBytes.size(), soundFile.getSampleRate() ) );
+	alec( alBufferData( *buffer, convertFileToOpenALFormat( soundFile ), dataBytesPCM.data(), dataBytesPCM.size(), soundFile.getSampleRate() ) );
 
 	return 0;
 }

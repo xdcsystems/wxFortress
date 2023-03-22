@@ -4,7 +4,7 @@
 // for all others, include the necessary headers (this file is usually all you
 // need because it includes almost all "standard" wxWidgets headers)
 #ifndef WX_PRECOMP
-#include "wx/wx.h"
+    #include "wx/wx.h"
 #endif
 
 #include <map>
@@ -25,7 +25,7 @@ Overlay::Overlay( const wxSize& size )
         s_countdownSprites[ countdown.first ] = ResourceManager::LoadTexture(
             "/../resources/images/Countdown/" + countdown.second,
             true,
-            "countdown_" + static_cast< int >( countdown.first )
+            "countdown_" + std::to_string(static_cast< int >( countdown.first ))
         );
     }
     

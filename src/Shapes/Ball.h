@@ -5,8 +5,6 @@ namespace Shapes
     class Ball final : public Base
     {
         public:
-            using enum ContactPosition;
-
             Ball();
             ContactPosition intersect( const Rect& rect ) const;
 

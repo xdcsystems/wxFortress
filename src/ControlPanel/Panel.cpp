@@ -17,16 +17,14 @@
 #include "Counter.hpp"
 #include "Panel.h"
 
-
 using namespace ControlPanel;
 
 BEGIN_EVENT_TABLE( Panel, wxWindow )
     EVT_PAINT( onPaint )
 END_EVENT_TABLE()
 
-
-Panel::Panel( wxWindow* parent, wxWindowID id, const wxPoint& pos, const wxSize& size, long style, const wxString& name)
-    :wxWindow( parent, id, pos, size, style, name )
+Panel::Panel( wxWindow *parent, wxWindowID id, const wxPoint &pos, const wxSize &size, long style, const wxString &name )
+  : wxWindow( parent, id, pos, size, style, name )
 {
     Hide();
     init();
@@ -37,27 +35,19 @@ void Panel::init()
     SetBackgroundStyle( wxBG_STYLE_PAINT );
     SetBackgroundColour( *wxBLACK );
 
-    m_bitmapPanelBuffer = Tools::Instance().loadBitmapFromFile(
-        "/../resources/images/ControlPanel/panel.png"
-    );
-    m_bitmapPanelLaunchedBuffer = Tools::Instance().loadBitmapFromFile(
-        "/../resources/images/ControlPanel/panel_launched.png"
-    );
-    m_bitmapControlBgBuffer = Tools::Instance().loadBitmapFromFile(
-        "/../resources/images/ControlPanel/control/background.png"
-    );
-    m_numbers = Tools::Instance().loadBitmapFromFile(
-        "/../resources/images/ControlPanel/control/numbers.png"
-    );
+    m_bitmapPanelBuffer = Tools::Instance().loadBitmapFromFile( "/../resources/images/ControlPanel/panel.png" );
+    m_bitmapPanelLaunchedBuffer = Tools::Instance().loadBitmapFromFile( "/../resources/images/ControlPanel/panel_launched.png" );
+    m_bitmapControlBgBuffer = Tools::Instance().loadBitmapFromFile( "/../resources/images/ControlPanel/control/background.png" );
+    m_numbers = Tools::Instance().loadBitmapFromFile( "/../resources/images/ControlPanel/control/numbers.png" );
 
     // hi score counter
     // rectangle( 67, 181, 78, 21 );
     m_hiScore = std::make_shared< Counter<unsigned long> >( 67, 181 );
-    
-    // score 
+
+    // score
     // rectangle( 67, 267, 78, 21 );
     m_score = std::make_shared< Counter<unsigned long> >( 67, 267 );
-    
+
     // lives
     // rectangle( 67, 353, 78, 21 );
     m_lives = std::make_shared< Counter<unsigned char> >( 67, 353, INITIAL_LIVES_VALUE );
@@ -76,7 +66,7 @@ void Panel::activate()
     Update();
 }
 
-void Panel::onPaint( wxPaintEvent& )
+void Panel::onPaint( wxPaintEvent & )
 {
     wxPaintDC dc( this );
     render( dc, m_bitmapPanelBuffer );
@@ -88,7 +78,7 @@ void Panel::paintLaunched()
     render( dc, m_bitmapPanelLaunchedBuffer );
 }
 
-void Panel::render( wxDC& dc, const bitmapPtr &panel )
+void Panel::render( wxDC &dc, const bitmapPtr &panel )
 {
     const auto &clientSize = GetClientSize();
     if ( !m_mdc )
@@ -109,19 +99,19 @@ void Panel::render( wxDC& dc, const bitmapPtr &panel )
         {
             return;
         }
-        
+
         m_numbersDC = std::make_shared<wxMemoryDC>();
         m_numbersDC->SelectObject( *m_numbers );
     }
-    
+
     m_mdc->SelectObject( *panel );
-    
+
     dc.Blit( 0, 0, clientSize.x, clientSize.y, m_mdc.get(), 0, 0 );
-    
+
     m_mdc->SelectObject( wxNullBitmap );
 }
 
-template< typename T>
+template <typename T>
 void Panel::refreshDisplayValue( counterPtr<T> counter )
 {
     m_mdc->SelectObject( *m_bitmapPanelBuffer );
@@ -142,8 +132,8 @@ void Panel::increaseScore()
 }
 
 unsigned short Panel::currentLevel() const
-{ 
-    return m_level->value(); 
+{
+    return m_level->value();
 }
 
 unsigned short Panel::increaseLevel()

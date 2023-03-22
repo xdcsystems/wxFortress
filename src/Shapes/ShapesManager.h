@@ -30,7 +30,7 @@ namespace Shapes
             virtual ~ShapesManager();
 
             bool switchRun( bool bNewRound = false );
-            void renderFrame( rendererPtr spriteRenderer );
+            void renderFrame( const rendererPtr &spriteRenderer );
 
             void resize( const wxSize& size );
             void loadLevel( unsigned short level );

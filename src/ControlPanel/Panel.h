@@ -13,7 +13,7 @@ namespace ControlPanel
             using memoryDCPtr = std::shared_ptr<wxMemoryDC>;
             
             template <typename T>
-            using counterPtr = std::shared_ptr<Counter <T>>;
+            using counterPtr = std::shared_ptr< Counter <T> >;
 
         public:
             Panel(

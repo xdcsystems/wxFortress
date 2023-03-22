@@ -17,7 +17,6 @@
 #include "Bricks.h"
 
 using namespace Shapes;
-using enum ContactPosition;
 
 Bricks::Bricks()
 {

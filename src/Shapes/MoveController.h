@@ -45,8 +45,7 @@ namespace Shapes
             void initDirection();
             
             inline bool isMovingHorizontal() const {
-                using enum MoveController::MoveDirection;
-                return ( m_moveDirection == DirectionLeftDown || m_moveDirection == DirectionRightDown );
+                return ( m_moveDirection == MoveDirection::DirectionLeftDown || m_moveDirection == MoveDirection::DirectionRightDown );
             };
 
             template <MoveDirection>

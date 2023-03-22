@@ -10,12 +10,12 @@ DECLARE_LOCAL_EVENT_TYPE( wxEVT_NEW_ROUND_STARTED, wxID_ANY )
 class Overlay;
 class SoundManager;
 class SpriteRenderer;
-class ParticleGenerator;
 class Timer;
 
 namespace Shapes
 {
     class ShapesManager;
+    class ParticleGenerator;
 }
 
 class RenderWindow final : public wxGLCanvas
@@ -29,7 +29,6 @@ class RenderWindow final : public wxGLCanvas
             COUNTDOWN,
             NEWROUND,
         };
-        using enum State;
 
         RenderWindow(
             wxWindow* parent,
@@ -87,7 +86,7 @@ class RenderWindow final : public wxGLCanvas
         bool m_isRunning = false;
         unsigned char m_countDown = 0;
 
-        State m_state = NEWROUND;
+        State m_state = State::NEWROUND;
 
         wxDECLARE_EVENT_TABLE();
 };

@@ -4,7 +4,7 @@
 // for all others, include the necessary headers (this file is usually all you
 // need because it includes almost all "standard" wxWidgets headers)
 #ifndef WX_PRECOMP
-#include "wx/wx.h"
+    #include "wx/wx.h"
 #endif
 
 #include <map>
@@ -18,7 +18,7 @@
 #include "Common/defs.h"
 #include "Tools.h"
 
-void CheckOpenGLError( const char* stmt, const char* fname, int line )
+void CheckOpenGLError( const char *stmt, const char *fname, int line )
 {
     GLenum errorCode( 0 );
     while ( ( errorCode = glGetError() ) != GL_NO_ERROR )
@@ -26,12 +26,12 @@ void CheckOpenGLError( const char* stmt, const char* fname, int line )
         std::string error;
         switch ( errorCode )
         {
-            case GL_INVALID_ENUM:                  error = "INVALID_ENUM"; break;
-            case GL_INVALID_VALUE:                 error = "INVALID_VALUE"; break;
-            case GL_INVALID_OPERATION:             error = "INVALID_OPERATION"; break;
-            case GL_STACK_OVERFLOW:                error = "STACK_OVERFLOW"; break;
-            case GL_STACK_UNDERFLOW:               error = "STACK_UNDERFLOW"; break;
-            case GL_OUT_OF_MEMORY:                 error = "OUT_OF_MEMORY"; break;
+            case GL_INVALID_ENUM: error = "INVALID_ENUM"; break;
+            case GL_INVALID_VALUE: error = "INVALID_VALUE"; break;
+            case GL_OUT_OF_MEMORY: error = "OUT_OF_MEMORY"; break;
+            case GL_STACK_OVERFLOW: error = "STACK_OVERFLOW"; break;
+            case GL_STACK_UNDERFLOW: error = "STACK_UNDERFLOW"; break;
+            case GL_INVALID_OPERATION : error = "INVALID_OPERATION"; break;
             case GL_INVALID_FRAMEBUFFER_OPERATION: error = "INVALID_FRAMEBUFFER_OPERATION"; break;
             default: break;
         }
@@ -39,7 +39,7 @@ void CheckOpenGLError( const char* stmt, const char* fname, int line )
     }
 }
 
-std::string Tools::getFullFileName( const std::string& filename ) const
+std::string Tools::getFullFileName( const std::string &filename ) const
 {
     wxFileName fileName( wxStandardPaths::Get().GetDataDir() + filename );
     fileName.Normalize( wxPATH_NORM_ABSOLUTE | wxPATH_NORM_DOTS );
@@ -53,7 +53,7 @@ std::string Tools::getFullFileName( const std::string& filename ) const
     return fullFileName.ToStdString();
 }
 
-std::shared_ptr<wxBitmap> Tools::loadBitmapFromFile( const std::string& filename ) const
+std::shared_ptr<wxBitmap> Tools::loadBitmapFromFile( const std::string &filename ) const
 {
     const auto &fullFileName = getFullFileName( filename );
     auto bitmap = std::make_shared<wxBitmap>( fullFileName, wxBITMAP_TYPE_PNG );
@@ -65,10 +65,10 @@ std::shared_ptr<wxBitmap> Tools::loadBitmapFromFile( const std::string& filename
     return bitmap;
 }
 
-std::vector< std::vector<int>> Tools::loadLevelFromFile( const std::string &filename, unsigned short levelNum ) const
+std::vector< std::vector<int> > Tools::loadLevelFromFile( const std::string &filename, unsigned short levelNum ) const
 {
     wxFileInputStream input( getFullFileName( filename ) );
-    
+
     if ( !input.IsOk() )
     {
         throw std::runtime_error( "Error loading level map file" );
@@ -91,7 +91,7 @@ std::vector< std::vector<int>> Tools::loadLevelFromFile( const std::string &file
         throw std::runtime_error( "Error loading level map file, file is corrupt or has wrong format" );
     }
 
-    std::vector< std::vector<int>> bricks;
+    std::vector< std::vector<int> > bricks;
     wxStringTokenizer tkz;
 
     while ( !line.IsEmpty() && !input.Eof() )
@@ -122,7 +122,7 @@ std::vector< std::vector<int>> Tools::loadLevelFromFile( const std::string &file
 }
 
 // Bresenham Line Drawing Algorithm
-void Tools::bhmLine( std::vector<wxPoint> &trajectory, int x1, int y1, int x2, int y2, const wxSize& limits ) const
+void Tools::bhmLine( std::vector<wxPoint> &trajectory, int x1, int y1, int x2, int y2, const wxSize &limits ) const
 {
     trajectory.clear();
 

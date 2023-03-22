@@ -4,7 +4,7 @@
 // for all others, include the necessary headers (this file is usually all you
 // need because it includes almost all "standard" wxWidgets headers)
 #ifndef WX_PRECOMP
-#include "wx/wx.h"
+    #include "wx/wx.h"
 #endif
 
 #include <GL/glew.h>
@@ -69,7 +69,7 @@ void ParticleGenerator::draw()
     // set mesh attributes
     GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, m_VBO ) );
     GL_CHECK( glVertexAttribPointer( m_attrPos, 4, GL_FLOAT, GL_FALSE, 5 * sizeof( float ), ( void* )nullptr ) );
-    GL_CHECK( glVertexAttribPointer( m_attrIndex, 1, GL_FLOAT, GL_FALSE, 5 * sizeof( float ), ( void* )( 4 * sizeof( float ) ) ) );
+    GL_CHECK( glVertexAttribPointer( m_attrIndex, 1, GL_FLOAT, GL_FALSE, 5 * sizeof( float ), ( void* )( intptr_t )( 4 * sizeof( float ) ) ) );
 
     GL_CHECK( glEnableVertexAttribArray( m_attrPos ) );
     GL_CHECK( glEnableVertexAttribArray( m_attrIndex ) );

@@ -4,7 +4,7 @@
 // for all others, include the necessary headers (this file is usually all you
 // need because it includes almost all "standard" wxWidgets headers)
 #ifndef WX_PRECOMP
-#include "wx/wx.h"
+    #include "wx/wx.h"
 #endif
 
 #include <GL/glew.h>
@@ -35,7 +35,7 @@ void SpriteRenderer::selectShader()
     m_shader->use();
 }
 
-void SpriteRenderer::drawSprite( unsigned int VBO, const glm::vec2& position, glm::vec2 size, glm::vec3 color )
+void SpriteRenderer::drawSprite( unsigned int sourceVBO, const glm::vec2& position, glm::vec2 size, glm::vec3 color )
 {
     // prepare transformations
     glm::mat4 model( 1.0f );
@@ -45,8 +45,8 @@ void SpriteRenderer::drawSprite( unsigned int VBO, const glm::vec2& position, gl
     m_shader->setMatrix4( "model", model );
     m_shader->setVector3f( "spriteColor", color );
 
-    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, VBO ) );
-    GL_CHECK( glVertexAttribPointer( m_attrVertex, 4, GL_FLOAT, GL_FALSE, 4 * sizeof( float ), ( void* )0 ) );
+    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, sourceVBO ) );
+    GL_CHECK( glVertexAttribPointer( m_attrVertex, 4, GL_FLOAT, GL_FALSE, 4 * sizeof( float ), ( void* )nullptr ) );
     GL_CHECK( glEnableVertexAttribArray( m_attrVertex ) );
 
     GL_CHECK( glDrawArrays( GL_TRIANGLE_STRIP, 0, 4 ) );

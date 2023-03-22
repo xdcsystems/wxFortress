@@ -25,7 +25,7 @@ class SpriteRenderer
             glm::vec3 color = glm::vec3( 1.0f ) );
 
         void drawSprite(
-            unsigned int VBO,
+            unsigned int sourceVBO,
             const glm::vec2& position,
             glm::vec2 size = glm::vec2( 10.0f, 10.0f ),
             glm::vec3 color = glm::vec3( 1.0f ) );
