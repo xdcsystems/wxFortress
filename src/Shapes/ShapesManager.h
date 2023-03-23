@@ -39,11 +39,12 @@ namespace Shapes
             // Helper functions
             void stop();
             void update( double deltaTime );
+            void calculateDelta();
             void changeMoveDirection( ContactPosition contactPosition, TypeContact typeContact = TypeContact::WallContact );
-            void moveBoard();
+            void moveBoard( float value );
             void checkKeysState();
-            void checkPaddleContact();
-            ContactPosition checkBrickContact( const glm::vec2& ballPosition, const glm::vec2& delta, float beginValue, float endValue, float increment );
+            ContactPosition checkPaddleContact( bool checkOnly = true );
+            ContactPosition checkContact( const glm::vec2& ballPosition, float beginValue, float endValue, float increment );
             Rect updateBallPosition( const Rect& boardBounds ) const;
 
         private:
@@ -52,12 +53,11 @@ namespace Shapes
             bool m_bRun = false;
             bool m_isRobot = true;
 
-            int m_boardMove = 0;
             float m_ballTopLimit = 0;
             float m_ballBottomLimit = 0;
+            float m_accelerate = 0;
 
-            double m_diagonal = 0;
-            double m_accelerate = 0;
+            glm::vec2 m_delta = { 0, 0 };
 
             wxEvtHandler* m_eventHandler = nullptr;
             wxCommandEvent m_eventCurrentScoreInc;
@@ -65,9 +65,6 @@ namespace Shapes
             wxCommandEvent m_eventPing;
             wxCommandEvent m_eventPong;
             wxCommandEvent m_eventBallLost;
-
-            std::vector<glm::vec2> m_trajectory;
-            std::vector<glm::vec2>::const_iterator m_currentTrajPoint;
 
             std::shared_ptr<Ball> m_ball;
             std::shared_ptr<Board> m_board;

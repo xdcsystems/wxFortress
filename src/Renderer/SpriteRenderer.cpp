@@ -25,9 +25,9 @@ SpriteRenderer::~SpriteRenderer()
     clearBuffer( m_VBO );
 }
 
-void SpriteRenderer::clearBuffer( unsigned int VBO)
+void SpriteRenderer::clearBuffer( unsigned int sourceVBO)
 {
-    GL_CHECK( glDeleteBuffers( 1, &VBO ) ); // TODO destroy out buffers
+    GL_CHECK( glDeleteBuffers( 1, &sourceVBO ) );
 }
 
 void SpriteRenderer::selectShader()
@@ -75,13 +75,13 @@ void SpriteRenderer::initRenderData()
 
 unsigned int SpriteRenderer::generateBuffer( const std::vector<float>& vertices )
 {
-    unsigned int VBO = 0;
+    unsigned int targetVBO = 0;
 
-    GL_CHECK( glGenBuffers( 1, &VBO ) );
-    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, VBO ) );
+    GL_CHECK( glGenBuffers( 1, &targetVBO ) );
+    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, targetVBO ) );
     GL_CHECK( glBufferData( GL_ARRAY_BUFFER, sizeof( vertices[ 0 ] ) * vertices.size(), vertices.data(), GL_STATIC_DRAW ) );
 
     GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, 0 ) );
 
-    return VBO;
+    return targetVBO;
 }

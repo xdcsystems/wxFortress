@@ -48,7 +48,6 @@ BraceWrapping:
   SplitEmptyFunction: false
   SplitEmptyRecord: false 
   SplitEmptyNamespace: false  
-  
 
 BreakBeforeConceptDeclarations: true
 BreakBeforeTernaryOperators: true
@@ -86,9 +85,7 @@ NamespaceIndentation: All
 ObjCBlockIndentWidth: 2
 ObjCSpaceAfterProperty: false
 ObjCSpaceBeforeProtocolList: false
-
 PackConstructorInitializers: Never
-
 PenaltyBreakBeforeFirstCallParameter: 0
 PenaltyBreakComment: 300
 PenaltyBreakFirstLessLess: 120

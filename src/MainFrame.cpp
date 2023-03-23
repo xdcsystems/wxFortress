@@ -18,26 +18,24 @@
 #include "Renderer/RenderWindow.h"
 #include "ControlPanel/Panel.h"
 
-
 BEGIN_EVENT_TABLE( MainFrame, wxFrame )
-    EVT_CLOSE( onClose )
-    EVT_COMMAND( wxID_ANY, wxEVT_CURRENT_SCORE_INCREASED, onScoreIncreased )
-    EVT_COMMAND( wxID_ANY, wxEVT_ROUND_COMLETED, onRoundCompleted )
-    EVT_COMMAND( wxID_ANY, wxEVT_MEDIA_PLAY, onRoundCompleted )
-    EVT_COMMAND( wxID_ANY, wxEVT_MEDIA_FINISHED, onVideoFinished )
-    EVT_COMMAND( wxID_ANY, wxEVT_LAUNCH_PRESSED, onLaunchPressed )
-    EVT_COMMAND( wxID_ANY, wxEVT_NEW_ROUND_STARTED, onRoundStarted )
-    EVT_COMMAND( wxID_ANY, wxEVT_BALL_LOST, onBallLost )
+    EVT_CLOSE( MainFrame::onClose )
+    EVT_COMMAND( wxID_ANY, wxEVT_CURRENT_SCORE_INCREASED, MainFrame::onScoreIncreased )
+    EVT_COMMAND( wxID_ANY, wxEVT_ROUND_COMLETED, MainFrame::onRoundCompleted )
+    EVT_COMMAND( wxID_ANY, wxEVT_MEDIA_PLAY, MainFrame::onRoundCompleted )
+    EVT_COMMAND( wxID_ANY, wxEVT_MEDIA_FINISHED, MainFrame::onVideoFinished )
+    EVT_COMMAND( wxID_ANY, wxEVT_LAUNCH_PRESSED, MainFrame::onLaunchPressed )
+    EVT_COMMAND( wxID_ANY, wxEVT_NEW_ROUND_STARTED, MainFrame::onRoundStarted )
+    EVT_COMMAND( wxID_ANY, wxEVT_BALL_LOST, MainFrame::onBallLost )
 END_EVENT_TABLE()
 
-
-MainFrame::MainFrame( wxWindow* parent, int id, const wxString &title, wxPoint pos, wxSize size, int style )
-    : wxFrame( parent, id, title, pos, size, style )
+MainFrame::MainFrame( wxWindow *parent, int id, const wxString &title, wxPoint pos, wxSize size, int style )
+  : wxFrame( parent, id, title, pos, size, style )
 {
     init();
 }
 
-bool MainFrame::Create( wxWindow* parent, int id, const wxString &title, wxPoint pos, wxSize size, int style, const wxString& name )
+bool MainFrame::Create( wxWindow *parent, int id, const wxString &title, wxPoint pos, wxSize size, int style, const wxString &name )
 {
     bool returnVal = wxFrame::Create( parent, id, title, pos, size, style, name );
     if ( returnVal )
@@ -51,12 +49,12 @@ bool MainFrame::Create( wxWindow* parent, int id, const wxString &title, wxPoint
 
 void MainFrame::init()
 {
-#if defined( wxUSE_LOGWINDOW ) && defined( _USE_LOG )
-        m_logWindow = new wxLogWindow( nullptr, wxT( "Log" ), true, false );
-        m_logWindow->SetVerbose( TRUE );
-        wxLog::SetActiveTarget( m_logWindow );
-        
-        m_logWindow->GetFrame()->SetFocus();
+#if defined( wxUSE_LOGWINDOW ) && defined( USE_LOGGER )
+    m_logWindow = new wxLogWindow( nullptr, wxT( "Log" ), true, false );
+    m_logWindow->SetVerbose( TRUE );
+    wxLog::SetActiveTarget( m_logWindow );
+
+    m_logWindow->GetFrame()->SetFocus();
 #endif
 
     SetBackgroundColour( *wxBLACK );
@@ -65,11 +63,11 @@ void MainFrame::init()
 
     const auto &size = GetSize();
 
-    m_mediaManager = std::make_shared <MediaManager>( this, wxID_ANY, wxDefaultPosition, size );
+    m_mediaManager = std::make_shared<MediaManager>( this, wxID_ANY, wxDefaultPosition, size );
     m_mediaManager->playIntro();
 
-    m_renderSurface = std::make_shared<RenderWindow>( this, wxID_ANY, nullptr,  wxPoint( 0, 0 ), wxSize( 800, size.y ) );
-    m_controlPanel = std::make_shared<ControlPanel::Panel>( this, wxID_ANY, wxPoint(800, 0), wxSize( size.x - 800, size.y ));
+    m_renderSurface = std::make_shared<RenderWindow>( this, wxID_ANY, nullptr, wxPoint( 0, 0 ), wxSize( 800, size.y ) );
+    m_controlPanel = std::make_shared<ControlPanel::Panel>( this, wxID_ANY, wxPoint( 800, 0 ), wxSize( size.x - 800, size.y ) );
 
     auto *bSizer = new wxBoxSizer( wxHORIZONTAL );
     bSizer->Add( m_renderSurface.get(), wxEXPAND | wxALL );
@@ -99,13 +97,13 @@ void MainFrame::onVideoFinished( wxCommandEvent& )
     start();
 }
 
-void MainFrame::stop() 
-{ 
-    m_isRunning = false; 
+void MainFrame::stop()
+{
+    m_isRunning = false;
     m_renderSurface->stop();
 };
 
-void MainFrame::onClose( wxCloseEvent& event )
+void MainFrame::onClose( wxCloseEvent &event )
 {
     stop();
     event.Skip();

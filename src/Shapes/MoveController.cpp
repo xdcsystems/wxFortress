@@ -28,59 +28,59 @@ void MoveController::initDirection()
         m_angle = dist160( rng );
     } while ( m_angle > END_RIGHT_ANGLE && m_angle < BEGIN_LEFT_ANGLE ); // > 70 && < 110
 
-    m_moveDirection = m_angle <= 90 ? MoveDirection::DirectionTopRight : MoveDirection::DirectionTopLeft;
+    m_moveDirection = m_angle <= 90 ? MoveDirection::TopRight : MoveDirection::TopLeft;
 }
 
 template <>
-void MoveController::changeDirection<MoveController::MoveDirection::DirectionTopRight>( ContactPosition contactPosition )
+void MoveController::changeDirection<MoveController::MoveDirection::TopRight>( ContactPosition contactPosition )
 {
-    if ( contactPosition == ContactPosition::ContactRight )
+    if ( contactPosition == ContactPosition::Right )
     {
         m_angle += ( 90 - m_angle ) * 2;
-        m_moveDirection = MoveDirection::DirectionTopLeft;
+        m_moveDirection = MoveDirection::TopLeft;
         return;
     }
     m_angle *= -1;
-    m_moveDirection = MoveDirection::DirectionRightDown;
+    m_moveDirection = MoveDirection::RightDown;
 }
 
 template <>
-void MoveController::changeDirection<MoveController::MoveDirection::DirectionTopLeft>( ContactPosition contactPosition )
+void MoveController::changeDirection<MoveController::MoveDirection::TopLeft>( ContactPosition contactPosition )
 {
-    if ( contactPosition == ContactPosition::ContactLeft )
+    if ( contactPosition == ContactPosition::Left )
     {
         m_angle = 90 - ( m_angle - 90 );
-        m_moveDirection = MoveDirection::DirectionTopRight;
+        m_moveDirection = MoveDirection::TopRight;
         return;
     }
     m_angle *= -1;
-    m_moveDirection = MoveDirection::DirectionLeftDown;
+    m_moveDirection = MoveDirection::LeftDown;
 }
 
 template <>
-void MoveController::changeDirection<MoveController::MoveDirection::DirectionRightDown>( ContactPosition contactPosition )
+void MoveController::changeDirection<MoveController::MoveDirection::RightDown>( ContactPosition contactPosition )
 {
-    if ( contactPosition == ContactPosition::ContactRight )
+    if ( contactPosition == ContactPosition::Right )
     {
         m_angle -= ( 90 - fabs( m_angle ) ) * 2;
-        m_moveDirection = MoveDirection::DirectionLeftDown;
+        m_moveDirection = MoveDirection::LeftDown;
         return;
     }
     m_angle *= -1;
-    m_moveDirection = MoveDirection::DirectionTopRight;
+    m_moveDirection = MoveDirection::TopRight;
 }
 
 template <>
-void MoveController::changeDirection<MoveController::MoveDirection::DirectionLeftDown>( ContactPosition contactPosition )
+void MoveController::changeDirection<MoveController::MoveDirection::LeftDown>( ContactPosition contactPosition )
 {
-    if ( contactPosition == ContactPosition::ContactLeft )
+    if ( contactPosition == ContactPosition::Left )
     {
         m_angle -= ( 90 + m_angle ) * 2;
-        m_moveDirection = MoveDirection::DirectionRightDown;
+        m_moveDirection = MoveDirection::RightDown;
         return;
     }
     m_angle *= -1;
-    m_moveDirection = MoveDirection::DirectionTopLeft;
+    m_moveDirection = MoveDirection::TopLeft;
 }
 
 // Paddle contact
@@ -91,7 +91,7 @@ void MoveController::changeDirection( const glm::vec2 &ballCenter, const glm::ve
 
     switch ( m_moveDirection )
     {
-        case MoveDirection::DirectionRightDown:
+        case MoveDirection::RightDown:
             if ( m_angle > END_RIGHT_ANGLE )
             {
                 m_angle = END_RIGHT_ANGLE;
@@ -100,10 +100,10 @@ void MoveController::changeDirection( const glm::vec2 &ballCenter, const glm::ve
             {
                 m_angle = BEGIN_ANGLE;
             }
-            m_moveDirection = MoveDirection::DirectionTopRight;
+            m_moveDirection = MoveDirection::TopRight;
         break;
         
-        case MoveDirection::DirectionLeftDown:
+        case MoveDirection::LeftDown:
             if ( m_angle > END_ANGLE )
             {
                 m_angle = END_ANGLE;
@@ -112,7 +112,7 @@ void MoveController::changeDirection( const glm::vec2 &ballCenter, const glm::ve
             {
                 m_angle = BEGIN_LEFT_ANGLE;
             }
-            m_moveDirection = MoveDirection::DirectionTopLeft;
+            m_moveDirection = MoveDirection::TopLeft;
         break;
 
         default:
@@ -125,10 +125,10 @@ void MoveController::changeDirection( const glm::vec2 &ballCenter, const glm::ve
 void MoveController::changeMoveDirection( ContactPosition contactPosition )
 {
     static std::map<MoveDirection, void ( MoveController::* )( ContactPosition )> s_handlers = {
-        { MoveDirection::DirectionTopRight, &MoveController::changeDirection<MoveDirection::DirectionTopRight> },
-        { MoveDirection::DirectionTopLeft, &MoveController::changeDirection<MoveDirection::DirectionTopLeft> },
-        { MoveDirection::DirectionRightDown, &MoveController::changeDirection<MoveDirection::DirectionRightDown> },
-        { MoveDirection::DirectionLeftDown, &MoveController::changeDirection<MoveDirection::DirectionLeftDown> },
+        { MoveDirection::TopRight, &MoveController::changeDirection<MoveDirection::TopRight> },
+        { MoveDirection::TopLeft, &MoveController::changeDirection<MoveDirection::TopLeft> },
+        { MoveDirection::RightDown, &MoveController::changeDirection<MoveDirection::RightDown> },
+        { MoveDirection::LeftDown, &MoveController::changeDirection<MoveDirection::LeftDown> },
     };
 
     ( this->*( s_handlers[ m_moveDirection ] ) )( contactPosition );

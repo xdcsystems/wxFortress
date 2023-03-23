@@ -15,7 +15,6 @@ class Timer;
 namespace Shapes
 {
     class ShapesManager;
-    class ParticleGenerator;
 }
 
 class RenderWindow final : public wxGLCanvas
@@ -44,8 +43,8 @@ class RenderWindow final : public wxGLCanvas
 
         RenderWindow( const RenderWindow& ) = delete;
         RenderWindow( RenderWindow&& ) = delete;
-        RenderWindow& operator=( const RenderWindow& ) = delete;
-        RenderWindow& operator=( RenderWindow&& ) = delete;
+        RenderWindow& operator= ( const RenderWindow& ) = delete;
+        RenderWindow& operator= ( RenderWindow&& ) = delete;
 
         void stop();
         void start();

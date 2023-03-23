@@ -17,7 +17,7 @@
 DEFINE_LOCAL_EVENT_TYPE( wxEVT_VIDEO_FINISHED )
 
 BEGIN_EVENT_TABLE( MediaManager, wxWindow )
-    EVT_KEY_DOWN( onKeyPressed )
+    EVT_KEY_DOWN( MediaManager::onKeyPressed )
 END_EVENT_TABLE()
 
 MediaManager::MediaManager( wxWindow* parent, wxWindowID id, const wxPoint& pos, const wxSize& size, long style, const wxString& name )

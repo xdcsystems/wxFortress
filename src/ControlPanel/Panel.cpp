@@ -20,7 +20,7 @@
 using namespace ControlPanel;
 
 BEGIN_EVENT_TABLE( Panel, wxWindow )
-    EVT_PAINT( onPaint )
+    EVT_PAINT( Panel::onPaint )
 END_EVENT_TABLE()
 
 Panel::Panel( wxWindow *parent, wxWindowID id, const wxPoint &pos, const wxSize &size, long style, const wxString &name )

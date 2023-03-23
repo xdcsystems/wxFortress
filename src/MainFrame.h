@@ -54,7 +54,7 @@ class MainFrame final : public wxFrame
         std::shared_ptr<ControlPanel::Panel> m_controlPanel;
         std::shared_ptr <MediaManager> m_mediaManager;
 
-#if defined( wxUSE_LOGWINDOW ) && defined( _USE_LOG )
+#if defined( wxUSE_LOGWINDOW ) && defined( USE_LOGGER )
         wxLogWindow* m_logWindow = nullptr;
 #endif // wxUSE_LOGWINDOW
 

@@ -153,6 +153,10 @@ class Rect
             m_x = pt.x - m_width;
             m_y = pt.y - m_height;
         }
+        inline glm::vec2 halfExtents() const
+        {
+            return { m_width / 2.0f, m_height / 2.0f };
+        }
         inline glm::vec2 centre() const
         {
             return { m_x + m_width / 2, m_y + m_height / 2 };

@@ -11,11 +11,11 @@ namespace Shapes
 {
     enum class ContactPosition : unsigned char
     {
-        ContactNull,
-        ContactTop,
-        ContactRight,
-        ContactLeft,
-        ContactBottom
+        Null,
+        Top,
+        Right,
+        Left,
+        Bottom
     };
 
     class Base
@@ -43,9 +43,9 @@ namespace Shapes
             virtual void draw( const rendererPtr &renderer ) const;
 
             // Protected data
-            glm::vec2 m_position = { 0, 0 },
-                          m_size = { 0, 0 },
-                          m_velocity = { 0, 0 };
+            glm::vec2 m_position = { 0, 0 };
+            glm::vec2 m_size = { 0, 0 };
+            glm::vec2 m_velocity = { 0, 0 };
 
             texture2DPtr m_sprite;
             unsigned int m_VBO = 0;

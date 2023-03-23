@@ -9,32 +9,33 @@ namespace Shapes
         public:
             enum class MoveDirection : char
             {
-                DirectionLeft = -1,
-                DirectionNone = 0,
-                DirectionRight = 1,
-                DirectionTop,
-                DirectionDown,
-                DirectionTopRight,
-                DirectionRightDown,
-                DirectionLeftDown,
-                DirectionTopLeft
+                Left = -1,
+                None = 0,
+                Right = 1,
+                Top,
+                Down,
+                TopRight,
+                RightDown,
+                LeftDown,
+                TopLeft
             };
 
-            friend int operator*( MoveDirection m, char i )
+            friend float operator* ( MoveDirection m, float i )
             {
                 return ( char )m * i;
             }
-            friend int operator+( MoveDirection m, char i )
+            friend float operator+ ( MoveDirection m, float i )
             {
                 return ( char )m + i;
             }
-            friend int operator-( MoveDirection m, char i )
+            friend float operator- ( MoveDirection m, float i )
             {
                 return ( char )m - i;
             }
 
             enum class TypeContact : unsigned char
             {
+                Null,
                 BrickContact,
                 PaddleContact,
                 WallContact,
@@ -45,7 +46,7 @@ namespace Shapes
             void initDirection();
             
             inline bool isMovingHorizontal() const {
-                return ( m_moveDirection == MoveDirection::DirectionLeftDown || m_moveDirection == MoveDirection::DirectionRightDown );
+                return ( m_moveDirection == MoveDirection::LeftDown || m_moveDirection == MoveDirection::RightDown );
             };
 
             template <MoveDirection>
@@ -57,6 +58,6 @@ namespace Shapes
             // Protected data
             double m_angle = 90;
             double m_scaleDivisionValue = 1;
-            MoveDirection m_moveDirection = MoveDirection::DirectionTopRight;
+            MoveDirection m_moveDirection = MoveDirection::TopRight;
     };
 }

@@ -26,32 +26,24 @@ Ball::Ball()
     m_velocity = { BEGIN_BALL_VELOCITY, BEGIN_BALL_VELOCITY };
 }
 
-ContactPosition Ball::intersect( const Rect& rect ) const
+ContactPosition Ball::intersect( const Rect &rect ) const
 {
-    const glm::vec2 cBall( m_position.x + m_radius, m_position.y + m_radius ); // center Ball
+    // get center point Ball first
+    const glm::vec2 cBall( m_position + m_radius );
+    
+    // calculate AABB info (center, half-extents)
+    const glm::vec2 halfExtentsAABB = rect.halfExtents();
+    const glm::vec2 cAABB = rect.centre();
 
-    float x = cBall.x;
-    float y = cBall.y;
-
-    if ( cBall.x < rect.left() )
-    {
-        x = rect.left();
-    }
-    else if ( cBall.x > rect.right() )
-    {
-        x = rect.right();
-    }
-
-    if ( cBall.y < rect.top() )
-    {
-        y = rect.top();
-    }
-    else if ( cBall.y > rect.bottom() )
-    {
-        y = rect.bottom();
-    }
-
-    if ( ( cBall.x - x ) * ( cBall.x - x ) + ( cBall.y - y ) * ( cBall.y - y ) <= m_radiusSquared )
+    // get difference vector between both centers
+    const glm::vec2 difference = cBall - cAABB;
+    const glm::vec2 clamped = glm::clamp( difference, -halfExtentsAABB, halfExtentsAABB );
+    
+    // add clamped value to AABB_center and we get the value of box closest to circle
+    const glm::vec2 closest = cAABB + clamped;
+    
+    // retrieve vector between center circle and closest point AABB and check if length <= radius
+    if ( glm::length( closest - cBall ) <= m_radius )
     {
         // has collision 
         const glm::vec2 points[] = {
@@ -65,25 +57,17 @@ ContactPosition Ball::intersect( const Rect& rect ) const
         const auto d1 = ( cBall.x - points[ 3 ].x ) * ( points[ 1 ].y - points[ 3 ].y ) - ( cBall.y - points[ 3 ].y ) * ( points[ 1 ].x - points[ 3 ].x );
 
         if ( d1 < 0 && d2 > 0 )
-        {
-            return ContactPosition::ContactBottom;
-        }
+            return ContactPosition::Bottom;
         
         if ( d1 < 0 && d2 < 0 )
-        {
-            return ContactPosition::ContactRight;
-        }
+            return ContactPosition::Right;
 
         if ( d1 > 0 && d2 < 0 )
-        {
-            return ContactPosition::ContactTop;
-        }
+            return ContactPosition::Top;
 
         if ( d1 > 0 && d2 > 0 )
-        {
-            return ContactPosition::ContactLeft;
-        }
+            return ContactPosition::Left;
     }
 
-    return ContactPosition::ContactNull;
+    return ContactPosition::Null;
 }

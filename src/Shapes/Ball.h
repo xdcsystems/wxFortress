@@ -6,7 +6,7 @@ namespace Shapes
     {
         public:
             Ball();
-            ContactPosition intersect( const Rect& rect ) const;
+            ContactPosition intersect( const Rect &rect ) const;
 
             float radius() const { return m_radius; }
 
