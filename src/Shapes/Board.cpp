@@ -7,6 +7,8 @@
     #include "wx/wx.h"
 #endif
 
+#include "Common/defs.h"
+#include "Common/Rect.hpp"
 #include "Renderer/ResourceManager.h"
 #include "Base.h"
 #include "Board.h"
@@ -14,15 +16,15 @@
 using namespace Shapes;
 
 Board::Board()
- : Base()
 {
     load( ResourceManager::LoadTexture( "/../resources/images/SimpleBoard.png", true, "simple_board" ) );
+    m_velocity = { BEGIN_BOARD_VELOCITY, BEGIN_BOARD_VELOCITY };
 }
 
-wxRect2DDouble Board::admissibleBounds( const wxRect2DDouble& bounds ) const
+Rect Board::admissibleBounds( const Rect& bounds ) const
 {
-    auto boundsRect = std::move( Base::bounds() );
-    boundsRect.Inset( bounds.m_width / 2, 0.0 );
+    auto boundsRect = Base::bounds();
+    boundsRect.inset( bounds.m_width / 2, .0f );
     
     return boundsRect;
 }

@@ -8,33 +8,42 @@
 #endif
 
 #include "Common/Tools.h"
+#include "Common/Rect.hpp"
 #include "Renderer/Texture.h"
 #include "Renderer/SpriteRenderer.h"
 #include "Base.h"
 
 using namespace Shapes;
 
-void Base::load( texture2DPtr sprite )
+void Base::load( const texture2DPtr &sprite )
 {
     m_sprite = sprite;
     m_size = { m_sprite->Width, m_sprite->Height };
 }
 
-void Base::moveTo( double x, double y )
+void Base::moveTo( float x, float y )
 {
     m_position.x = x;
     m_position.y = y;
 }
 
-void Base::moveTo( const wxPoint2DDouble& position )
+void Base::moveTo( const glm::vec2& position )
 {
-    moveTo( position.m_x, position.m_y );
+    moveTo( position.x, position.y );
 }
 
-void Base::draw( rendererPtr renderer ) const
+void Base::draw( const rendererPtr &renderer ) const
 {
     if ( !m_sprite )
+    {
         return;
+    }
+    
+    m_sprite->bind();
+    renderer->drawSprite( m_position, m_size );
+}
 
-    renderer->drawSprite( m_sprite, m_position, m_size );
+glm::vec2 Base::center() const
+{
+    return { m_position.x + m_size.x / 2, m_position.y + m_size.y / 2 };
 }

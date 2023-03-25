@@ -30,7 +30,7 @@ SoundManager::~SoundManager()
 
 int SoundManager::loadBuffer( AudioFile<float>& soundFile, const std::string &fileName, ALuint* buffer )
 {
-	std::vector<uint8_t> PCMDataBytes;
+	std::vector<uint8_t> dataBytesPCM;
 
 	if ( !soundFile.load( Tools::Instance().getFullFileName( "/../resources/sounds/" + fileName ) ) )
 	{
@@ -41,17 +41,22 @@ int SoundManager::loadBuffer( AudioFile<float>& soundFile, const std::string &fi
 	const auto convertFileToOpenALFormat = []( const AudioFile<float>& audioFile ) {
 		int bitDepth = audioFile.getBitDepth();
 		if ( bitDepth == 16 )
+		{
 			return audioFile.isStereo() ? AL_FORMAT_STEREO16 : AL_FORMAT_MONO16;
-		else if ( bitDepth == 8 )
+		}
+		
+		if ( bitDepth == 8 )
+		{
 			return audioFile.isStereo() ? AL_FORMAT_STEREO8 : AL_FORMAT_MONO8;
-		else
-			return -1; // this shouldn't happen!
+		}
+		
+		return -1; // this shouldn't happen!
 	};
 
-	soundFile.writePCMToBuffer( PCMDataBytes ); //remember, we added this function to the AudioFile library
+	soundFile.writePCMToBuffer( dataBytesPCM ); //remember, we added this function to the AudioFile library
 
 	alec( alGenBuffers( 1, buffer ) );
-	alec( alBufferData( *buffer, convertFileToOpenALFormat( soundFile ), PCMDataBytes.data(), PCMDataBytes.size(), soundFile.getSampleRate() ) );
+	alec( alBufferData( *buffer, convertFileToOpenALFormat( soundFile ), dataBytesPCM.data(), dataBytesPCM.size(), soundFile.getSampleRate() ) );
 
 	return 0;
 }
@@ -122,12 +127,14 @@ int SoundManager::init()
 
 ALuint SoundManager::getFreeStereoSource() const
 {
-	ALint sourceState;
+	ALint sourceState( 0 );
 	for ( const auto source : m_stereoSource )
 	{
 		alec( alGetSourcei( source, AL_SOURCE_STATE, &sourceState ) );
 		if ( sourceState == AL_PLAYING )
+		{
 			continue;
+		}
 		return source;
 	}
 	return 0;
@@ -137,12 +144,12 @@ void SoundManager::cleanSources()
 {
 	for ( const auto source : m_stereoSource )
 	{
-		ALint processed;
+		ALint processed( 0 );
 		alGetSourcei( source, AL_BUFFERS_PROCESSED, &processed );
 
 		while ( processed-- )
 		{
-			ALuint buffer;
+			ALuint buffer( 0 );
 			alSourceUnqueueBuffers( source, 1, &buffer );
 		}
 	}
@@ -153,7 +160,9 @@ void SoundManager::playStereoSource( ALuint buffer, float gain, bool playAsync )
 	// Find free source
 	auto source = getFreeStereoSource();
 	if ( source == 0 ) // no free source
+	{
 		source = m_stereoSource[ 0 ]; // hope for good luck.
+	}
 
 	////alec(alSource3f(stereoSource, AL_POSITION, 0.f, 0.f, 1.f)); //NOTE: this does not work like mono sound positions!
 	////alec(alSource3f(stereoSource, AL_VELOCITY, 0.f, 0.f, 0.f)); 
@@ -164,12 +173,12 @@ void SoundManager::playStereoSource( ALuint buffer, float gain, bool playAsync )
 
 	alec( alSourcePlay( source ) );
 
-	ALint processed;
+	ALint processed( 0 );
 	alec( alGetSourcei( source, AL_BUFFERS_PROCESSED, &processed ) );
 
 	//bool active = true;
 	while ( processed-- ) {
-		ALuint buffer;
+		ALuint buffer( 0 );
 		alec( alSourceUnqueueBuffers( source, 1, &buffer ) );
 		// ReportError();
 
@@ -180,11 +189,13 @@ void SoundManager::playStereoSource( ALuint buffer, float gain, bool playAsync )
 	}
 
 	if ( playAsync )
+	{
 		return;
+	}
 
 	// play the stereo sound source sync
 	alec( alSourcePlay( source ) );
-	ALint sourceState;
+	ALint sourceState( 0 );
 	alec( alGetSourcei( source, AL_SOURCE_STATE, &sourceState ) );
 	while ( sourceState == AL_PLAYING )
 	{
@@ -193,7 +204,7 @@ void SoundManager::playStereoSource( ALuint buffer, float gain, bool playAsync )
 	}
 }
 
-void SoundManager::playRocket()
+void SoundManager::playRocket() const
 {
 	alec( alSourcePlay( m_monoSource ) );
 }

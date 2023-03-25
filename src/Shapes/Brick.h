@@ -2,13 +2,23 @@
 
 namespace Shapes
 {
+    enum class BrickType : unsigned char
+    {
+        NONE,
+        AQUA,
+        RED,
+        YELLOW,
+        GREEN,
+        ORANGE,
+        PURPLE,
+        BLUE,
+    };
+
     class Brick : public Base
     {
-        using texture2DPtr = std::shared_ptr<Texture2D>;
-        using rendererPtr = std::shared_ptr<SpriteRenderer>;
-
         public:
-            Brick( double x, double y, texture2DPtr sprite );
+            Brick( float x, float y, BrickType type, const glm::vec2& texSize  );
+            ~Brick();
 
             bool isAlive() const { return m_alive; }
             void kill() { m_alive = false; }

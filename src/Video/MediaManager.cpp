@@ -4,19 +4,20 @@
 // for all others, include the necessary headers (this file is usually all you
 // need because it includes almost all "standard" wxWidgets headers)
 #ifndef WX_PRECOMP
-#include "wx/wx.h"
+    #include "wx/wx.h"
 #endif
 
 #include <wx/dcbuffer.h>
 #include <wx/mediactrl.h>
 
+#include "Common/defs.h"
 #include "Common/Tools.h"
 #include "MediaManager.h"
 
 DEFINE_LOCAL_EVENT_TYPE( wxEVT_VIDEO_FINISHED )
 
 BEGIN_EVENT_TABLE( MediaManager, wxWindow )
-    EVT_KEY_DOWN( OnKeyPressed )
+    EVT_KEY_DOWN( MediaManager::onKeyPressed )
 END_EVENT_TABLE()
 
 MediaManager::MediaManager( wxWindow* parent, wxWindowID id, const wxPoint& pos, const wxSize& size, long style, const wxString& name )
@@ -25,8 +26,8 @@ MediaManager::MediaManager( wxWindow* parent, wxWindowID id, const wxPoint& pos,
 {
     SetBackgroundColour( *wxBLACK );
 
-    m_timer.Bind( wxEVT_TIMER, &MediaManager::OnTimer, this );
-    m_timerCheckEnd.Bind( wxEVT_TIMER, &MediaManager::OnCheckEnd, this );
+    m_timer.Bind( wxEVT_TIMER, &MediaManager::onTimer, this );
+    m_timerCheckEnd.Bind( wxEVT_TIMER, &MediaManager::onCheckEnd, this );
 }
 
 MediaManager::~MediaManager()
@@ -62,9 +63,9 @@ void MediaManager::createMediaControl()
 
     m_mediaControl->SetSizer( new wxBoxSizer( wxHORIZONTAL ) );
 
-    m_mediaControl->Bind( wxEVT_MEDIA_LOADED, &MediaManager::OnMediaLoaded, this );
-    m_mediaControl->Bind( wxEVT_MEDIA_PLAY, &MediaManager::OnMediaPlayStarted, this );
-    m_mediaControl->Bind( wxEVT_MEDIA_FINISHED, &MediaManager::OnMediaFinished, this );
+    m_mediaControl->Bind( wxEVT_MEDIA_LOADED, &MediaManager::onMediaLoaded, this );
+    m_mediaControl->Bind( wxEVT_MEDIA_PLAY, &MediaManager::onMediaPlayStarted, this );
+    m_mediaControl->Bind( wxEVT_MEDIA_FINISHED, &MediaManager::onMediaFinished, this );
 }
 
 void MediaManager::reset()
@@ -72,15 +73,15 @@ void MediaManager::reset()
     m_timer.Stop();
     m_timerCheckEnd.Stop();
 
-    m_mediaControl->Unbind( wxEVT_MEDIA_LOADED, &MediaManager::OnMediaLoaded, this );
-    m_mediaControl->Unbind( wxEVT_MEDIA_PLAY, &MediaManager::OnMediaPlayStarted, this );
-    m_mediaControl->Unbind( wxEVT_MEDIA_FINISHED, &MediaManager::OnMediaFinished, this );
+    m_mediaControl->Unbind( wxEVT_MEDIA_LOADED, &MediaManager::onMediaLoaded, this );
+    m_mediaControl->Unbind( wxEVT_MEDIA_PLAY, &MediaManager::onMediaPlayStarted, this );
+    m_mediaControl->Unbind( wxEVT_MEDIA_FINISHED, &MediaManager::onMediaFinished, this );
 
     m_mediaControl->Destroy();
     m_mediaControl = nullptr;
 }
 
-void MediaManager::OnMediaLoaded( wxMediaEvent& )
+void MediaManager::onMediaLoaded( wxMediaEvent& )
 {
     const auto &cleentSize = GetClientSize();
     const auto &videoSize = m_mediaControl->GetBestSize();
@@ -91,17 +92,19 @@ void MediaManager::OnMediaLoaded( wxMediaEvent& )
     m_mediaControl->SetPosition( controlPosition );
 
     if ( m_isOK )
+    {
         m_mediaControl->Play();
+    }
 
     m_timer.Start( s_timerInterval );
 }
 
-void MediaManager::OnMediaPlayStarted( wxMediaEvent& event )
+void MediaManager::onMediaPlayStarted( wxMediaEvent& event )
 {
     AddPendingEvent( event );
 }
 
-void MediaManager::OnMediaFinished( wxMediaEvent& event )
+void MediaManager::onMediaFinished( wxMediaEvent& event )
 {
     AddPendingEvent( event );
 }
@@ -129,25 +132,25 @@ void MediaManager::showSkipMessage( bool show )
     cDC.Clear();
 }
 
-void MediaManager::OnTimer( wxTimerEvent& )
+void MediaManager::onTimer( wxTimerEvent& )
 {
     m_timer.Stop();
     showSkipMessage();
     m_timerCheckEnd.Start( s_timerCheckEndInterval );
 }
 
-void MediaManager::OnCheckEnd( wxTimerEvent& )
+void MediaManager::onCheckEnd( wxTimerEvent& )
 {
-    static const auto videoEnd = m_mediaControl->Length() * 90.0 / 100;
+    static const auto s_videoEnd = m_mediaControl->Length() * 90.0 / 100;
 
-    if ( m_mediaControl->Tell() >= videoEnd )
+    if ( m_mediaControl->Tell() >= s_videoEnd )
     {
         m_timerCheckEnd.Stop();
         showSkipMessage( false );
     }
 }
 
-void MediaManager::OnKeyPressed( wxKeyEvent& event )
+void MediaManager::onKeyPressed( wxKeyEvent& event )
 {
     switch ( event.GetKeyCode() )
     {

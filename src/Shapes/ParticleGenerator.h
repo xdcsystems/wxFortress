@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include <vector>
 
 #include <glm/glm.hpp>
@@ -37,10 +38,13 @@ namespace Shapes
             ~ParticleGenerator();
 
             // update all particles
-            void update( float dt, basePtr object, unsigned int newParticles, glm::vec2 offset = glm::vec2( 0.0f, 0.0f ) );
+            void update( float dt, const basePtr &object, unsigned int newParticles, glm::vec2 offset = glm::vec2( 0.0f, 0.0f ) );
 
             // render all particles
             void draw();
+
+            // clear all particles
+            void clear();
 
         private:
             // initializes buffer and vertex attributes
@@ -50,18 +54,16 @@ namespace Shapes
             unsigned int firstUnusedParticle();
 
             // respawns particle
-            void respawnParticle( Particle& particle, basePtr object, glm::vec2 offset = glm::vec2( 0.0f, 0.0f ) );
+            void respawnParticle( Particle& particle, const basePtr &object, glm::vec2 offset = glm::vec2( 0.0f, 0.0f ) );
 
-        private:
+
             // state
             unsigned short m_amount = 0;
             unsigned int m_VBO = 0;
-            
-            int m_sizeVAO = 0;
-            
+
             int m_attrPos = 0;
             int m_attrIndex = 0;
-            
+
             std::vector<Particle> m_particles;
 
             // render state

@@ -4,7 +4,7 @@
 // for all others, include the necessary headers (this file is usually all you
 // need because it includes almost all "standard" wxWidgets headers)
 #ifndef WX_PRECOMP
-#include "wx/wx.h"
+    #include "wx/wx.h"
 #endif
 
 #include <map>
@@ -21,31 +21,33 @@ Overlay::Overlay( const wxSize& size )
  , m_size( size )
 {
     for ( const auto& countdown : s_countdownMap )
+    {
         s_countdownSprites[ countdown.first ] = ResourceManager::LoadTexture(
             "/../resources/images/Countdown/" + countdown.second,
             true,
-            "countdown_" + static_cast< int >( countdown.first )
+            "countdown_" + std::to_string(static_cast< int >( countdown.first ))
         );
+    }
     
-    m_bitmapPause = ResourceManager::LoadTexture(
+    m_pauseTex = ResourceManager::LoadTexture(
         "/../resources/images/Pause.png",
         true,
         "pause" 
     );
 }
 
-void Overlay::showPause( rendererPtr renderer )
+void Overlay::showPause( const rendererPtr &renderer )
 {
+    m_pauseTex->bind();
     renderer->drawSprite(
-        m_bitmapPause,
-        glm::vec2( 0.0f, m_size.y - m_bitmapPause->Height ),
-        glm::vec2( m_bitmapPause->Width, m_bitmapPause->Height ) );
+        { 0.0f, m_size.y - m_pauseTex->Height },
+        { m_pauseTex->Width, m_pauseTex->Height } );
 }
 
-void Overlay::showCountDown( rendererPtr renderer, unsigned char count )
+void Overlay::showCountDown( const rendererPtr &renderer, unsigned char count )
 {
+    s_countdownSprites[ count ]->bind();
     renderer->drawSprite(
-        s_countdownSprites[ count ],
-        glm::vec2( 0.0f, 0.0f ),
-        glm::vec2( s_countdownSprites[ count ]->Width, s_countdownSprites[ count ]->Height ) );
+        { 0.0f, 0.0f },
+        { s_countdownSprites[ count ]->Width, s_countdownSprites[ count ]->Height } );
 }

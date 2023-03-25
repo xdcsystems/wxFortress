@@ -14,7 +14,7 @@ class Shader
 {
     public:
         // state
-        unsigned int ID = 0;
+        unsigned int ID = { 0 };
 
         // sets the current shader as active
         Shader& use();
@@ -35,7 +35,7 @@ class Shader
 
     private:
         // checks if compilation or linking failed and if so, print the error logs
-        void checkCompileErrors( unsigned int object, std::string type );
+        void checkCompileErrors( unsigned int object, const std::string &type );
 };
 
 using shaderPtr = std::shared_ptr<Shader>;

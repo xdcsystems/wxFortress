@@ -1,5 +1,9 @@
 #pragma once
 
+#include <future>
+#include "MoveController.h"
+#include "Common/Semaphore.hpp"
+
 DECLARE_LOCAL_EVENT_TYPE( wxEVT_CURRENT_SCORE_INCREASED, wxID_ANY )
 DECLARE_LOCAL_EVENT_TYPE( wxEVT_ROUND_COMLETED, wxID_ANY )
 DECLARE_LOCAL_EVENT_TYPE( wxEVT_BALL_LOST, wxID_ANY )
@@ -15,96 +19,46 @@ namespace Shapes
     class Ball;
     class Board;
     class Bricks;
-    enum class ContactPosition : unsigned char;
+    class Explosions;
 
-    class ShapesManager : public wxObject
+    class ShapesManager final: public MoveController, public Semaphore
     {
         using rendererPtr = std::shared_ptr<SpriteRenderer>;
         using particlesPtr = std::shared_ptr<ParticleGenerator>;
 
         public:
-            enum class MoveDirection : char
-            {
-                DirectionLeft = -1,
-                DirectionNone = 0,
-                DirectionRight = 1,
-                DirectionTop,
-                DirectionDown,
-                DirectionTopRight,
-                DirectionRightDown,
-                DirectionLeftDown,
-                DirectionTopLeft
-            };
-
-            friend int operator*( MoveDirection m, char i )
-            {
-                return (char)m * i;
-            }
-            friend int operator+( MoveDirection m, char i )
-            {
-                return ( char )m + i;
-            }
-            friend int operator-( MoveDirection m, char i )
-            {
-                return ( char )m - i;
-            }
-
-            enum class TypeContact : unsigned char
-            {
-                BrickContact,
-                PaddleContact,
-                WallContact,
-                BallLost
-            };
-
-            using enum MoveDirection;
-            using enum TypeContact;
-
             ShapesManager( wxWindow* parent );
-            ~ShapesManager() wxOVERRIDE {};
+            virtual ~ShapesManager();
 
-            void loadLevel( unsigned short level );
-            
-            void update( double deltaTime );
-            void renderFrame( rendererPtr spriteRenderer );
+            bool switchRun( bool bNewRound = false );
+            void renderFrame( const rendererPtr &spriteRenderer );
 
             void resize( const wxSize& size );
-            bool switchRun( bool bNewRound = false );
-            void moveBoard( int sizeMove ) { m_boardMove = sizeMove; }
+            void loadLevel( unsigned short level );
 
-        private:
+        protected:
+            // Helper functions
             void stop();
-            void calculateTrajectory();
-            void changeMoveDirection( ContactPosition contactPosition, TypeContact typeContact = WallContact );
-            void offsetBoard();
-            void offsetBall();
-            wxRect2DDouble updateBallPosition( const wxRect2DDouble& boardBounds ) const;
-
-            template <MoveDirection direction>
-            void checkDirection( ContactPosition contactPosition );
+            void update( double deltaTime );
+            void calculateDelta();
+            void changeMoveDirection( ContactPosition contactPosition, TypeContact typeContact = TypeContact::WallContact );
+            void moveBoard( float value );
+            void checkKeysState();
+            ContactPosition checkPaddleContact( bool checkOnly = true );
+            ContactPosition checkContact( const glm::vec2& ballPosition, float beginValue, float endValue, float increment );
+            Rect updateBallPosition( const Rect& boardBounds ) const;
 
         private:
-            wxWindow* m_parent = nullptr;
-
+            // Private data
             wxSize m_size;
             bool m_bRun = false;
             bool m_isRobot = true;
-            
-            int m_boardMove = 0;
-            double m_ballTopLimit = 0;
-            double m_ballBottomLimit = 0;
 
-            double m_diagonal = 0;
-            double m_angle = 90;
+            float m_ballTopLimit = 0;
+            float m_ballBottomLimit = 0;
+            float m_accelerate = 0;
 
-            std::vector<wxPoint2DDouble> m_trajectory;
-            std::vector<wxPoint2DDouble>::const_iterator m_currentTrajPoint;
-
-            std::shared_ptr<Ball> m_ball;
-            std::shared_ptr<Board> m_board;
-            std::shared_ptr<Bricks> m_bricks;
-
-            std::shared_ptr<ParticleGenerator> m_particles;
+            glm::vec2 m_delta = { 0, 0 };
 
             wxEvtHandler* m_eventHandler = nullptr;
             wxCommandEvent m_eventCurrentScoreInc;
@@ -113,6 +67,14 @@ namespace Shapes
             wxCommandEvent m_eventPong;
             wxCommandEvent m_eventBallLost;
 
-            MoveDirection m_moveDirection = DirectionTopRight;
+            std::shared_ptr<Ball> m_ball;
+            std::shared_ptr<Board> m_board;
+            std::shared_ptr<Bricks> m_bricks;
+            std::shared_ptr<Explosions> m_explosions;
+
+            std::shared_ptr<ParticleGenerator> m_particles;
+
+            std::atomic<bool> m_keepGoing { true };
+            std::future<void> m_asyncWorker;
     };
 }

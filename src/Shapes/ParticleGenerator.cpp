@@ -4,13 +4,14 @@
 // for all others, include the necessary headers (this file is usually all you
 // need because it includes almost all "standard" wxWidgets headers)
 #ifndef WX_PRECOMP
-#include "wx/wx.h"
+    #include "wx/wx.h"
 #endif
 
 #include <GL/glew.h>
 #include <glm/glm.hpp>
 
 #include "Common/Tools.h"
+#include "Common/Rect.hpp"
 #include "Renderer/ResourceManager.h"
 #include "Renderer/Shader.h"
 #include "Renderer/Texture.h"
@@ -35,12 +36,12 @@ ParticleGenerator::~ParticleGenerator()
     GL_CHECK( glDeleteBuffers( 1, &m_VBO ) );
 }
 
-void ParticleGenerator::update( float dt, basePtr object, unsigned int newParticles, glm::vec2 offset )
+void ParticleGenerator::update( float dt, const basePtr &object, unsigned int newParticles, glm::vec2 offset )
 {
     // add new particles 
     for ( unsigned int i = 0; i < newParticles; ++i )
     {
-        int unusedParticle = firstUnusedParticle();
+        auto unusedParticle = firstUnusedParticle();
         respawnParticle( m_particles[ unusedParticle ], object, offset );
     }
 
@@ -48,7 +49,7 @@ void ParticleGenerator::update( float dt, basePtr object, unsigned int newPartic
     for ( auto& particle : m_particles )
     {
         particle.Life -= dt; // reduce life
-        if ( particle.Life > 0.0f )
+        if ( particle.Life > .0f )
         {	// particle is alive, thus update
             particle.Position -= particle.Velocity * dt;
             particle.Color.a -= dt * 2.5f;
@@ -67,8 +68,8 @@ void ParticleGenerator::draw()
 
     // set mesh attributes
     GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, m_VBO ) );
-    GL_CHECK( glVertexAttribPointer( m_attrPos, 4, GL_FLOAT, GL_FALSE, 5 * sizeof( float ), ( void* )0 ) );
-    GL_CHECK( glVertexAttribPointer( m_attrIndex, 1, GL_FLOAT, GL_FALSE, 5 * sizeof( float ), ( void* )( 4 * sizeof( float ) ) ) );
+    GL_CHECK( glVertexAttribPointer( m_attrPos, 4, GL_FLOAT, GL_FALSE, 5 * sizeof( float ), ( void* )nullptr ) );
+    GL_CHECK( glVertexAttribPointer( m_attrIndex, 1, GL_FLOAT, GL_FALSE, 5 * sizeof( float ), ( void* )( intptr_t )( 4 * sizeof( float ) ) ) );
 
     GL_CHECK( glEnableVertexAttribArray( m_attrPos ) );
     GL_CHECK( glEnableVertexAttribArray( m_attrIndex ) );
@@ -87,7 +88,9 @@ void ParticleGenerator::draw()
     }
 
     if ( index > 0 )
+    {
         GL_CHECK( glDrawArrays( GL_TRIANGLES, 0, 6 * index ) );
+    }
 
     GL_CHECK( glDisableVertexAttribArray( m_attrPos ) );
     GL_CHECK( glDisableVertexAttribArray( m_attrIndex ) );
@@ -110,7 +113,7 @@ void ParticleGenerator::init()
         1.0f, 1.0f,   1.0f, 1.0f,   0.0f,
     };
 
-    m_sizeVAO = sizeof( vertices );
+    const auto sizeVAO = sizeof( vertices );
 
     GL_CHECK( m_attrPos = glGetAttribLocation( m_shader->ID, "vertex" ) );
     GL_CHECK( m_attrIndex = glGetAttribLocation( m_shader->ID, "index" ) );
@@ -120,15 +123,23 @@ void ParticleGenerator::init()
 
     // fill mesh buffer
     GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, m_VBO ) );
-    GL_CHECK( glBufferData( GL_ARRAY_BUFFER, m_sizeVAO * m_amount, 0, GL_STATIC_DRAW ) );
+    GL_CHECK( glBufferData( GL_ARRAY_BUFFER, sizeVAO * m_amount, nullptr, GL_STATIC_DRAW ) );
     
     for ( unsigned short index = 0; index < m_amount; ++index )
     {
         vertices[ 4 ] = vertices[ 9 ] = vertices[ 14 ] = vertices[ 19 ] = vertices[ 24 ] = vertices[ 29 ]= index;
-        GL_CHECK( glBufferSubData( GL_ARRAY_BUFFER, m_sizeVAO * index, m_sizeVAO, vertices ) );
+        GL_CHECK( glBufferSubData( GL_ARRAY_BUFFER, sizeVAO * index, sizeVAO, vertices ) );
     }
 
     GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, 0 ) );
+}
+
+void ParticleGenerator::clear()
+{
+    for ( auto& particle : m_particles )
+    {
+        particle.Life = 0.f;
+    }
 }
 
 unsigned int ParticleGenerator::firstUnusedParticle()
@@ -136,11 +147,11 @@ unsigned int ParticleGenerator::firstUnusedParticle()
     // first search from last used particle, this will usually return almost instantly
     const auto iter = std::find_if( m_particles.begin(), m_particles.end(), []( const auto& patrticle ) {
         return patrticle.Life <= 0;
-        } );
+    } );
     return iter == m_particles.end() ? 0 : std::distance( m_particles.begin(), iter );
 }
 
-void ParticleGenerator::respawnParticle( Particle& particle, basePtr object, glm::vec2 offset )
+void ParticleGenerator::respawnParticle( Particle& particle, const basePtr &object, glm::vec2 offset )
 {
     const auto& position = object->position();
 

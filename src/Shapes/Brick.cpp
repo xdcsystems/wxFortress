@@ -7,23 +7,36 @@
     #include "wx/wx.h"
 #endif
 
-#include "Renderer/Texture.h"
 #include "Renderer/SpriteRenderer.h"
+#include "Common/Rect.hpp"
 #include "Base.h"
 #include "Brick.h"
 
 using namespace Shapes;
 
-Brick::Brick( double x, double y, texture2DPtr sprite )
- : Base()
+Brick::Brick( float x, float y, BrickType type, const glm::vec2& texSize )
 {
-    if ( !sprite ) // empty place
-    {
-        m_size = s_defaultSize;
-        m_alive = false;
-    }
-    else
-        load( sprite );
-
+    m_size = s_defaultSize;
     m_position = { x * m_size.x, y * m_size.y };
+
+    m_alive = type != BrickType::NONE;
+    if ( m_alive )
+    {
+        const float divisionScale = 1.f / texSize.x;
+        const float left = divisionScale * ( static_cast< unsigned char >( type ) - 1 ) * m_size.x; // left coord
+        const float right = left + divisionScale * m_size.x; // right coord
+
+        m_VBO = SpriteRenderer::generateBuffer( {
+            // pos      // tex
+            0.f, 0.f,   left,   0.f,
+            0.f, 1.f,   left,   1.f,
+            1.f, 0.f,   right, 0.f,
+            1.f, 1.f,   right, 1.f,
+        } );
+    }
+}
+
+Brick::~Brick()
+{
+    SpriteRenderer::clearBuffer( m_VBO );
 }

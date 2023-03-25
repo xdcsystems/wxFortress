@@ -4,7 +4,7 @@
 // for all others, include the necessary headers (this file is usually all you
 // need because it includes almost all "standard" wxWidgets headers)
 #ifndef WX_PRECOMP
-#include "wx/wx.h"
+    #include "wx/wx.h"
 #endif
 
 #include <map>
@@ -15,29 +15,31 @@
 #include <wx/txtstrm.h>
 #include <wx/tokenzr.h>
 
+#include "Common/defs.h"
 #include "Tools.h"
 
-void CheckOpenGLError( const char* stmt, const char* fname, int line )
+void CheckOpenGLError( const char *stmt, const char *fname, int line )
 {
-    GLenum errorCode;
+    GLenum errorCode( 0 );
     while ( ( errorCode = glGetError() ) != GL_NO_ERROR )
     {
         std::string error;
         switch ( errorCode )
         {
-            case GL_INVALID_ENUM:                  error = "INVALID_ENUM"; break;
-            case GL_INVALID_VALUE:                 error = "INVALID_VALUE"; break;
-            case GL_INVALID_OPERATION:             error = "INVALID_OPERATION"; break;
-            case GL_STACK_OVERFLOW:                error = "STACK_OVERFLOW"; break;
-            case GL_STACK_UNDERFLOW:               error = "STACK_UNDERFLOW"; break;
-            case GL_OUT_OF_MEMORY:                 error = "OUT_OF_MEMORY"; break;
+            case GL_INVALID_ENUM: error = "INVALID_ENUM"; break;
+            case GL_INVALID_VALUE: error = "INVALID_VALUE"; break;
+            case GL_OUT_OF_MEMORY: error = "OUT_OF_MEMORY"; break;
+            case GL_STACK_OVERFLOW: error = "STACK_OVERFLOW"; break;
+            case GL_STACK_UNDERFLOW: error = "STACK_UNDERFLOW"; break;
+            case GL_INVALID_OPERATION : error = "INVALID_OPERATION"; break;
             case GL_INVALID_FRAMEBUFFER_OPERATION: error = "INVALID_FRAMEBUFFER_OPERATION"; break;
+            default: break;
         }
         wxLogMessage( "[OpenGL ERROR : %s in file %s line ( %d ) - for %s", error, fname, line, stmt );
     }
 }
 
-std::string Tools::getFullFileName( const std::string& filename ) const
+std::string Tools::getFullFileName( const std::string &filename ) const
 {
     wxFileName fileName( wxStandardPaths::Get().GetDataDir() + filename );
     fileName.Normalize( wxPATH_NORM_ABSOLUTE | wxPATH_NORM_DOTS );
@@ -51,7 +53,7 @@ std::string Tools::getFullFileName( const std::string& filename ) const
     return fullFileName.ToStdString();
 }
 
-std::shared_ptr<wxBitmap> Tools::loadBitmapFromFile( const std::string& filename ) const
+std::shared_ptr<wxBitmap> Tools::loadBitmapFromFile( const std::string &filename ) const
 {
     const auto &fullFileName = getFullFileName( filename );
     auto bitmap = std::make_shared<wxBitmap>( fullFileName, wxBITMAP_TYPE_PNG );
@@ -63,12 +65,14 @@ std::shared_ptr<wxBitmap> Tools::loadBitmapFromFile( const std::string& filename
     return bitmap;
 }
 
-std::vector< std::vector<int>> Tools::loadLevelFromFile( const std::string &filename, unsigned short levelNum ) const
+std::vector< std::vector<int> > Tools::loadLevelFromFile( const std::string &filename, unsigned short levelNum ) const
 {
-    wxFileInputStream input( getFullFileName( "/../resources/levels.txt" ) );
-    
+    wxFileInputStream input( getFullFileName( filename ) );
+
     if ( !input.IsOk() )
+    {
         throw std::runtime_error( "Error loading level map file" );
+    }
 
     wxTextInputStream text( input );
     wxString line;
@@ -78,12 +82,16 @@ std::vector< std::vector<int>> Tools::loadLevelFromFile( const std::string &file
 
     // Seek to level label
     while ( line != leveLabel && !input.Eof() )
+    {
         line = text.ReadLine();
+    }
 
     if ( input.Eof() )
+    {
         throw std::runtime_error( "Error loading level map file, file is corrupt or has wrong format" );
+    }
 
-    std::vector< std::vector<int>> bricks;
+    std::vector< std::vector<int> > bricks;
     wxStringTokenizer tkz;
 
     while ( !line.IsEmpty() && !input.Eof() )
@@ -92,23 +100,29 @@ std::vector< std::vector<int>> Tools::loadLevelFromFile( const std::string &file
 
         line = text.ReadLine();
         if ( line.IsEmpty() || line.Contains( wxT( "Level " ) ) )
+        {
             break;
+        }
 
         tkz.SetString( line );
         while ( tkz.HasMoreTokens() )
+        {
             inner.push_back( wxAtoi( tkz.GetNextToken() ) );
+        }
 
         bricks.push_back( std::move( inner ) );
     }
 
     if ( bricks.empty() )
+    {
         throw std::runtime_error( "Error loading level map file, file is corrupt or has wrong format" );
+    }
 
     return bricks;
 }
 
 // Bresenham Line Drawing Algorithm
-void Tools::bhmLine( std::vector<wxPoint> &trajectory, int x1, int y1, int x2, int y2, const wxSize& limits ) const
+void Tools::bhmLine( std::vector<wxPoint> &trajectory, int x1, int y1, int x2, int y2, const wxSize &limits ) const
 {
     trajectory.clear();
 
@@ -143,7 +157,9 @@ void Tools::bhmLine( std::vector<wxPoint> &trajectory, int x1, int y1, int x2, i
             x1 += ix;
 
             if ( x1 >= -1 && y1 >= -1 && x1 <= limits.x + 1 && y1 <= limits.y )
-                trajectory.push_back( { x1, y1 } );
+            {
+                trajectory.emplace_back( x1, y1 );
+            }
         }
     }
     else
@@ -164,7 +180,9 @@ void Tools::bhmLine( std::vector<wxPoint> &trajectory, int x1, int y1, int x2, i
             y1 += iy;
 
             if ( x1 >= -1 && y1 >= -1 && x1 <= limits.x + 1 && y1 <= limits.y )
-                trajectory.push_back( { x1, y1 } );
+            {
+                trajectory.emplace_back( x1, y1 );
+            }
         }
     }
 }

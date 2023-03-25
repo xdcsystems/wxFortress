@@ -1,7 +1,5 @@
 #pragma once
 
-#define INITIAL_LIVES_VALUE 9
-
 namespace ControlPanel
 {
     // Forward declarations
@@ -15,7 +13,7 @@ namespace ControlPanel
             using memoryDCPtr = std::shared_ptr<wxMemoryDC>;
             
             template <typename T>
-            using counterPtr = std::shared_ptr<Counter <T>>;
+            using counterPtr = std::shared_ptr< Counter <T> >;
 
         public:
             Panel(
@@ -36,16 +34,15 @@ namespace ControlPanel
 
         private:
              // Event Handlers
-            void OnPaint( wxPaintEvent& event );
+            void onPaint( wxPaintEvent& event );
 
             // Helper functions
             void init();
-            void render( wxDC& dc, const bitmapPtr panel );
+            void render( wxDC& dc, const bitmapPtr &panel );
 
             template< typename T>
             void refreshDisplayValue( counterPtr<T> counter );
 
-        private:
             // Private data
             memoryDCPtr m_mdc;
             memoryDCPtr m_numbersDC;
@@ -60,6 +57,6 @@ namespace ControlPanel
             counterPtr<unsigned char> m_lives;
             counterPtr<unsigned short> m_level;
 
-            DECLARE_EVENT_TABLE()
+            wxDECLARE_EVENT_TABLE();
     };
 }

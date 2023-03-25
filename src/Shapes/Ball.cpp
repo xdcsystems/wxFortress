@@ -4,10 +4,12 @@
 // for all others, include the necessary headers (this file is usually all you
 // need because it includes almost all "standard" wxWidgets headers)
 #ifndef WX_PRECOMP
-#include "wx/wx.h"
+    #include "wx/wx.h"
 #endif
 
+#include "Common/defs.h"
 #include "Common/Tools.h"
+#include "Common/Rect.hpp"
 #include "Renderer/ResourceManager.h"
 #include "Base.h"
 #include "Ball.h"
@@ -15,48 +17,57 @@
 using namespace Shapes;
 
 Ball::Ball()
-    : Base()
 {
     load( ResourceManager::LoadTexture( "/../resources/images/ball.png", true, "simple_ball" ) );
 
     m_radius = m_size.x / 2.0f;
     m_radiusSquared = m_radius * m_radius;
 
-    m_velocity = std::move( glm::vec2( 10.f, 10.f ) );
+    m_velocity = { BEGIN_BALL_VELOCITY, BEGIN_BALL_VELOCITY };
 }
 
-ContactPosition Ball::intersect( const wxRect2DDouble& rect ) const
+ContactPosition Ball::intersect( const Rect &rect ) const
 {
-    const double cx = m_position.x + m_radius,  // centerX
-        cy = m_position.y + m_radius; // centerY
+    // get center point Ball first
+    const glm::vec2 cBall( m_position + m_radius );
+    
+    // calculate AABB info (center, half-extents)
+    const glm::vec2 halfExtentsAABB = rect.halfExtents();
+    const glm::vec2 cAABB = rect.centre();
 
-    double x = cx,
-        y = cy;
-
-    if ( cx < rect.GetLeft() )
-        x = rect.GetLeft();
-    else if ( cx > rect.GetRight() )
-        x = rect.GetRight();
-
-    if ( cy < rect.GetTop() )
-        y = rect.GetTop();
-    else if ( cy > rect.GetBottom() )
-        y = rect.GetBottom();
-
-    if ( ( cx - x ) * ( cx - x ) + ( cy - y ) * ( cy - y ) <= m_radiusSquared )
+    // get difference vector between both centers
+    const glm::vec2 difference = cBall - cAABB;
+    const glm::vec2 clamped = glm::clamp( difference, -halfExtentsAABB, halfExtentsAABB );
+    
+    // add clamped value to AABB_center and we get the value of box closest to circle
+    const glm::vec2 closest = cAABB + clamped;
+    
+    // retrieve vector between center circle and closest point AABB and check if length <= radius
+    if ( glm::length( closest - cBall ) <= m_radius )
     {
-        if ( round( m_position.x ) >= rect.GetRight() )
-            return ContactPosition::ContactRight;
-        else if ( round( m_position.x ) + m_size.x - 1 <= rect.GetLeft() )
-            return ContactPosition::ContactLeft;
-        else if ( round( m_position.y ) + m_size.y - 1 <= rect.GetTop() )
-            return ContactPosition::ContactBottom;
-        else if ( round( m_position.y ) >= rect.GetBottom() )
-            return ContactPosition::ContactTop;
-        else // corners
-            return cy < rect.GetCentre().m_y ? ContactPosition::ContactBottom
-            : ContactPosition::ContactTop;
+        // has collision 
+        const glm::vec2 points[] = {
+            { rect.m_x,    rect.m_y },        // points[ 0 ] : A = left bottom corner
+            { rect.m_x,    rect.bottom() },  // points[ 1 ] : E = left top corner
+            { rect.right(), rect.bottom() },  // points[ 2 ] : B = right top corner
+            { rect.right(), rect.m_y },        // points[ 3 ] : F = right bottom corner
+        };
+
+        const auto d2 = ( cBall.x - points[ 0 ].x ) * ( points[ 2 ].y - points[ 0 ].y ) - ( cBall.y - points[ 0 ].y ) * ( points[ 2 ].x - points[ 0 ].x );
+        const auto d1 = ( cBall.x - points[ 3 ].x ) * ( points[ 1 ].y - points[ 3 ].y ) - ( cBall.y - points[ 3 ].y ) * ( points[ 1 ].x - points[ 3 ].x );
+
+        if ( d1 < 0 && d2 > 0 )
+            return ContactPosition::Bottom;
+        
+        if ( d1 < 0 && d2 < 0 )
+            return ContactPosition::Right;
+
+        if ( d1 > 0 && d2 < 0 )
+            return ContactPosition::Top;
+
+        if ( d1 > 0 && d2 > 0 )
+            return ContactPosition::Left;
     }
 
-    return ContactPosition::ContactNull;
+    return ContactPosition::Null;
 }

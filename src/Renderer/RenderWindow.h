@@ -6,10 +6,16 @@
 DECLARE_LOCAL_EVENT_TYPE( wxEVT_LAUNCH_PRESSED, wxID_ANY )
 DECLARE_LOCAL_EVENT_TYPE( wxEVT_NEW_ROUND_STARTED, wxID_ANY )
 
+// Forward declarations
 class Overlay;
 class SoundManager;
 class SpriteRenderer;
-class ParticleGenerator;
+class Timer;
+
+namespace Shapes
+{
+    class ShapesManager;
+}
 
 class RenderWindow final : public wxGLCanvas
 {
@@ -22,12 +28,11 @@ class RenderWindow final : public wxGLCanvas
             COUNTDOWN,
             NEWROUND,
         };
-        using enum State;
 
         RenderWindow(
             wxWindow* parent,
             wxWindowID id = wxID_ANY,
-            const int* attribList = 0,
+            const int* attribList = nullptr,
             const wxPoint& pos = wxDefaultPosition,
             const wxSize& size = wxDefaultSize,
             long style = wxBORDER_NONE,
@@ -38,39 +43,33 @@ class RenderWindow final : public wxGLCanvas
 
         RenderWindow( const RenderWindow& ) = delete;
         RenderWindow( RenderWindow&& ) = delete;
-        RenderWindow& operator=( const RenderWindow& ) = delete;
-        RenderWindow& operator=( RenderWindow&& ) = delete;
+        RenderWindow& operator= ( const RenderWindow& ) = delete;
+        RenderWindow& operator= ( RenderWindow&& ) = delete;
 
-        void stop() { m_isRunning = false; };
-        void start() { m_isRunning = true; };
+        void stop();
+        void start();
         void loadLevel( unsigned short level );
 
-        void update( double deltaTime );
-        void paintNow();
-
     private:
-        //static const int TIMER_INTERVAL; // milliseconds
-
          // Event Handlers
-        void OnPaint( wxPaintEvent& );
-        void OnSize( wxSizeEvent& );
-        void OnKeyPressed( wxKeyEvent& );
-        void OnScoreIncreased( wxCommandEvent& );
-        void OnPaddleContact( wxCommandEvent& );
-        void OnRoundCompleted( wxCommandEvent& );
-        void OnBallLost( wxCommandEvent& );
+        void onPaint( wxPaintEvent& );
+        void onSize( wxSizeEvent& );
+        void onKeyPressed( wxKeyEvent& );
+        void onScoreIncreased( wxCommandEvent& );
+        void onPaddleContact( wxCommandEvent& );
+        void onRoundCompleted( wxCommandEvent& );
+        void onBallLost( wxCommandEvent& );
+        void onIdle( wxIdleEvent& );
 
         // Helper functions
         void init();
         void resize( const wxSize& size );
         void switchRun();
-        void checkKeysState();
         void render();
 
-        void InitializeGLEW();
-        void SetupGraphics();
+        void initializeGLEW();
+        void setupGraphics();
 
-    private:
         // Private data
         std::unique_ptr<wxGLContext> m_context;
         std::shared_ptr<SpriteRenderer> m_spriteRenderer;
@@ -79,11 +78,14 @@ class RenderWindow final : public wxGLCanvas
         std::shared_ptr<Shapes::ShapesManager> m_shapesManager;
         std::shared_ptr <SoundManager> m_soundManager;
 
-        double m_accelerate = 0;
+        std::shared_ptr<Timer> m_timer;
+
+        double m_elapsedTime = 0;
+        
         bool m_isRunning = false;
         unsigned char m_countDown = 0;
 
-        State m_state = NEWROUND;
+        State m_state = State::NEWROUND;
 
-        DECLARE_EVENT_TABLE()
+        wxDECLARE_EVENT_TABLE();
 };

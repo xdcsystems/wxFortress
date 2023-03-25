@@ -4,13 +4,13 @@
 // for all others, include the necessary headers (this file is usually all you
 // need because it includes almost all "standard" wxWidgets headers)
 #ifndef WX_PRECOMP
-#include "wx/wx.h"
+    #include "wx/wx.h"
 #endif
 
 #include <GL/glew.h>
 
 #include "Common/Tools.h"
-#include "texture.h"
+#include "Texture.h"
 
 
 Texture2D::Texture2D()
@@ -50,23 +50,26 @@ void Texture2D::generate( wxImage* image )
     int imageSize = Width * Height * bytesPerPixel;
     imageData = new GLubyte[ imageSize ];
 
-    int rev_val = Height - 1;
+    int revValue = Height - 1;
 
     for ( int y = 0; y < Height; ++y )
     {
         for ( int x = 0; x < Width; ++x )
         {
             imageData[ ( x + y * Width ) * bytesPerPixel + 0 ] =
-                bitmapData[ ( x + ( rev_val - y ) * Width ) * 3 ];
+                bitmapData[ ( x + ( revValue - y ) * Width ) * 3 ];
 
             imageData[ ( x + y * Width ) * bytesPerPixel + 1 ] =
-                bitmapData[ ( x + ( rev_val - y ) * Width ) * 3 + 1 ];
+                bitmapData[ ( x + ( revValue - y ) * Width ) * 3 + 1 ];
 
             imageData[ ( x + y * Width ) * bytesPerPixel + 2 ] =
-                bitmapData[ ( x + ( rev_val - y ) * Width ) * 3 + 2 ];
+                bitmapData[ ( x + ( revValue - y ) * Width ) * 3 + 2 ];
 
-            if ( bytesPerPixel == 4 ) imageData[ ( x + y * Width ) * bytesPerPixel + 3 ] =
-                alphaData[ x + ( rev_val - y ) * Width ];
+            if ( bytesPerPixel == 4 )
+            {
+                imageData[ ( x + y * Width ) * bytesPerPixel + 3 ] =
+                    alphaData[ x + ( revValue - y ) * Width ];
+            }
         }
     }
 
