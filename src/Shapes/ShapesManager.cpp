@@ -19,6 +19,7 @@
 #include "Brick.h"
 #include "Bricks.h"
 #include "Board.h"
+#include "Explosions.h"
 #include "ParticleGenerator.h"
 #include "Renderer/SpriteRenderer.h"
 #include "ShapesManager.h"
@@ -43,6 +44,7 @@ ShapesManager::ShapesManager( wxWindow* parent )
     m_ball = std::make_shared<Ball>();
     m_board = std::make_shared<Board>();
     m_bricks = std::make_shared<Bricks>();
+    m_explosions = std::make_shared<Explosions>();
 
     // set render-specific controls
     m_particles = std::make_shared<ParticleGenerator>( 500 );
@@ -119,6 +121,7 @@ void ShapesManager::stop()
 {
     m_bRun = false;
     m_particles->clear();
+    m_explosions->clear();
 }
 
 void ShapesManager::calculateDelta()
@@ -289,7 +292,10 @@ ContactPosition ShapesManager::checkContact(
                     return false;
 
                 if ( increment != INCREASE_DEFAULT_STEP )
+                {
                     brick->kill();
+                    m_explosions->add( brick );
+                }
 
                 typeContact = TypeContact::BrickContact;
                 return true;
@@ -361,6 +367,7 @@ void ShapesManager::renderFrame( const rendererPtr &spriteRenderer )
 
     m_bricks->draw( spriteRenderer );
     m_board->draw( spriteRenderer );
+    m_explosions->draw( spriteRenderer );
 
     if ( m_bRun )
     {

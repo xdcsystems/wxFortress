@@ -11,7 +11,7 @@ class wxSize;
 void CheckOpenGLError( const char *stmt, const char *fname, int line );
 
 #if defined( _DEBUG ) && !defined( SKIP_GL_CHECKS )
-#define GL_CHECK( stmt )                               \
+    #define GL_CHECK( stmt )                               \
     do                                                 \
     {                                                  \
         stmt;                                          \
@@ -19,7 +19,7 @@ void CheckOpenGLError( const char *stmt, const char *fname, int line );
     }                                                  \
     while ( 0 )
 #else
-#define GL_CHECK( stmt ) stmt
+    #define GL_CHECK( stmt ) stmt
 #endif
 
 class Tools final : public Singleton<Tools>

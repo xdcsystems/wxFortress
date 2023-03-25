@@ -19,6 +19,7 @@ namespace Shapes
     class Ball;
     class Board;
     class Bricks;
+    class Explosions;
 
     class ShapesManager final: public MoveController, public Semaphore
     {
@@ -69,6 +70,7 @@ namespace Shapes
             std::shared_ptr<Ball> m_ball;
             std::shared_ptr<Board> m_board;
             std::shared_ptr<Bricks> m_bricks;
+            std::shared_ptr<Explosions> m_explosions;
 
             std::shared_ptr<ParticleGenerator> m_particles;
 
