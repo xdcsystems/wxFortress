@@ -23,11 +23,13 @@ endfunction()
 set( wxUSE_OPENGL, 1 )
 
 # External Libs
-add_subdirectory_with_folder("openal-soft" openal-soft)
-add_subdirectory_with_folder("wxWidgets" wxWidgets )
-add_subdirectory_with_folder("glew-cmake" glew-cmake )
 
 # glm
 add_subdirectory(glm)
+
+add_subdirectory_with_folder("openal-soft" openal-soft)
+add_subdirectory_with_folder("wxWidgets" wxWidgets)
+add_subdirectory_with_folder("glew-cmake" glew-cmake)
+
 
 
