@@ -27,9 +27,23 @@ set( wxUSE_OPENGL, 1 )
 # glm
 add_subdirectory(glm)
 
-add_subdirectory_with_folder("openal-soft" openal-soft)
-add_subdirectory_with_folder("wxWidgets" wxWidgets)
 add_subdirectory_with_folder("glew-cmake" glew-cmake)
+
+option(ALSOFT_UTILS "Build utility programs"  OFF)
+OPTION(ALSOFT_EXAMPLES  "Build and install example programs"  OFF)
+
+add_subdirectory_with_folder("openal-soft" openal-soft)
+
+set(wxUSE_AUI 0)
+set(wxUSE_PROPGRID 0)
+set(wxUSE_QA 0)
+set(wxUSE_RIBBON 0)
+set(wxUSE_RICHTEXT 0)
+set(wxUSE_WEBVIEW 0)
+set(wxUSE_STC 0)
+
+add_subdirectory_with_folder("wxWidgets" wxWidgets)
+
 
 
 
