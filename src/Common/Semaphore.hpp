@@ -36,7 +36,9 @@ class Semaphore
             if ( s_pause.load() )
             {
                 m_cv2.notify_all();
-                m_cv1.wait( lock, []() { return s_pause.load() == false; } );
+                m_cv1.wait( lock, []() {
+                    return s_pause.load() == false;
+                } );
             }
             lock.unlock();
         }
