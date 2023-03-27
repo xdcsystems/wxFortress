@@ -1,20 +1,26 @@
 #pragma once
 
 #include<AL/al.h>
+#include "Common/defs.h"
 
-//OpenAL error checking
-#define OpenAL_ErrorCheck(message)\
-{\
-	ALenum error = alGetError();\
-	if( error != AL_NO_ERROR)\
+
+#if defined( _DEBUG ) && !defined( SKIP_AL_CHECKS )
+	//OpenAL error checking
+	#define OpenAL_ErrorCheck(message)\
 	{\
-		std::cerr << "OpenAL Error: " << error << " with call for " << #message << std::endl;\
-	}\
-}
+		ALenum error = alGetError();\
+		if( error != AL_NO_ERROR)\
+		{\
+			std::cerr << "OpenAL Error: " << error << " with call for " << #message << std::endl;\
+		}\
+	}
+	#define alec(FUNCTION_CALL)\
+		FUNCTION_CALL;\
+		OpenAL_ErrorCheck(FUNCTION_CALL)
+#else
+	#define alec( stmt ) stmt
+#endif
 
-#define alec(FUNCTION_CALL)\
-FUNCTION_CALL;\
-OpenAL_ErrorCheck(FUNCTION_CALL)
 
 struct ALCdevice;
 struct ALCcontext;

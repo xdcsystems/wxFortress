@@ -119,7 +119,8 @@ void ShapesManager::resize( const wxSize& size )
 
 void ShapesManager::stop()
 {
-    m_bRun = false;
+    m_isRun = false;
+    m_isRoundCompleted = false;
     m_particles->clear();
     m_explosions->clear();
 }
@@ -138,12 +139,11 @@ void ShapesManager::changeMoveDirection( ContactPosition contactPosition, TypeCo
     {
         case TypeContact::BrickContact:
             m_eventHandler->AddPendingEvent( m_eventCurrentScoreInc );
-            if ( m_bricks->empty() )
-            {
-                stop();
-                m_eventHandler->AddPendingEvent( m_eventRoundCompleted );
+            m_isRoundCompleted = m_bricks->empty();
+
+            if ( m_isRoundCompleted )
                 return;
-            }
+
             // took away the power of the brick
             m_ball->increaseVelocity( INCREASE_VELOCITY_STEP );
         break;
@@ -254,15 +254,15 @@ void ShapesManager::checkKeysState()
 
 bool ShapesManager::switchRun( bool bNewRound )
 {
-    m_bRun = !m_bRun;
+    m_isRun = !m_isRun;
 
-    if ( m_bRun && bNewRound )
+    if ( m_isRun && bNewRound )
     {
         initDirection();
         calculateDelta();
     }
 
-    return m_bRun;
+    return m_isRun;
 };
 
 ContactPosition ShapesManager::checkContact(
@@ -329,7 +329,14 @@ ContactPosition ShapesManager::checkContact(
 
 void ShapesManager::update( double deltaTime )
 {
-    if ( m_bRun )
+    if ( m_isRoundCompleted && m_explosions->empty() )
+    {
+        stop();
+        m_eventHandler->AddPendingEvent( m_eventRoundCompleted );
+        return;
+    }
+
+    if ( m_isRun )
     {
         const auto& ballPosition = m_ball->position();
         const auto rab = m_ball->velocity().x;
@@ -365,17 +372,22 @@ void ShapesManager::renderFrame( const rendererPtr &spriteRenderer )
 
     spriteRenderer->selectShader();
 
-    m_bricks->draw( spriteRenderer );
     m_board->draw( spriteRenderer );
-    m_explosions->draw( spriteRenderer );
 
-    if ( m_bRun )
+    if ( !m_isRoundCompleted )
     {
-        m_particles->draw();
-        spriteRenderer->selectShader();
+        m_bricks->draw( spriteRenderer );
+        
+        if ( m_isRun )
+        {
+            m_particles->draw();
+            spriteRenderer->selectShader();
+        }
+        
+        m_ball->draw( spriteRenderer );
     }
 
-    m_ball->draw( spriteRenderer );
+    m_explosions->draw( spriteRenderer );
 
     resumeWorker();
 }

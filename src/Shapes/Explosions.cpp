@@ -70,6 +70,13 @@ void Explosions::clear()
     m_explosions.clear();
 }
 
+bool Explosions::empty() const
+{
+    return std::find_if( m_explosions.begin(), m_explosions.end(), []( const explosionPtr& explosion ) {
+        return explosion->isActive(); } ) == m_explosions.end();
+};
+
+
 void Explosions::draw( const rendererPtr &renderer )
 {
     m_explosionsSprite->bind();

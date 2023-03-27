@@ -41,6 +41,7 @@ set(wxUSE_RIBBON 0)
 set(wxUSE_RICHTEXT 0)
 set(wxUSE_WEBVIEW 0)
 set(wxUSE_STC 0)
+#set(wxUSE_XRC 0)
 
 add_subdirectory_with_folder("wxWidgets" wxWidgets)
 

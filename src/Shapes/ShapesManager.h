@@ -51,8 +51,9 @@ namespace Shapes
         private:
             // Private data
             wxSize m_size;
-            bool m_bRun = false;
+            bool m_isRun = false;
             bool m_isRobot = true;
+            bool m_isRoundCompleted = false;
 
             float m_ballTopLimit = 0;
             float m_ballBottomLimit = 0;

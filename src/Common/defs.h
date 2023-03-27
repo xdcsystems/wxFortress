@@ -2,6 +2,7 @@
 
 //#define USE_LOGGER 1
 #define SKIP_GL_CHECKS 1
+#define SKIP_AL_CHECKS 1
 
 #define INITIAL_LIVES_VALUE 9
 #define DEFAULT_DELTATIME 16
