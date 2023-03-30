@@ -17,5 +17,5 @@ void main()
     TexCoords = vertex.zw;
     ParticleColor = color[int(index)];
 
-    gl_Position = projection * index* vec4((vertex.xy * scale) + offset[int(index)], 0.0, 1.0);
+    gl_Position = projection * index* vec4( vertex.xy * scale + offset[int(index)], 0.0, 1.0);
 }

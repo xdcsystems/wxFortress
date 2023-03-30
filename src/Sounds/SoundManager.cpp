@@ -1,4 +1,14 @@
+// For compilers that support precompilation, includes "wx/wx.h".
+#include "wx/wxprec.h"
+
+// for all others, include the necessary headers (this file is usually all you
+// need because it includes almost all "standard" wxWidgets headers)
+#ifndef WX_PRECOMP
+#include "wx/wx.h"
+#endif
+
 #include<iostream>
+
 #include<AL/al.h>
 #include <AL/alc.h>
 
@@ -132,9 +142,8 @@ ALuint SoundManager::getFreeStereoSource() const
 	{
 		alec( alGetSourcei( source, AL_SOURCE_STATE, &sourceState ) );
 		if ( sourceState == AL_PLAYING )
-		{
 			continue;
-		}
+
 		return source;
 	}
 	return 0;
@@ -189,9 +198,7 @@ void SoundManager::playStereoSource( ALuint buffer, float gain, bool playAsync )
 	}
 
 	if ( playAsync )
-	{
 		return;
-	}
 
 	// play the stereo sound source sync
 	alec( alSourcePlay( source ) );
@@ -201,6 +208,7 @@ void SoundManager::playStereoSource( ALuint buffer, float gain, bool playAsync )
 	{
 		//basically loop until we're done playing the current sound source
 		alec( alGetSourcei( source, AL_SOURCE_STATE, &sourceState ) );
+		wxYield();
 	}
 }
 

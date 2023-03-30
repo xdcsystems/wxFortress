@@ -10,7 +10,6 @@
 #include <wx/mediactrl.h>
 
 #include "Common/defs.h"
-#include "Common/Timer.h"
 #include "Common/Rect.hpp"
 #include "Shapes/ShapesManager.h"
 #include "Video/MediaManager.h"

@@ -17,8 +17,6 @@ Texture2D::Texture2D()
     : ID( 0 )
     , Width( -1 )
     , Height( -1 )
-    , Internal_Format( GL_RGB )
-    , Image_Format( GL_RGB )
     , Wrap_S( GL_CLAMP_TO_EDGE )
     , Wrap_T( GL_CLAMP_TO_EDGE )
     , Filter_Min( GL_LINEAR )
@@ -27,21 +25,25 @@ Texture2D::Texture2D()
     GL_CHECK( glGenTextures( 1, &ID ) );
 }
 
-void Texture2D::generate( wxImage* image )
+void Texture2D::generate( const wxImage &image )
 {
-    Width = image->GetWidth();
-    Height = image->GetHeight();
+    Width = image.GetWidth();
+    Height = image.GetHeight();
 
     // create Texture
     GL_CHECK( glActiveTexture( GL_TEXTURE0  ) );
     GL_CHECK( glBindTexture( GL_TEXTURE_2D, ID ) );
 
+    GLubyte* alphaData = image.GetAlpha();
+    const bool hasAlfa = ( alphaData != NULL );
+
     // https://www.khronos.org/opengl/wiki/Common_Mistakes#The_Object_Oriented_Language_Problem
     //glPixelStorei( GL_UNPACK_ALIGNMENT, 4 );
+    if ( !hasAlfa )
+        GL_CHECK( glPixelStorei( GL_UNPACK_ALIGNMENT, 1 ) );
 
-    const int bytesPerPixel = image->HasAlpha() ? 4 : 3;
-    GLubyte* bitmapData = image->GetData();
-    GLubyte* alphaData = image->GetAlpha();
+    const int bytesPerPixel = hasAlfa ? 4 : 3;
+    GLubyte* bitmapData = image.GetData();
     GLubyte* imageData = nullptr;
 
     // note: must make a local copy before passing the data to OpenGL, as GetData() returns RGB 
@@ -93,11 +95,11 @@ void Texture2D::generate( wxImage* image )
     // if yes, everything is fine
     GL_CHECK( glTexImage2D( GL_TEXTURE_2D,
         0,
-        image->HasAlpha() ? GL_RGBA8 : GL_RGB8, // bytesPerPixel
+        hasAlfa ? GL_RGBA8 : GL_RGB8,
         Width,
         Height,
         0,
-        image->HasAlpha() ? GL_RGBA : GL_RGB,
+        hasAlfa ? GL_RGBA : GL_RGB,
         GL_UNSIGNED_BYTE,
         imageData ) );
 

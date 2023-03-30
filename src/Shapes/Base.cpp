@@ -35,9 +35,7 @@ void Base::moveTo( const glm::vec2& position )
 void Base::draw( const rendererPtr &renderer ) const
 {
     if ( !m_sprite )
-    {
         return;
-    }
     
     m_sprite->bind();
     renderer->drawSprite( m_position, m_size );

@@ -35,7 +35,7 @@ bool App::OnInit()
             return true;
         }
     }
-    catch ( std::exception& e )
+    catch ( const std::exception& e )
     {
         wxMessageBox( e.what(), "Exception Caught", MB_OK );
     }
@@ -52,7 +52,7 @@ bool App::OnExceptionInMainLoop()
     { 
         throw; 
     }
-    catch ( std::exception& e )
+    catch ( const std::exception& e )
     {
         m_mainFrame->stop();
         wxMessageBox( e.what(), "Exception Caught", MB_OK );

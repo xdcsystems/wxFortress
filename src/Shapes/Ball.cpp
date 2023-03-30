@@ -18,7 +18,9 @@ using namespace Shapes;
 
 Ball::Ball()
 {
-    load( ResourceManager::LoadTexture( "/../resources/images/ball.png", true, "simple_ball" ) );
+    load( ResourceManager::LoadTexture(
+        "/../resources/images/ball.png",
+        "simple_ball" ) );
 
     m_radius = m_size.x / 2.0f;
     m_radiusSquared = m_radius * m_radius;

@@ -22,6 +22,7 @@ namespace Shapes
             void add( const basePtr &shape );
             void clear();
             void draw( const rendererPtr &renderer );
+            bool empty() const;
 
         protected:
             static inline const glm::vec2 s_defaultSize = { 128.f, 128.f };

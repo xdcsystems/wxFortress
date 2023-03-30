@@ -32,6 +32,7 @@
 #include "Shapes/ParticleGenerator.h"
 #include "ResourceManager.h"
 #include "Overlay.h"
+#include "TextRenderer.h"
 #include "RenderWindow.h"
 
 #if defined( _MSC_VER )
@@ -40,6 +41,7 @@
 
 DEFINE_LOCAL_EVENT_TYPE( wxEVT_LAUNCH_PRESSED )
 DEFINE_LOCAL_EVENT_TYPE( wxEVT_NEW_ROUND_STARTED )
+DEFINE_LOCAL_EVENT_TYPE( wxEVT_STAGE_FINISHED )
 
 BEGIN_EVENT_TABLE( RenderWindow, wxGLCanvas )
     EVT_PAINT( RenderWindow::onPaint )
@@ -50,6 +52,7 @@ BEGIN_EVENT_TABLE( RenderWindow, wxGLCanvas )
     EVT_COMMAND( wxID_ANY, wxEVT_BALL_LOST, RenderWindow::onBallLost )
     EVT_COMMAND( wxID_ANY, wxEVT_PING, RenderWindow::onPaddleContact )
     EVT_COMMAND( wxID_ANY, wxEVT_PONG, RenderWindow::onPaddleContact )
+    EVT_COMMAND( wxID_ANY, wxEVT_STAGE_FINISHED, RenderWindow::onStageFinished )
 END_EVENT_TABLE()
 
 RenderWindow::RenderWindow(
@@ -105,7 +108,8 @@ void RenderWindow::setupGraphics()
 #if defined( _MSC_VER )
     wglSwapIntervalEXT( -1 );
 #elif defined( _POSIX_VER )
-    glXSwapIntervalSGI( -1 );  //NOTE check for GLX_SGI_swap_control extension : http://www.opengl.org/wiki/Swap_Interval#In_Linux_.2F_GLXw
+    // NOTE check for GLX_SGI_swap_control extension : http://www.opengl.org/wiki/Swap_Interval#In_Linux_.2F_GLXw
+    glXSwapIntervalSGI( -1 );  
 #elif defined( _MACOSX_VER )
     // aglSetInteger (AGL_SWAP_INTERVAL, 0);
     wglSwapIntervalEXT( GetContext()->GetWXGLContext() );
@@ -114,8 +118,9 @@ void RenderWindow::setupGraphics()
     const auto size = GetClientSize();
 
     // load shaders
-    ResourceManager::LoadShader( "/../data/shaders/Sprite.vs", "/../data/shaders/Sprite.fraq", "", "sprite" );
+    ResourceManager::LoadShader( "/../data/shaders/Sprite.vs",   "/../data/shaders/Sprite.fraq",   "", "sprite" );
     ResourceManager::LoadShader( "/../data/shaders/Particle.vs", "/../data/shaders/Particle.frag", "", "particle" );
+    ResourceManager::LoadShader( "/../data/shaders/Text.vs",     "/../data/shaders/Text.frag",     "", "text" );
 
     // configure shaders
     glm::mat4 projection =
@@ -125,6 +130,8 @@ void RenderWindow::setupGraphics()
     ResourceManager::GetShader( "sprite" )->setMatrix4( "projection", projection );
     ResourceManager::GetShader( "particle" )->use().setInteger( "sprite", 0 );
     ResourceManager::GetShader( "particle" )->setMatrix4( "projection", projection );
+    ResourceManager::GetShader( "text" )->use().setInteger( "charImage", 0 );
+    ResourceManager::GetShader( "text" )->setMatrix4( "projection", projection );
 
     GL_CHECK( glClearColor( 0.0, 0.0, 0.0, 1.0 ) );
     GL_CHECK( glEnable( GL_TEXTURE_2D ) );
@@ -152,15 +159,21 @@ void RenderWindow::stop()
 
 void RenderWindow::loadLevel( unsigned short level )
 {
-    m_shapesManager->loadLevel( level );
+    try
+    {
+        m_shapesManager->loadLevel( level );
+    }
+    catch ( const stage_complete_exception& )
+    {
+        wxCommandEvent eventStageFinished( wxEVT_STAGE_FINISHED );
+        AddPendingEvent( eventStageFinished );
+    }
 }
 
 void RenderWindow::switchRun()
 {
     if ( !m_isRunning )
-    {
         return;
-    }
 
     if ( m_state == State::NEWROUND )
     {
@@ -184,14 +197,14 @@ void RenderWindow::switchRun()
     }
 
     m_state = m_shapesManager->switchRun( m_state == State::NEWROUND ) ? State::RUN : State::PAUSE;
+    //wxCommandEvent eventStageFinished( wxEVT_STAGE_FINISHED );
+    //AddPendingEvent( eventStageFinished );
 }
 
 void RenderWindow::resize( const wxSize &size )
 {
     if ( size.x < 1 || size.y < 1 )
-    {
         return;
-    }
 
     //GL_CHECK( glViewport( 0, 0, ( GLint )size.GetWidth(), ( GLint )size.GetHeight() ) );
 
@@ -219,27 +232,38 @@ void RenderWindow::onIdle( wxIdleEvent &event )
     event.RequestMore();
 }
 
+void RenderWindow::clearScreen()
+{
+    SetCurrent( *m_context );
+    GL_CHECK( glClear( GL_COLOR_BUFFER_BIT ) );
+}
+
 void RenderWindow::render()
 {
     if ( !m_isRunning || !IsShown() )
-    {
         return;
-    }
 
-    SetCurrent( *m_context );
-
-    GL_CHECK( glClear( GL_COLOR_BUFFER_BIT ) );
-
-    m_shapesManager->renderFrame( m_spriteRenderer );
+    clearScreen();
 
     switch ( m_state )
     {
+        case State::NEWROUND:
+        case State::RUN:
+            m_shapesManager->renderFrame( m_spriteRenderer );
+        break;
+
         case State::PAUSE:
+            m_shapesManager->renderFrame( m_spriteRenderer );
             m_overlay->showPause( m_spriteRenderer );
         break;
 
         case State::COUNTDOWN:
+            m_shapesManager->renderFrame( m_spriteRenderer );
             m_overlay->showCountDown( m_spriteRenderer, m_countDown );
+        break;
+
+        case State::FINISHED:
+            m_textRender->renderFrame();
         break;
 
         default :
@@ -315,3 +339,12 @@ void RenderWindow::onBallLost( wxCommandEvent &event )
 
     event.Skip();
 }
+
+void RenderWindow::onStageFinished( wxCommandEvent& )
+{
+    m_textRender = std::make_shared<TextRenderer>();
+    m_textRender->init();
+    
+    m_state = State::FINISHED;
+}
+
