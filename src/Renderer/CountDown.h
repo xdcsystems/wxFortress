@@ -16,7 +16,6 @@ class CountDown
         void show( const rendererPtr& renderer, unsigned char count );
 
     private:
-        texture2DPtr m_pauseTex;
         texture2DPtr m_countdownSprite;
 
         std::map<unsigned char, unsigned int> m_countdownMap =

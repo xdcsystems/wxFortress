@@ -22,6 +22,9 @@ void CheckOpenGLError( const char *stmt, const char *fname, int line );
     #define GL_CHECK( stmt ) stmt
 #endif
 
+struct stage_complete_exception : std::exception
+{};
+
 class Tools final : public Singleton<Tools>
 {
     public:

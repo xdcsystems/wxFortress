@@ -243,13 +243,11 @@ bool AudioFile<T>::writePCMToBuffer( std::vector<uint8_t>& fileData )
         {
             if ( bitDepth == 8 )
             {
-                uint8_t byte = sampleToSingleByte( samples[ channel ][ i ] );
-                fileData.push_back( byte );
+                fileData.emplace_back( sampleToSingleByte( samples[ channel ][ i ] ) );
             }
             else if ( bitDepth == 16 )
             {
-                int16_t sampleAsInt = sampleToSixteenBitInt( samples[ channel ][ i ] );
-                addInt16ToFileData( fileData, sampleAsInt );
+                addInt16ToFileData( fileData, sampleToSixteenBitInt( samples[ channel ][ i ] ) );
             }
             else if ( bitDepth == 24 )
             {

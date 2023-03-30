@@ -7,5 +7,5 @@ uniform vec3 spriteColor;
 
 void main()
 {    
-    gl_FragColor = vec4(spriteColor, 1.0) * texture2D(image, TexCoords);
+   gl_FragColor = vec4(spriteColor, 1.0) * texture2D(image, vec2( TexCoords.x, 1.0 - TexCoords.y));
 } 

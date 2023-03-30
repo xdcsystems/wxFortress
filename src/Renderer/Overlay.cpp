@@ -25,9 +25,7 @@ Overlay::Overlay( const wxSize& size )
     
     m_pauseTex = ResourceManager::LoadTexture(
         "/../resources/images/Pause.png",
-        true,
-        "pause" 
-    );
+        "pause" );
 }
 
 void Overlay::showPause( const rendererPtr &renderer )

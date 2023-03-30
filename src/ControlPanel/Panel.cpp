@@ -84,9 +84,7 @@ void Panel::render( wxDC &dc, const bitmapPtr &panel )
     if ( !m_mdc )
     {
         if ( !panel || clientSize.x < 1 || clientSize.y < 1 )
-        {
             return;
-        }
 
         m_mdc = std::make_shared<wxMemoryDC>();
         m_mdc->CopyAttributes( dc );
@@ -96,9 +94,7 @@ void Panel::render( wxDC &dc, const bitmapPtr &panel )
     if ( !m_numbersDC )
     {
         if ( !m_numbers )
-        {
             return;
-        }
 
         m_numbersDC = std::make_shared<wxMemoryDC>();
         m_numbersDC->SelectObject( *m_numbers );

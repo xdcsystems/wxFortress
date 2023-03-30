@@ -5,11 +5,13 @@
 
 DECLARE_LOCAL_EVENT_TYPE( wxEVT_LAUNCH_PRESSED, wxID_ANY )
 DECLARE_LOCAL_EVENT_TYPE( wxEVT_NEW_ROUND_STARTED, wxID_ANY )
+DECLARE_LOCAL_EVENT_TYPE( wxEVT_STAGE_FINISHED, wxID_ANY )
 
 // Forward declarations
 class Overlay;
 class SoundManager;
 class SpriteRenderer;
+class TextRenderer;
 class Timer;
 
 namespace Shapes
@@ -27,6 +29,7 @@ class RenderWindow final : public wxGLCanvas
             PAUSE,
             COUNTDOWN,
             NEWROUND,
+            FINISHED,
         };
 
         RenderWindow(
@@ -59,12 +62,14 @@ class RenderWindow final : public wxGLCanvas
         void onPaddleContact( wxCommandEvent& );
         void onRoundCompleted( wxCommandEvent& );
         void onBallLost( wxCommandEvent& );
+        void onStageFinished( wxCommandEvent& );
         void onIdle( wxIdleEvent& );
 
         // Helper functions
         void init();
         void resize( const wxSize& size );
         void switchRun();
+        void clearScreen();
         void render();
 
         void initializeGLEW();
@@ -74,6 +79,7 @@ class RenderWindow final : public wxGLCanvas
         std::unique_ptr<wxGLContext> m_context;
         std::shared_ptr<SpriteRenderer> m_spriteRenderer;
         std::shared_ptr<Overlay> m_overlay;
+        std::shared_ptr <TextRenderer> m_textRender;
 
         std::shared_ptr<Shapes::ShapesManager> m_shapesManager;
         std::shared_ptr <SoundManager> m_soundManager;

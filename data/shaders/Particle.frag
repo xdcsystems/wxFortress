@@ -7,5 +7,5 @@ uniform sampler2D sprite;
 
 void main()
 {
-   gl_FragColor = (texture2D(sprite, TexCoords) * ParticleColor);
+   gl_FragColor = texture2D( sprite, TexCoords ) * ParticleColor;
 }  

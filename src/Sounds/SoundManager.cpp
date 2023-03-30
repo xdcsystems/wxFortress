@@ -142,9 +142,8 @@ ALuint SoundManager::getFreeStereoSource() const
 	{
 		alec( alGetSourcei( source, AL_SOURCE_STATE, &sourceState ) );
 		if ( sourceState == AL_PLAYING )
-		{
 			continue;
-		}
+
 		return source;
 	}
 	return 0;
@@ -199,9 +198,7 @@ void SoundManager::playStereoSource( ALuint buffer, float gain, bool playAsync )
 	}
 
 	if ( playAsync )
-	{
 		return;
-	}
 
 	// play the stereo sound source sync
 	alec( alSourcePlay( source ) );

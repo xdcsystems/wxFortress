@@ -25,8 +25,11 @@ ParticleGenerator::ParticleGenerator( unsigned int amount )
     : m_amount( amount )
     , m_particles( amount )
 {
+    m_texture = ResourceManager::LoadTexture(
+        "/../resources/images/Particle.png",
+        "particle" );
+
     m_shader = ResourceManager::GetShader( "particle" );
-    m_texture = ResourceManager::LoadTexture( "/../resources/images/Particle.png", true, "particle" );
 
     init();
 }

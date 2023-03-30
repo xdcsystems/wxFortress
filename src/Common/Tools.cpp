@@ -74,14 +74,17 @@ std::vector< std::vector<int> > Tools::loadLevelFromFile( const std::string &fil
         throw std::runtime_error( "Error loading level map file" );
     }
 
-    wxTextInputStream text( input );
-    wxString line;
-    wxString leveLabel;
+    const wxString label = wxT( "Level " );
+    const wxString finishLabel = wxT( "End" );
 
-    leveLabel << wxT( "Level " ) << levelNum;
+    wxTextInputStream text( input );
+    wxString leveLabel( label );
+    wxString line;
+
+    leveLabel << levelNum;
 
     // Seek to level label
-    while ( line != leveLabel && !input.Eof() )
+    while ( line != leveLabel && !line.Contains( finishLabel ) && !input.Eof() )
     {
         line = text.ReadLine();
     }
@@ -89,6 +92,11 @@ std::vector< std::vector<int> > Tools::loadLevelFromFile( const std::string &fil
     if ( input.Eof() )
     {
         throw std::runtime_error( "Error loading level map file, file is corrupt or has wrong format" );
+    }
+
+    if ( line.Contains( finishLabel ) )
+    {
+        throw stage_complete_exception {};
     }
 
     std::vector< std::vector<int> > bricks;
@@ -99,18 +107,16 @@ std::vector< std::vector<int> > Tools::loadLevelFromFile( const std::string &fil
         std::vector<int> inner;
 
         line = text.ReadLine();
-        if ( line.IsEmpty() || line.Contains( wxT( "Level " ) ) )
-        {
+        if ( line.IsEmpty() || line.Contains( label ) || line.Contains( finishLabel ) )
             break;
-        }
 
         tkz.SetString( line );
         while ( tkz.HasMoreTokens() )
         {
-            inner.push_back( wxAtoi( tkz.GetNextToken() ) );
+            inner.emplace_back( wxAtoi( tkz.GetNextToken() ) );
         }
 
-        bricks.push_back( std::move( inner ) );
+        bricks.emplace_back( std::move( inner ) );
     }
 
     if ( bricks.empty() )
@@ -136,8 +142,6 @@ void Tools::bhmLine( std::vector<wxPoint> &trajectory, int x1, int y1, int x2, i
     // if y1 == y2, then it does not matter what we set here
     const int iy( ( dy > 0 ) - ( dy < 0 ) );
     dy = abs( dy ) << 1;
-
-    // retVal.push_back( wxPoint( x1, y1 ) );
 
     if ( dx >= dy )
     {

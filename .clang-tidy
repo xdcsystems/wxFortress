@@ -1,9 +1,9 @@
 ﻿Checks: '
    *
-  ,-fuchsia-*
-  ,-llvmlibc-*
   ,-abseil-*
   ,-altera-*
+  ,-fuchsia-*
+  ,-llvmlibc-*
   ,-llvm-include-order
   ,-llvm-header-guard
   ,-llvm-namespace-comment

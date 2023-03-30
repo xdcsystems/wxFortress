@@ -105,7 +105,7 @@ void ShapesManager::resize( const wxSize& size )
                 {
                     update( DEFAULT_DELTATIME );
                 }
-                catch ( std::exception &e )
+                catch ( const std::exception& e )
                 {
                     wxMessageBox( e.what(), "Exception Caught", MB_OK );
                 }

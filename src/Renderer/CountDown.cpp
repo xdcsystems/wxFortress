@@ -19,10 +19,8 @@
 CountDown::CountDown( const wxSize& size )
 {
     m_countdownSprite = ResourceManager::LoadTexture(
-        "/../resources/images/Countdown/CountDown.png",
-        true,
-        "pause"
-    );
+        "/../resources/images/CountDown.png",
+        "pause" );
 
     const float divisionScale = 1.f / m_countdownSprite->Width;
     m_countDownPosition = {
@@ -37,18 +35,12 @@ CountDown::CountDown( const wxSize& size )
 
         m_countdownMap[ count ] = SpriteRenderer::generateBuffer( {
             // pos      // tex
-            0.f, 0.f,   left, 0.f,
-            0.f, 1.f,   left, 1.f,
-            1.f, 0.f,   right, 0.f,
-            1.f, 1.f,   right, 1.f,
+            0.f, 0.f,   left,    0.f,
+            0.f, 1.f,   left,   -1.f,
+            1.f, 0.f,   right,  0.f,
+            1.f, 1.f,   right, -1.f,
         } );
     }
-
-    m_pauseTex = ResourceManager::LoadTexture(
-        "/../resources/images/Pause.png",
-        true,
-        "pause"
-    );
 }
 
 CountDown::~CountDown()

@@ -34,9 +34,9 @@ shaderPtr ResourceManager::GetShader( const std::string& name )
     return s_shaders[ name ];
 }
 
-texture2DPtr ResourceManager::LoadTexture( const std::string& fileName, bool alpha, const std::string& textureName )
+texture2DPtr ResourceManager::LoadTexture( const std::string& fileName, const std::string& textureName )
 {
-    s_textures[ textureName ] = LoadTextureFromFile( fileName, alpha );
+    s_textures[ textureName ] = LoadTextureFromFile( fileName );
     return s_textures[ textureName ];
 }
 
@@ -96,7 +96,7 @@ shaderPtr ResourceManager::LoadShaderFromFile( const std::string& vShaderFile, c
             geometryCode = gShaderStream.str();
         }
     }
-    catch ( std::exception &e )
+    catch ( const std::exception& e )
     {
         wxLogMessage( "ERROR::SHADER: Failed to read shader files, \"%s\"", e.what() );
     }
@@ -111,18 +111,11 @@ shaderPtr ResourceManager::LoadShaderFromFile( const std::string& vShaderFile, c
     return shader;
 }
 
-texture2DPtr ResourceManager::LoadTextureFromFile( const std::string& fileName, bool alpha )
+texture2DPtr ResourceManager::LoadTextureFromFile( const std::string& fileName )
 {
     // create texture object
     auto texture = std::make_shared<Texture2D>();
-    if ( alpha )
-    {
-        texture->Internal_Format = GL_RGBA;
-        texture->Image_Format = GL_RGBA;
-    }
-
-    auto image = std::make_shared<wxImage>( Tools::Instance().getFullFileName( fileName ) );
-    texture->generate( image.get() );
+    texture->generate( { Tools::Instance().getFullFileName( fileName ) } );
 
     return texture;
 }

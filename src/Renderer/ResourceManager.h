@@ -25,7 +25,7 @@ class ResourceManager
         static shaderPtr GetShader( const std::string& name );
 
         // loads (and generates) a texture from file
-        static texture2DPtr LoadTexture( const std::string& fileName, bool alpha, const std::string& textureName );
+        static texture2DPtr LoadTexture( const std::string& fileName, const std::string& textureName );
 
         // retrieves a stored texture
         static texture2DPtr GetTexture( const std::string& name );
@@ -41,5 +41,5 @@ class ResourceManager
         static shaderPtr LoadShaderFromFile( const std::string& vShaderFile, const std::string& fShaderFile, const std::string& gShaderFile = "" );
 
         // loads a single texture from file
-        static texture2DPtr LoadTextureFromFile( const std::string& fileName, bool alpha );
+        static texture2DPtr LoadTextureFromFile( const std::string& fileName );
 };

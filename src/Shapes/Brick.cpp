@@ -28,10 +28,10 @@ Brick::Brick( float x, float y, BrickType type, const glm::vec2& texSize )
 
         m_VBO = SpriteRenderer::generateBuffer( {
             // pos      // tex
-            0.f, 0.f,   left,   0.f,
-            0.f, 1.f,   left,   1.f,
-            1.f, 0.f,   right, 0.f,
-            1.f, 1.f,   right, 1.f,
+            0.f, 0.f,   left,    0.f,
+            0.f, 1.f,   left,   -1.f,
+            1.f, 0.f,   right,  0.f,
+            1.f, 1.f,   right, -1.f,
         } );
     }
 }

@@ -21,8 +21,7 @@ using namespace Shapes;
 Bricks::Bricks()
 {
     m_bricksSprite = ResourceManager::LoadTexture(
-        "/../resources/images/Bricks/bricks.png",
-        true,
+        "/../resources/images/bricks.png",
         "bricks" );
 }
 
@@ -45,7 +44,7 @@ void Bricks::loadLevel( unsigned short level )
     {
         for ( unsigned int col = 0; col < cols; ++col )
         {
-            m_bricks.push_back(
+            m_bricks.emplace_back(
                 std::make_shared<Brick>(
                     col,
                     row + startRow,
@@ -61,14 +60,10 @@ void Bricks::checkContact( const std::function<bool( brickPtr )>& checkIntersect
     for ( const auto& brick : m_bricks )
     {
         if ( !brick->isAlive() )
-        {
             continue;
-        }
         
         if ( checkIntersects( brick ) )
-        {
             break;
-        }
     }
 }
 
