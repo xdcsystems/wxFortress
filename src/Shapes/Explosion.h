@@ -29,3 +29,4 @@ namespace Shapes
     
     using explosionPtr = std::shared_ptr<Explosion>;
 }
+

@@ -10,12 +10,11 @@
 #include <wx/mediactrl.h>
 
 #include "Common/defs.h"
-#include "Common/Rect.hpp"
-#include "Shapes/ShapesManager.h"
 #include "Video/MediaManager.h"
-#include "MainFrame.h"
-#include "Renderer/RenderWindow.h"
 #include "ControlPanel/Panel.h"
+#include "RenderWindow.h"
+#include "MainFrame.h"
+
 
 BEGIN_EVENT_TABLE( MainFrame, wxFrame )
     EVT_CLOSE( MainFrame::onClose )
@@ -26,6 +25,7 @@ BEGIN_EVENT_TABLE( MainFrame, wxFrame )
     EVT_COMMAND( wxID_ANY, wxEVT_LAUNCH_PRESSED, MainFrame::onLaunchPressed )
     EVT_COMMAND( wxID_ANY, wxEVT_NEW_ROUND_STARTED, MainFrame::onRoundStarted )
     EVT_COMMAND( wxID_ANY, wxEVT_BALL_LOST, MainFrame::onBallLost )
+    EVT_COMMAND( wxID_ANY, wxEVT_RESET, MainFrame::onReset )
 END_EVENT_TABLE()
 
 MainFrame::MainFrame( wxWindow *parent, int id, const wxString &title, wxPoint pos, wxSize size, int style )
@@ -69,8 +69,8 @@ void MainFrame::init()
     m_controlPanel = std::make_shared<ControlPanel::Panel>( this, wxID_ANY, wxPoint( 800, 0 ), wxSize( size.x - 800, size.y ) );
 
     auto *bSizer = new wxBoxSizer( wxHORIZONTAL );
-    bSizer->Add( m_renderSurface.get(), wxEXPAND | wxALL );
-    bSizer->Add( m_controlPanel.get(), wxEXPAND | wxALL );
+    bSizer->Add( m_renderSurface.get(), 1, wxEXPAND | wxALL );
+    bSizer->Add( m_controlPanel.get(), 1, wxEXPAND | wxALL );
 
     SetSizer( bSizer );
 }
@@ -140,4 +140,10 @@ void MainFrame::onBallLost( wxCommandEvent& )
         m_controlPanel->reset();
         m_renderSurface->loadLevel( m_controlPanel->increaseLevel() );
     }
+}
+
+void MainFrame::onReset( wxCommandEvent& )
+{
+    m_controlPanel->reset();
+    m_renderSurface->loadLevel( m_controlPanel->increaseLevel() );
 }

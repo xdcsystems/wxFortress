@@ -11,15 +11,16 @@ class Overlay
         using texture2DPtr = std::shared_ptr<Texture2D>;
 
     public:
-        Overlay( const wxSize& size );
+        Overlay();
 
-        void showPause( const rendererPtr &renderer );
-        void showCountDown( const rendererPtr &renderer, unsigned char count );
+        void resize( const wxSize& size );
+        void showPause( const rendererPtr &renderer ) const;
+        void showCountDown( const rendererPtr &renderer, unsigned char count ) const;
 
     private:
         texture2DPtr m_pauseTex;
         std::shared_ptr<CountDown> m_countdown;
 
         const wxFont m_font;
-        const wxSize m_size;
+        wxSize m_size;
 };

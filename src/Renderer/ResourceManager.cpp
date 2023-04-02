@@ -18,10 +18,6 @@
 #include "Shader.h"
 #include "ResourceManager.h"
 
-// Instantiate static variables
-std::map<std::string, texture2DPtr> ResourceManager::s_textures;
-std::map<std::string, shaderPtr> ResourceManager::s_shaders;
-
 
 shaderPtr ResourceManager::LoadShader( const std::string& vShaderFile, const std::string& fShaderFile, const std::string& gShaderFile, const std::string& name )
 {

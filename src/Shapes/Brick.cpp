@@ -14,12 +14,13 @@
 
 using namespace Shapes;
 
-Brick::Brick( float x, float y, BrickType type, const glm::vec2& texSize )
+Brick::Brick( const glm::vec2& position, BrickType type, const glm::vec2& texSize )
 {
-    m_size = s_defaultSize;
-    m_position = { x * m_size.x, y * m_size.y };
+     m_size = SizeOf( type );
+     m_position = position;
 
-    m_alive = type != BrickType::NONE;
+     m_alive = !( type == BrickType::NONE || type == BrickType::HALF );
+
     if ( m_alive )
     {
         const float divisionScale = 1.f / texSize.x;

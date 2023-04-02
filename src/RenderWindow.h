@@ -3,9 +3,6 @@
 #include <memory> 
 #include "wx/glcanvas.h" 
 
-DECLARE_LOCAL_EVENT_TYPE( wxEVT_LAUNCH_PRESSED, wxID_ANY )
-DECLARE_LOCAL_EVENT_TYPE( wxEVT_NEW_ROUND_STARTED, wxID_ANY )
-DECLARE_LOCAL_EVENT_TYPE( wxEVT_STAGE_FINISHED, wxID_ANY )
 
 // Forward declarations
 class Overlay;
@@ -25,6 +22,7 @@ class RenderWindow final : public wxGLCanvas
 
         enum class State : unsigned char
         {
+            HELP,
             RUN,
             PAUSE,
             COUNTDOWN,
@@ -57,11 +55,13 @@ class RenderWindow final : public wxGLCanvas
          // Event Handlers
         void onPaint( wxPaintEvent& );
         void onSize( wxSizeEvent& );
+        void onHelp( wxHelpEvent& );
         void onKeyPressed( wxKeyEvent& );
         void onScoreIncreased( wxCommandEvent& );
         void onPaddleContact( wxCommandEvent& );
         void onRoundCompleted( wxCommandEvent& );
         void onBallLost( wxCommandEvent& );
+        void onTextCharShow( wxCommandEvent& );
         void onStageFinished( wxCommandEvent& );
         void onIdle( wxIdleEvent& );
 
@@ -92,6 +92,7 @@ class RenderWindow final : public wxGLCanvas
         unsigned char m_countDown = 0;
 
         State m_state = State::NEWROUND;
+        State m_prevState = State::NEWROUND;
 
         wxDECLARE_EVENT_TABLE();
 };

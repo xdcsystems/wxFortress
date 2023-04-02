@@ -1,4 +1,4 @@
-#version 120
+#version 110
 
 // Input vertex data, different for all executions of this shader.
 attribute vec2 vertex;

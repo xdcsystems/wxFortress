@@ -1,16 +1,14 @@
 #pragma once
 
+#include <glm/glm.hpp>
+
 #include <future>
 #include "MoveController.h"
 #include "Common/Semaphore.hpp"
 
-DECLARE_LOCAL_EVENT_TYPE( wxEVT_CURRENT_SCORE_INCREASED, wxID_ANY )
-DECLARE_LOCAL_EVENT_TYPE( wxEVT_ROUND_COMLETED, wxID_ANY )
-DECLARE_LOCAL_EVENT_TYPE( wxEVT_BALL_LOST, wxID_ANY )
-DECLARE_LOCAL_EVENT_TYPE( wxEVT_PING, wxID_ANY )
-DECLARE_LOCAL_EVENT_TYPE( wxEVT_PONG, wxID_ANY )
 
 // Forward declarations
+class Rect;
 class SpriteRenderer;
 class ParticleGenerator;
 
@@ -21,6 +19,13 @@ namespace Shapes
     class Bricks;
     class Explosions;
 
+    enum class State : unsigned char
+    {
+        RUN,
+        PAUSED,
+        STOPPED,
+    };
+
     class ShapesManager final: public MoveController, public Semaphore
     {
         using rendererPtr = std::shared_ptr<SpriteRenderer>;
@@ -30,19 +35,25 @@ namespace Shapes
             ShapesManager( wxWindow* parent );
             virtual ~ShapesManager();
 
-            bool switchRun( bool bNewRound = false );
+            void run( bool bNewRound = false );
+            void pause() { m_state = State::PAUSED; };
+            void stop();
+
+            bool isRunning() const { return m_state == State::RUN; };
+            bool isPaused() const { return m_state == State::PAUSED; }
+            bool isStopped() const { return m_state == State::STOPPED; }
+
             void renderFrame( const rendererPtr &spriteRenderer );
 
             void resize( const wxSize& size );
-            void loadLevel( unsigned short level );
+            void loadLevel( unsigned short level ) const;
 
         protected:
             // Helper functions
-            void stop();
             void update( double deltaTime );
             void calculateDelta();
             void changeMoveDirection( ContactPosition contactPosition, TypeContact typeContact = TypeContact::WallContact );
-            void moveBoard( float value );
+            void moveBoard( float value ) const;
             void checkKeysState();
             ContactPosition checkPaddleContact( bool checkOnly = true );
             ContactPosition checkContact( const glm::vec2& ballPosition, float beginValue, float endValue, float increment );
@@ -51,7 +62,8 @@ namespace Shapes
         private:
             // Private data
             wxSize m_size;
-            bool m_isRun = false;
+            State m_state = State::STOPPED;
+
             bool m_isRobot = true;
             bool m_isRoundCompleted = false;
 

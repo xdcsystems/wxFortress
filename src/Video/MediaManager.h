@@ -4,8 +4,6 @@
 class wxMediaCtrl;
 class wxMediaEvent;
 
-DECLARE_LOCAL_EVENT_TYPE( wxEVT_VIDEO_FINISHED, wxID_ANY )
-
 class MediaManager final : public wxWindow
 {
     public:

@@ -17,18 +17,23 @@
 #include "Overlay.h"
 
 
-Overlay::Overlay( const wxSize& size )
+Overlay::Overlay()
  : m_font( 36, wxFONTFAMILY_SWISS, wxFONTSTYLE_ITALIC, wxFONTWEIGHT_NORMAL )
- , m_size( size )
-{
-    m_countdown = std::make_shared<CountDown>( size );
+ {
+    m_countdown = std::make_shared<CountDown>();
     
     m_pauseTex = ResourceManager::LoadTexture(
         "/../resources/images/Pause.png",
         "pause" );
 }
 
-void Overlay::showPause( const rendererPtr &renderer )
+void Overlay::resize( const wxSize& size )
+{
+    m_size = size;
+    m_countdown->resize( size );
+}
+
+void Overlay::showPause( const rendererPtr &renderer ) const
 {
     m_pauseTex->bind();
     renderer->drawSprite(
@@ -36,7 +41,7 @@ void Overlay::showPause( const rendererPtr &renderer )
         { m_pauseTex->Width, m_pauseTex->Height } );
 }
 
-void Overlay::showCountDown( const rendererPtr &renderer, unsigned char count )
+void Overlay::showCountDown( const rendererPtr &renderer, unsigned char count ) const
 {
     m_countdown->show( renderer, count );
 }

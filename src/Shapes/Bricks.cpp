@@ -31,7 +31,7 @@ void Bricks::loadLevel( unsigned short level )
 
     const auto rows = bricks.size();
     const auto cols = bricks[ 0 ].size();
-    const int startRow = 12;
+    const int startRow = 11;
 
     m_bricks.clear();
 
@@ -39,19 +39,18 @@ void Bricks::loadLevel( unsigned short level )
     m_bricks.reserve( rows * cols );
    
     const glm::vec2 textureSize = { m_bricksSprite->Width, m_bricksSprite->Height };
+    glm::vec2 currentPos = { .0f, .0f };
 
     for ( unsigned int row = 0; row < rows; ++row )
     {
         for ( unsigned int col = 0; col < cols; ++col )
         {
-            m_bricks.emplace_back(
-                std::make_shared<Brick>(
-                    col,
-                    row + startRow,
-                    static_cast< BrickType >( bricks[ row ][ col ] ),
-                    textureSize
-                ) );
+            const auto type = static_cast< BrickType >( bricks[ row ][ col ] );
+            currentPos.y = Brick::SizeOf( type ).y * ( row + startRow );
+            m_bricks.emplace_back( std::make_shared<Brick>( currentPos,  type, textureSize ) );
+            currentPos.x += Brick::SizeOf( type ).x;
         }
+        currentPos.x = 0;
     }
 }
 

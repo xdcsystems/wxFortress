@@ -35,7 +35,7 @@ void Texture2D::generate( const wxImage &image )
     GL_CHECK( glBindTexture( GL_TEXTURE_2D, ID ) );
 
     GLubyte* alphaData = image.GetAlpha();
-    const bool hasAlfa = ( alphaData != NULL );
+    const bool hasAlfa = ( alphaData != nullptr );
 
     // https://www.khronos.org/opengl/wiki/Common_Mistakes#The_Object_Oriented_Language_Problem
     //glPixelStorei( GL_UNPACK_ALIGNMENT, 4 );
