@@ -56,7 +56,7 @@ class MainFrame final : public wxFrame
         std::shared_ptr <MediaManager> m_mediaManager;
 
 #if defined( wxUSE_LOGWINDOW ) && defined( USE_LOGGER )
-        wxLogWindow* m_logWindow = nullptr;
+        wxLogWindow* m_logWindow { nullptr };
 #endif // wxUSE_LOGWINDOW
 
         bool m_isRunning = false;

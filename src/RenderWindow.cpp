@@ -1,10 +1,10 @@
 // For compilers that support precompilation, includes "wx/wx.h".
-#include "wx/wxprec.h"
+#include <wx/wxprec.h>
 
 // for all others, include the necessary headers (this file is usually all you
 // need because it includes almost all "standard" wxWidgets headers)
 #ifndef WX_PRECOMP
-    #include "wx/wx.h"
+    #include <wx/wx.h>
 #endif
 
 #include <map>
@@ -45,6 +45,7 @@ DEFINE_LOCAL_EVENT_TYPE( wxEVT_NEW_ROUND_STARTED )
 DEFINE_LOCAL_EVENT_TYPE( wxEVT_STAGE_FINISHED )
 DEFINE_LOCAL_EVENT_TYPE( wxEVT_RESET )
 
+// clang-format off
 BEGIN_EVENT_TABLE( RenderWindow, wxGLCanvas )
     EVT_PAINT( RenderWindow::onPaint )
     EVT_KEY_DOWN( RenderWindow::onKeyPressed )
@@ -58,6 +59,7 @@ BEGIN_EVENT_TABLE( RenderWindow, wxGLCanvas )
     EVT_COMMAND( wxID_ANY, wxEVT_STAGE_FINISHED, RenderWindow::onStageFinished )
     EVT_COMMAND( wxID_ANY, wxEVT_CHAR_SHOW, RenderWindow::onTextCharShow )
 END_EVENT_TABLE()
+// clang-format on
 
 RenderWindow::RenderWindow(
     wxWindow *parent,
@@ -128,7 +130,7 @@ void RenderWindow::setupGraphics()
     ResourceManager::GetShader( "particle" )->setInteger( "sprite", 0, true );
     ResourceManager::GetShader( "text" )->setInteger( "charImage", 0, true );
 
-    GL_CHECK( glClearColor( 0.0, 0.0, 0.0, 1.0 ) );
+    GL_CHECK( glClearColor( 1.0, 0.0, 0.0, 1.0 ) );
     GL_CHECK( glEnable( GL_TEXTURE_2D ) );
     GL_CHECK( glEnable( GL_COLOR_MATERIAL ) );
     GL_CHECK( glEnable( GL_BLEND ) );
@@ -223,6 +225,10 @@ void RenderWindow::resize( const wxSize &size )
     ResourceManager::GetShader( "particle" )->setMatrix4( "projection", projection, true );
     ResourceManager::GetShader( "text" )->setMatrix4( "projection", projection, true );
 
+// TODO    
+    clearScreen();
+    SwapBuffers();
+//
     m_overlay->resize( size );
     m_shapesManager->resize( size );
 }

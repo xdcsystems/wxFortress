@@ -48,8 +48,8 @@ class SoundManager final
         void cleanSources();
         void playStereoSource( ALuint buffer, float gain = 1.f, bool playAsync = true );
 
-        ALCdevice* m_device = nullptr;
-        ALCcontext* m_context = nullptr;
+        ALCdevice* m_device { nullptr };
+        ALCcontext* m_context { nullptr };
         ALuint m_monoSoundBuffer = 0;
 
         ALuint m_stereoLounchSoundBuffer = 0;

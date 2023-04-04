@@ -1,8 +1,7 @@
 #pragma once
 
-// Forward eclarations
-class wxMediaCtrl;
-class wxMediaEvent;
+// Forward declarations
+class wxFFmpegView;
 
 class MediaManager final : public wxWindow
 {
@@ -23,15 +22,17 @@ class MediaManager final : public wxWindow
     private:
         // Event Handlers
         void onTimer( wxTimerEvent& );
-        void onCheckEnd( wxTimerEvent& );
-        void onKeyPressed( wxKeyEvent& );
-        void onMediaLoaded( wxMediaEvent& );
+        //void onCheckEnd( wxTimerEvent& );
+        //void onKeyPressed( wxKeyEvent& );
+        /*void onMediaLoaded( wxMediaEvent& );
         void onMediaFinished( wxMediaEvent& );
-        void onMediaPlayStarted( wxMediaEvent& );
+        void onMediaPlayStarted( wxMediaEvent& );*/
 
         // Helper functions
         void createMediaControl();
+        //void open( std::string filename );
         void showSkipMessage( bool show = true );
+        //void close();
         
         // Private data
         static const int s_timerInterval = 15000; // 15 sec
@@ -42,8 +43,9 @@ class MediaManager final : public wxWindow
 
         const wxFont m_font;
 
-        wxMediaCtrl* m_mediaControl = nullptr;
+        wxFFmpegView* m_mediaControl { nullptr };
+        
         bool m_isOK = false;
 
-        wxDECLARE_EVENT_TABLE();
+        //wxDECLARE_EVENT_TABLE();
 };

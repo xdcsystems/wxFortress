@@ -1,10 +1,10 @@
 // For compilers that support precompilation, includes "wx/wx.h".
-#include "wx/wxprec.h"
+#include <wx/wxprec.h>
 
 // for all others, include the necessary headers (this file is usually all you
 // need because it includes almost all "standard" wxWidgets headers)
 #ifndef WX_PRECOMP
-    #include "wx/wx.h"
+    #include <wx/wx.h>
 #endif
 
 #include <wx/mediactrl.h>
@@ -16,6 +16,7 @@
 #include "MainFrame.h"
 
 
+// clang-format off
 BEGIN_EVENT_TABLE( MainFrame, wxFrame )
     EVT_CLOSE( MainFrame::onClose )
     EVT_COMMAND( wxID_ANY, wxEVT_CURRENT_SCORE_INCREASED, MainFrame::onScoreIncreased )
@@ -27,6 +28,7 @@ BEGIN_EVENT_TABLE( MainFrame, wxFrame )
     EVT_COMMAND( wxID_ANY, wxEVT_BALL_LOST, MainFrame::onBallLost )
     EVT_COMMAND( wxID_ANY, wxEVT_RESET, MainFrame::onReset )
 END_EVENT_TABLE()
+// clang-format on
 
 MainFrame::MainFrame( wxWindow *parent, int id, const wxString &title, wxPoint pos, wxSize size, int style )
   : wxFrame( parent, id, title, pos, size, style )
@@ -62,8 +64,8 @@ void MainFrame::init()
 
     const auto &size = GetSize();
 
-    m_mediaManager = std::make_shared<MediaManager>( this, wxID_ANY, wxDefaultPosition, size );
-    m_mediaManager->playIntro();
+    //m_mediaManager = std::make_shared<MediaManager>( this, wxID_ANY, wxDefaultPosition, size );
+    //m_mediaManager->playIntro();
 
     m_renderSurface = std::make_shared<RenderWindow>( this, wxID_ANY, nullptr, wxPoint( 0, 0 ), wxSize( 800, size.y ) );
     m_controlPanel = std::make_shared<ControlPanel::Panel>( this, wxID_ANY, wxPoint( 800, 0 ), wxSize( size.x - 800, size.y ) );

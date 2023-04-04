@@ -71,9 +71,9 @@ namespace Shapes
             float m_ballBottomLimit = 0;
             float m_accelerate = 0;
 
-            glm::vec2 m_delta = { 0, 0 };
+            glm::vec2 m_delta { 0, 0 };
 
-            wxEvtHandler* m_eventHandler = nullptr;
+            wxEvtHandler* m_eventHandler { nullptr };
             wxCommandEvent m_eventCurrentScoreInc;
             wxCommandEvent m_eventRoundCompleted;
             wxCommandEvent m_eventPing;

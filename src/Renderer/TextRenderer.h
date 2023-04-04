@@ -56,7 +56,7 @@ class TextRenderer
 
         std::shared_ptr<Timer> m_timer;
 
-        wxEvtHandler* m_eventHandler = nullptr;
+        wxEvtHandler* m_eventHandler { nullptr };
         wxCommandEvent m_eventCharShow;
 
         TextRendererState m_state = TextRendererState::FINISHED;

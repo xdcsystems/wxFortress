@@ -1,7 +1,7 @@
 #pragma once
 
 #include <memory> 
-#include "wx/glcanvas.h" 
+#include <wx/glcanvas.h>
 
 
 // Forward declarations

@@ -1,10 +1,10 @@
 // For compilers that support precompilation, includes "wx/wx.h".
-#include "wx/wxprec.h"
+#include <wx/wxprec.h>
 
 // for all others, include the necessary headers (this file is usually all you
 // need because it includes almost all "standard" wxWidgets headers)
 #ifndef WX_PRECOMP
-    #include "wx/wx.h"
+    #include <wx/wx.h>
 #endif
 
 #include <GL/glew.h>
@@ -44,7 +44,7 @@ void Texture2D::generate( const wxImage &image )
 
     const int bytesPerPixel = hasAlfa ? 4 : 3;
     GLubyte* bitmapData = image.GetData();
-    GLubyte* imageData = nullptr;
+    GLubyte* imageData { nullptr };
 
     // note: must make a local copy before passing the data to OpenGL, as GetData() returns RGB 
     // and we want the Alpha channel if it's present. Additionally OpenGL seems to interpret the 
