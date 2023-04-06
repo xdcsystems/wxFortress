@@ -18,7 +18,6 @@
 
 
 Overlay::Overlay()
- : m_font( 36, wxFONTFAMILY_SWISS, wxFONTSTYLE_ITALIC, wxFONTWEIGHT_NORMAL )
  {
     m_countdown = std::make_shared<CountDown>();
     

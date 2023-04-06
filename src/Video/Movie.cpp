@@ -6,7 +6,7 @@
 #include "Chronons.h"
 #include "Video.h"
 
-static AVBufferRef* hw_device_ctx = NULL;
+static AVBufferRef* hw_device_ctx = nullptr;
 
 Movie::Movie()
   : m_audio( *this )
@@ -245,6 +245,8 @@ int Movie::start()
     {
         m_videoThread.join();
     }
+
+    m_quit.store( true );
 
     return 0;
 }

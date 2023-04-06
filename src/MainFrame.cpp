@@ -7,10 +7,7 @@
     #include <wx/wx.h>
 #endif
 
-#include <wx/mediactrl.h>
-
 #include "Common/defs.h"
-#include "Video/MediaManager.h"
 #include "ControlPanel/Panel.h"
 #include "RenderWindow.h"
 #include "MainFrame.h"
@@ -21,8 +18,8 @@ BEGIN_EVENT_TABLE( MainFrame, wxFrame )
     EVT_CLOSE( MainFrame::onClose )
     EVT_COMMAND( wxID_ANY, wxEVT_CURRENT_SCORE_INCREASED, MainFrame::onScoreIncreased )
     EVT_COMMAND( wxID_ANY, wxEVT_ROUND_COMLETED, MainFrame::onRoundCompleted )
-    EVT_COMMAND( wxID_ANY, wxEVT_MEDIA_PLAY, MainFrame::onRoundCompleted )
-    EVT_COMMAND( wxID_ANY, wxEVT_MEDIA_FINISHED, MainFrame::onVideoFinished )
+    EVT_COMMAND( wxID_ANY, wxEVT_VIDEO_PLAY, MainFrame::onRoundCompleted )
+    EVT_COMMAND( wxID_ANY, wxEVT_VIDEO_FINISHED, MainFrame::onVideoFinished )
     EVT_COMMAND( wxID_ANY, wxEVT_LAUNCH_PRESSED, MainFrame::onLaunchPressed )
     EVT_COMMAND( wxID_ANY, wxEVT_NEW_ROUND_STARTED, MainFrame::onRoundStarted )
     EVT_COMMAND( wxID_ANY, wxEVT_BALL_LOST, MainFrame::onBallLost )
@@ -63,10 +60,7 @@ void MainFrame::init()
     wxInitAllImageHandlers();
 
     const auto &size = GetSize();
-
-    //m_mediaManager = std::make_shared<MediaManager>( this, wxID_ANY, wxDefaultPosition, size );
-    //m_mediaManager->playIntro();
-
+    
     m_renderSurface = std::make_shared<RenderWindow>( this, wxID_ANY, nullptr, wxPoint( 0, 0 ), wxSize( 800, size.y ) );
     m_controlPanel = std::make_shared<ControlPanel::Panel>( this, wxID_ANY, wxPoint( 800, 0 ), wxSize( size.x - 800, size.y ) );
 
@@ -87,10 +81,7 @@ void MainFrame::start()
     m_renderSurface->Raise();
     m_renderSurface->SetFocus();
 
-    GetSizer()->Layout();
-
-    m_mediaManager->Hide();
-    m_mediaManager->reset();
+    Layout();
 }
 
 void MainFrame::onVideoFinished( wxCommandEvent& )
@@ -102,7 +93,12 @@ void MainFrame::stop()
 {
     m_isRunning = false;
     m_renderSurface->stop();
-};
+}
+
+void MainFrame::playIntro() const
+{
+    m_renderSurface->playIntro();
+}
 
 void MainFrame::onClose( wxCloseEvent &event )
 {

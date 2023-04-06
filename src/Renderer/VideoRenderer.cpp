@@ -6,7 +6,9 @@
 
 #include "Common/Tools.h"
 #include "Renderer/ResourceManager.h"
+#include "Renderer/Texture.h"
 #include "Renderer/Shader.h"
+#include "Renderer/SpriteRenderer.h"
 #include "VideoRenderer.h"
 
 // clang-format off
@@ -55,6 +57,16 @@ VideoRenderer::VideoRenderer()
     m_shader->setInteger( "textureV", 2 );
 }
 
+VideoRenderer::~VideoRenderer()
+{
+    GL_CHECK( glDisableVertexAttribArray( 0 ) );
+    GL_CHECK( glDisableVertexAttribArray( 1 ) );
+
+    GL_CHECK( glDeleteVertexArrays( 1, &m_VAO ) );
+    GL_CHECK( glDeleteBuffers( 1, &m_VBO ) );
+    GL_CHECK( glDeleteBuffers( 1, &m_EBO ) );
+}
+
 bool VideoRenderer::ok()
 {
     return true;
@@ -67,7 +79,7 @@ void VideoRenderer::setViewport( int x, int y, int width, int height )
     GL_CHECK( glViewport( x, y, m_viewWidth, m_viewHeight ) );
 }
 
-void VideoRenderer::draw( int width, int height, uint8_t **data, int *linesize )
+void VideoRenderer::draw( int width, int height, uint8_t **data, int *linesize, bool showMessage )
 {
     bool changed = false;
     if ( m_texWidth != width )
@@ -116,6 +128,14 @@ void VideoRenderer::draw( int width, int height, uint8_t **data, int *linesize )
         GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, m_VBO ) );
         GL_CHECK( glBufferSubData( GL_ARRAY_BUFFER, 0, vertices.size() * sizeof( float ), vertices.data() ) );
     }
+////////////
+    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, m_VBO ) );
+    GL_CHECK( glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, m_EBO ) );
+    GL_CHECK( glVertexAttribPointer( 0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof( float ), 0 ) );
+    GL_CHECK( glEnableVertexAttribArray( 0 ) );
+    GL_CHECK( glVertexAttribPointer( 1, 3, GL_FLOAT, GL_FALSE, 5 * sizeof( float ), ( void* )( 3 * sizeof( float ) ) ) );
+    GL_CHECK( glEnableVertexAttribArray( 1 ) );
+////////////
 
     GL_CHECK( glActiveTexture( GL_TEXTURE0 ) );
     GL_CHECK( glBindTexture( GL_TEXTURE_2D, m_texs[0] ) );

@@ -24,12 +24,18 @@
 
 DEFINE_LOCAL_EVENT_TYPE( wxEVT_CHAR_SHOW )
 
+
 TextRenderer::TextRenderer( wxWindow* parent )
   : m_eventHandler( parent->GetEventHandler() )
   , m_eventCharShow( wxEVT_CHAR_SHOW )
 {
     m_shader = ResourceManager::GetShader( "text" );
-    m_texture = ResourceManager::LoadTexture( "/../resources/images/Font.png", "font" );
+
+    s_fontData.at( TextRendererFont::NORMAL ).second = 
+        ResourceManager::LoadTexture( "/../resources/images/Font18.png", "font18" );
+    
+    s_fontData.at( TextRendererFont::OLD ).second = 
+        ResourceManager::LoadTexture( "/../resources/images/Font.png", "font" );
 
     GL_CHECK( glGenBuffers( 1, &m_vertexBufferID ) );
     GL_CHECK( glGenBuffers( 1, &m_UVBufferID ) );
@@ -137,13 +143,13 @@ void TextRenderer::print( const std::string& text, int x, int y, const glm::vec2
         vertices.emplace_back( vertexDownLeft );
 
         char character = text[i];
-        float uvX = ( character % 16 ) / 16.0f;
-        float uvY = ( character / 16 ) / 8.0f;
+        float uvX = ( character % 16 ) / 16.f;
+        float uvY = ( character / 16 ) / s_fontData.at( m_fontType ).first;
 
         glm::vec2 uvUpLeft = glm::vec2( uvX, uvY );
-        glm::vec2 uvUpRight = glm::vec2( uvX + 1.0f / 16.0f, uvY );
-        glm::vec2 uvDownRight = glm::vec2( uvX + 1.0f / 16.0f, ( uvY + 1.0f / 8.0f ) );
-        glm::vec2 uvDownLeft = glm::vec2( uvX, ( uvY + 1.0f / 8.0f ) );
+        glm::vec2 uvUpRight = glm::vec2( uvX + 1.f / 16.f, uvY );
+        glm::vec2 uvDownRight = glm::vec2( uvX + 1.f / 16.f, ( uvY + 1.f / s_fontData.at( m_fontType ).first ) );
+        glm::vec2 uvDownLeft = glm::vec2( uvX, ( uvY + 1.f / s_fontData.at( m_fontType ).first ) );
 
         coordsUV.emplace_back( uvUpLeft );
         coordsUV.emplace_back( uvDownLeft );
@@ -163,7 +169,7 @@ void TextRenderer::print( const std::string& text, int x, int y, const glm::vec2
     m_shader->use();
 
     // Bind texture
-    m_texture->bind();
+    s_fontData.at( m_fontType ).second->bind();
 
     // 1rst attribute buffer : vertices
     GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, m_vertexBufferID ) );

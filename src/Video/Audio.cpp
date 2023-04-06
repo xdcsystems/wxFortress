@@ -8,51 +8,30 @@ using std::chrono::duration_cast;
 
 Audio::Audio( Movie &movie )
   : m_movie( movie )
-{
-    static std::once_flag once;
-    std::call_once( once, []() {
-        initAL();
-    } );
-}
+{}
 
 Audio::~Audio()
+{
+    cleanup();
+}
+
+void Audio::cleanup()
 {
     if ( m_source )
     {
         alDeleteSources( 1, &m_source );
+        m_source = 0;
     }
-    if ( m_buffers[0] )
+    if ( m_buffers[ 0 ] )
     {
         alDeleteBuffers( m_buffers.size(), m_buffers.data() );
+        m_buffers = {};
     }
     if ( m_samples )
     {
         av_freep( &m_samples );
+        m_samples = 0;
     }
-}
-
-int Audio::initAL()
-{
-    ALCdevice *device = alcOpenDevice( nullptr );
-    if ( !device )
-    {
-        std::cerr << "Fail to alcOpenDevice\n";
-        return -1;
-    }
-
-    ALCcontext *ctx = alcCreateContext( device, nullptr );
-    if ( !ctx || alcMakeContextCurrent( ctx ) == ALC_FALSE )
-    {
-        if ( ctx )
-        {
-            alcDestroyContext( ctx );
-        }
-        alcCloseDevice( device );
-        std::cerr << "Fail to set alc context\n";
-        return -1;
-    }
-
-    return 0;
 }
 
 int Audio::start()
@@ -224,6 +203,7 @@ int Audio::start()
 
 finish:
     av_freep( &samples );
+    cleanup();
 
     return 0;
 }

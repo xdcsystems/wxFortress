@@ -33,6 +33,7 @@
 #include "Sounds/SoundManager.h"
 #include "Shapes/ShapesManager.h"
 #include "Shapes/ParticleGenerator.h"
+#include "Video/MediaManager.h"
 
 #include "RenderWindow.h"
 
@@ -90,6 +91,8 @@ void RenderWindow::init()
     wxIdleEvent::SetMode( wxIDLE_PROCESS_SPECIFIED );
 
     m_timer = std::make_shared<Timer>( false );
+
+    m_mediaManager = std::make_shared<MediaManager>( this, m_textRenderer );
 }
 
 RenderWindow::~RenderWindow()
@@ -130,7 +133,7 @@ void RenderWindow::setupGraphics()
     ResourceManager::GetShader( "particle" )->setInteger( "sprite", 0, true );
     ResourceManager::GetShader( "text" )->setInteger( "charImage", 0, true );
 
-    GL_CHECK( glClearColor( 1.0, 0.0, 0.0, 1.0 ) );
+    GL_CHECK( glClearColor( 0.0, 0.0, 0.0, 1.0 ) );
     GL_CHECK( glEnable( GL_TEXTURE_2D ) );
     GL_CHECK( glEnable( GL_COLOR_MATERIAL ) );
     GL_CHECK( glEnable( GL_BLEND ) );
@@ -141,19 +144,13 @@ void RenderWindow::setupGraphics()
     m_spriteRenderer = std::make_shared<SpriteRenderer>( ResourceManager::GetShader( "sprite" ) );
     m_shapesManager = std::make_shared<Shapes::ShapesManager>( this );
     m_overlay = std::make_shared<Overlay>();
-    m_textRender = std::make_shared<TextRenderer>( this );
+    m_textRenderer = std::make_shared<TextRenderer>( this );
 }
 
-void RenderWindow::start()
+void RenderWindow::playIntro()
 {
-    Bind( wxEVT_IDLE, &RenderWindow::onIdle, this );
-    m_isRunning = true;
-}
-
-void RenderWindow::stop()
-{
-    m_isRunning = false;
-    Unbind( wxEVT_IDLE, &RenderWindow::onIdle, this );
+    m_state = State::PLAY;
+    m_mediaManager->playIntro();
 }
 
 void RenderWindow::loadLevel( unsigned short level )
@@ -167,6 +164,20 @@ void RenderWindow::loadLevel( unsigned short level )
         wxCommandEvent eventStageFinished( wxEVT_STAGE_FINISHED );
         AddPendingEvent( eventStageFinished );
     }
+}
+
+void RenderWindow::start()
+{
+    m_state = State::NEWROUND;
+
+    Bind( wxEVT_IDLE, &RenderWindow::onIdle, this );
+    m_isRunning = true;
+}
+
+void RenderWindow::stop()
+{
+    m_isRunning = false;
+    Unbind( wxEVT_IDLE, &RenderWindow::onIdle, this );
 }
 
 void RenderWindow::switchRun()
@@ -231,6 +242,7 @@ void RenderWindow::resize( const wxSize &size )
 //
     m_overlay->resize( size );
     m_shapesManager->resize( size );
+    m_mediaManager->resize( size );
 }
 
 void RenderWindow::onPaint( wxPaintEvent & )
@@ -285,7 +297,7 @@ void RenderWindow::render()
 
         case State::HELP:
         case State::FINISHED:
-            m_textRender->renderFrame();
+            m_textRenderer->renderFrame();
         break;
 
         default :
@@ -302,12 +314,21 @@ void RenderWindow::render()
 void RenderWindow::onSize( wxSizeEvent &event )
 {
     resize( event.GetSize() );
+    event.Skip();
 }
 
 void RenderWindow::onKeyPressed( wxKeyEvent &event )
 {
     switch ( m_state )
     {
+        case State::PLAY:
+            if ( event.GetKeyCode() == 'R' ||
+                event.GetKeyCode() == 'r' )
+            {
+                m_mediaManager->stop();
+            }
+        break;
+
         case State::HELP:
             if ( event.GetKeyCode() == WXK_ESCAPE )
                   m_state = m_prevState;
@@ -411,13 +432,15 @@ void RenderWindow::onStageFinished( wxCommandEvent& )
 {
     static unsigned short s_stage = 0;
 
-    m_textRender->switchToFinishState( ++s_stage );
+    m_textRenderer->selectFontType( TextRendererFont::OLD );
+    m_textRenderer->switchToFinishState( ++s_stage );
     m_state = State::FINISHED;
 }
 
 void RenderWindow::onHelp( wxHelpEvent& )
 {
-    m_textRender->switchToHelpState();
+    m_textRenderer->selectFontType( TextRendererFont::OLD );
+    m_textRenderer->switchToHelpState();
     m_state = State::HELP;
 }
 

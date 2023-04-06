@@ -7,155 +7,68 @@
     #include <wx/wx.h>
 #endif
 
+#include <GL/glew.h>
 #include <wx/dcbuffer.h>
+#include <wx/glcanvas.h>
+
+#if defined( _MSC_VER )
+    #include <dwmapi.h>
+#endif
 
 #include "Common/defs.h"
 #include "Common/Tools.h"
-#include "wxFFmpegView.h"
+#include "Renderer/TextRenderer.h"
+#include "Renderer/VideoRenderer.h"
+#include "Movie.h"
+
 #include "MediaManager.h"
 
+#if defined( _MSC_VER )
+    #pragma comment( lib, "../external/directX/x86/dwmapi.lib" )
+#endif
+
+DEFINE_LOCAL_EVENT_TYPE( wxEVT_VIDEO_PLAY )
 DEFINE_LOCAL_EVENT_TYPE( wxEVT_VIDEO_FINISHED )
 
-// clang-format off
-//BEGIN_EVENT_TABLE( MediaManager, wxWindow )
-//    EVT_KEY_DOWN( MediaManager::onKeyPressed )
-//END_EVENT_TABLE()
-// clang-format on
-
-MediaManager::MediaManager( wxWindow* parent, wxWindowID id, const wxPoint& pos, const wxSize& size, long style, const wxString& name )
-    : wxWindow( parent, id, pos, size, style, name )
-    , m_font( 12, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL )
+MediaManager::MediaManager( wxGLCanvas* canvas, const textRedererPtr& textRenderer )
+  : m_textRenderer( textRenderer )
+  , m_canvas( canvas )
+  , m_eventHandler( canvas->GetEventHandler() )
+  , m_eventMediaPlay( wxEVT_VIDEO_PLAY )
+  , m_eventMediaFinised( wxEVT_VIDEO_FINISHED )
 {
-    SetBackgroundColour( *wxBLACK );
-
-    m_timer.Bind( wxEVT_TIMER, &MediaManager::onTimer, this );
-    //m_timerCheckEnd.Bind( wxEVT_TIMER, &MediaManager::onCheckEnd, this );
+    m_textRenderer->selectFontType( TextRendererFont::NORMAL );
+    m_renderTimer.Bind( wxEVT_TIMER, &MediaManager::OnRenderTimer, this );
+    m_movie = std::make_shared<Movie>();
 }
 
 MediaManager::~MediaManager()
 {
-    /*if ( IsShown() && m_mediaControl )
-    {
-        wxClientDC cDC( this );
-        cDC.Clear();
-
-        m_mediaControl->Hide();
-        m_mediaControl->Stop();
-        reset();
-
-        Hide();
-    }*/
-}
-
-void MediaManager::createMediaControl()
-{
-    wxGLAttributes attrs;
-    attrs.PlatformDefaults().Defaults().EndList();
-
-    m_mediaControl = new wxFFmpegView( this, attrs );
-
-    wxBoxSizer* sizer = new wxBoxSizer( wxVERTICAL );
-    sizer->Add( m_mediaControl, 1, wxEXPAND );
-    SetSizer( sizer );
-
-    Layout();
-
-    m_mediaControl->SetBackgroundColour( *wxBLACK );
-    
-    //m_isOK = m_mediaControl->Create(
-    //    this,
-    //    wxID_ANY,
-    //    wxEmptyString,
-    //    wxDefaultPosition,
-    //    wxDefaultSize,
-    //    wxMC_NO_AUTORESIZE | wxMEDIACTRLPLAYERCONTROLS_NONE );
-    //    //wxMEDIABACKEND_WMP10 );
-
-    //wxASSERT_MSG( m_isOK, "Could not create media control!" );
-
-    //m_mediaControl->SetSizer( new wxBoxSizer( wxHORIZONTAL ) );
-
-    //m_mediaControl->Bind( wxEVT_MEDIA_LOADED, &MediaManager::onMediaLoaded, this );
-    //m_mediaControl->Bind( wxEVT_MEDIA_PLAY, &MediaManager::onMediaPlayStarted, this );
-    //m_mediaControl->Bind( wxEVT_MEDIA_FINISHED, &MediaManager::onMediaFinished, this );
+    reset();
 }
 
 void MediaManager::reset()
 {
-    m_timer.Stop();
-    m_timerCheckEnd.Stop();
-
-    //m_mediaControl->Unbind( wxEVT_MEDIA_LOADED, &MediaManager::onMediaLoaded, this );
-    //m_mediaControl->Unbind( wxEVT_MEDIA_PLAY, &MediaManager::onMediaPlayStarted, this );
-    //m_mediaControl->Unbind( wxEVT_MEDIA_FINISHED, &MediaManager::onMediaFinished, this );
-
-    m_mediaControl->Destroy();
-    m_mediaControl = nullptr;
+    if ( m_movie )
+    {
+        m_movie->close();
+        m_videoRenderer.reset();
+        m_movie.reset();
+    }
 }
-
-//void MediaManager::onMediaLoaded( wxMediaEvent& )
-//{
-//    const auto &cleentSize = GetClientSize();
-//    const auto &videoSize = m_mediaControl->GetBestSize();
-//    const auto controlHeight = ( double )videoSize.GetHeight() / videoSize.GetWidth() * cleentSize.GetWidth();
-//    const wxPoint controlPosition( 0, ( cleentSize.GetHeight() - controlHeight ) / 2 - PLAYER_CONTROLS_PANEL_HEIGHT );
-//    
-//    m_mediaControl->SetSize( cleentSize.GetWidth(), controlHeight );
-//    m_mediaControl->SetPosition( controlPosition );
-//
-//    if ( m_isOK )
-//    {
-//        m_mediaControl->Play();
-//    }
-//
-//    m_timer.Start( s_timerInterval );
-//}
-
-//void MediaManager::onMediaPlayStarted( wxMediaEvent& event )
-//{
-//    AddPendingEvent( event );
-//}
-//
-//void MediaManager::onMediaFinished( wxMediaEvent& event )
-//{
-//    AddPendingEvent( event );
-//}
-
-
-//void MediaManager::close()
-//{
-//    m_mediaControl->close();
-//}
-
 
 void MediaManager::playIntro()
 {
-    createMediaControl();
-    m_mediaControl->open( Tools::Instance().getFullFileName( "/../resources/video/Intro.mp4" ) );
+    open( Tools::Instance().getFullFileName( "/../resources/video/Intro.mp4" ) );
+    m_eventHandler->AddPendingEvent( m_eventMediaPlay );
 }
 
 void MediaManager::showSkipMessage( bool show )
 {
-    wxClientDC cDC( this );
-
-    if ( show )
-    {
-        const auto &clientSize = GetClientSize();
-        cDC.SetFont( m_font );
-        cDC.SetTextForeground( wxColor( 128, 128, 128 ) );
-        cDC.DrawText( wxT( "Press R key for skip" ), clientSize.GetWidth() - 200, clientSize.GetHeight() - 90 );
-
-        return;
-    }
-
-    cDC.Clear();
-}
-
-void MediaManager::onTimer( wxTimerEvent& )
-{
-    m_timer.Stop();
-    showSkipMessage();
-    m_timerCheckEnd.Start( s_timerCheckEndInterval );
+    m_textRenderer->print( "Press R key for skip",
+        m_videoRenderer->viewWidth() - 300,
+        31,
+        glm::vec2( 14.f, 16.f ) );
 }
 
 //void MediaManager::onCheckEnd( wxTimerEvent& )
@@ -168,17 +81,65 @@ void MediaManager::onTimer( wxTimerEvent& )
 //        showSkipMessage( false );
 //    }
 //}
-//
-//void MediaManager::onKeyPressed( wxKeyEvent& event )
-//{
-//    switch ( event.GetKeyCode() )
-//    {
-//        case 'R':
-//        case 'r':
-//            m_mediaControl->Stop();
-//
-//            wxCommandEvent eventVideoFinished( wxEVT_MEDIA_FINISHED );
-//            AddPendingEvent( eventVideoFinished );
-//            break;
-//    }
-//}
+
+void MediaManager::open( std::string filename )
+{
+    m_movie->open( std::move( filename ) );
+    m_pts = std::numeric_limits<int64_t>::min();
+    m_renderTimer.Start( 10 );
+}
+
+void MediaManager::stop()
+{
+    m_renderTimer.Stop();
+    close();
+}
+
+void MediaManager::close()
+{
+    reset();
+    m_eventHandler->AddPendingEvent( m_eventMediaFinised );
+}
+
+void MediaManager::resize( const wxSize& size )
+{
+    if ( !m_canvas->IsShownOnScreen() || !m_movie )
+        return;
+
+    if ( !m_videoRenderer )
+    {
+        m_videoRenderer = std::make_shared<VideoRenderer>();
+    }
+
+    if ( !m_videoRenderer->ok() )
+        return;
+
+    wxSize currentSize = size * m_canvas->GetContentScaleFactor();
+    m_videoRenderer->setViewport( 0, 0, currentSize.x, currentSize.y );
+}
+
+void MediaManager::OnRenderTimer( wxTimerEvent& event )
+{
+    if ( m_movie->isFinished() )
+    {
+        stop();
+        return;
+    }
+
+    auto [frame, pts] = m_movie->currentFrame();
+    if ( frame && m_pts != pts )
+    {
+        m_pts = pts;
+        m_videoRenderer->draw( frame->width, frame->height, frame->data, frame->linesize, true );
+        
+        if ( m_pts > s_timerInterval )
+            showSkipMessage();
+
+        m_canvas->SwapBuffers();
+
+#if defined( _MSC_VER )
+        DwmFlush();
+#endif
+    }
+}
+

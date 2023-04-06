@@ -21,6 +21,5 @@ class Overlay
         texture2DPtr m_pauseTex;
         std::shared_ptr<CountDown> m_countdown;
 
-        const wxFont m_font;
         wxSize m_size;
 };

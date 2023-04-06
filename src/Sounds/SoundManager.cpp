@@ -8,6 +8,7 @@
 #endif
 
 #include <iostream>
+#include <mutex>
 
 #include <AL/al.h>
 #include <AL/alc.h>
@@ -77,68 +78,70 @@ int SoundManager::loadBuffer( AudioFile<float>& soundFile, const std::string& fi
 
 int SoundManager::init()
 {
-    // find the default audio device
-    const ALCchar* defaultDeviceString = alcGetString( /*device*/ nullptr, ALC_DEFAULT_DEVICE_SPECIFIER );
-    m_device = alcOpenDevice( defaultDeviceString );
-    if ( !m_device )
-    {
-        std::cerr << "failed to get the default device for OpenAL" << std::endl;
-        return -1;
-    }
-    std::cout << "OpenAL Device: " << alcGetString( m_device, ALC_DEVICE_SPECIFIER ) << std::endl;
-    //OpenAL_ErrorCheck(device);
+    static std::once_flag once;
+    std::call_once( once, [ this ]() {
+        // find the default audio device
+        const ALCchar* defaultDeviceString = alcGetString( /*device*/ nullptr, ALC_DEFAULT_DEVICE_SPECIFIER );
+        m_device = alcOpenDevice( defaultDeviceString );
+        if ( !m_device )
+        {
+            std::cerr << "failed to get the default device for OpenAL" << std::endl;
+            return -1;
+        }
+        std::cout << "OpenAL Device: " << alcGetString( m_device, ALC_DEVICE_SPECIFIER ) << std::endl;
+        //OpenAL_ErrorCheck(device);
 
-    // Create an OpenAL audio context from the device
-    m_context = alcCreateContext( m_device, /*attrlist*/ nullptr );
-    //OpenAL_ErrorCheck(context);
+        // Create an OpenAL audio context from the device
+        m_context = alcCreateContext( m_device, /*attrlist*/ nullptr );
+        //OpenAL_ErrorCheck(context);
 
-    // Activate this context so that OpenAL state modifications are applied to the context
-    if ( !alcMakeContextCurrent( m_context ) )
-    {
-        std::cerr << "failed to make the OpenAL context the current context" << std::endl;
-        return -1;
-    }
-    //OpenAL_ErrorCheck("Make context current");
+        // Activate this context so that OpenAL state modifications are applied to the context
+        if ( !alcMakeContextCurrent( m_context ) )
+        {
+            std::cerr << "failed to make the OpenAL context the current context" << std::endl;
+            return -1;
+        }
+        //OpenAL_ErrorCheck("Make context current");
 
-    // Create a listener in 3d space (ie the player); (there always exists as listener, you just configure data on it)
-    alec( alListener3f( AL_POSITION, 0.f, 0.f, 0.f ) );
-    alec( alListener3f( AL_VELOCITY, 0.f, 0.f, 0.f ) );
-    ALfloat forwardAndUpVectors[] = { /*forward = */ 1.f,
-            0.f,
-            0.f,
-            /* up = */ 0.f,
-            1.f,
-            0.f };
-    alec( alListenerfv( AL_ORIENTATION, forwardAndUpVectors ) );
+        // Create a listener in 3d space (ie the player); (there always exists as listener, you just configure data on it)
+        alec( alListener3f( AL_POSITION, 0.f, 0.f, 0.f ) );
+        alec( alListener3f( AL_VELOCITY, 0.f, 0.f, 0.f ) );
+        ALfloat forwardAndUpVectors[] = { /*forward = */ 1.f,
+                0.f,
+                0.f,
+                /* up = */ 0.f,
+                1.f,
+                0.f };
+        alec( alListenerfv( AL_ORIENTATION, forwardAndUpVectors ) );
 
-    // Create buffers that hold our sound data; these are shared between contexts and ar defined at a device level
-    AudioFile<float> soundFile;
-    loadBuffer( soundFile, "Rocket.wav", &m_monoSoundBuffer );
+        // Create buffers that hold our sound data; these are shared between contexts and ar defined at a device level
+        AudioFile<float> soundFile;
+        loadBuffer( soundFile, "Rocket.wav", &m_monoSoundBuffer );
 
-    // load a stereo files into a buffers
-    loadBuffer( soundFile, "Launch.wav", &m_stereoLounchSoundBuffer );
-    loadBuffer( soundFile, "Countdown.wav", &m_stereoCountdownSoundBuffer );
-    loadBuffer( soundFile, "DesroyBrick.wav", &m_stereoDesroyBrickSoundBuffer );
-    loadBuffer( soundFile, "Ping.wav", &m_stereoPingSoundBuffer );
-    loadBuffer( soundFile, "Pong.wav", &m_stereoPongSoundBuffer );
-    loadBuffer( soundFile, "LevelComplete.wav", &m_stereoLevelCompleteSoundBuffer );
-    loadBuffer( soundFile, "BallLost.wav", &m_stereoBallLostSoundBuffer );
-    loadBuffer( soundFile, "Char.wav", &m_stereoCharShowSoundBuffer );
+        // load a stereo files into a buffers
+        loadBuffer( soundFile, "Launch.wav", &m_stereoLounchSoundBuffer );
+        loadBuffer( soundFile, "Countdown.wav", &m_stereoCountdownSoundBuffer );
+        loadBuffer( soundFile, "DesroyBrick.wav", &m_stereoDesroyBrickSoundBuffer );
+        loadBuffer( soundFile, "Ping.wav", &m_stereoPingSoundBuffer );
+        loadBuffer( soundFile, "Pong.wav", &m_stereoPongSoundBuffer );
+        loadBuffer( soundFile, "LevelComplete.wav", &m_stereoLevelCompleteSoundBuffer );
+        loadBuffer( soundFile, "BallLost.wav", &m_stereoBallLostSoundBuffer );
+        loadBuffer( soundFile, "Char.wav", &m_stereoCharShowSoundBuffer );
 
-    // create a sound source for our stereo sound; note 3d positioning doesn't work with stereo files because
-    // stereo files are typically used for music. stereo files come out of both ears so it is hard to know
-    // what the sound should be doing based on 3d position data.
-    alec( alGenSources( 250, m_stereoSource ) );
+        // create a sound source for our stereo sound; note 3d positioning doesn't work with stereo files because
+        // stereo files are typically used for music. stereo files come out of both ears so it is hard to know
+        // what the sound should be doing based on 3d position data.
+        alec( alGenSources( 250, m_stereoSource ) );
 
-    // create a sound source that play's our mono sound (from the sound buffer)
-    alec( alGenSources( 1, &m_monoSource ) );
-    alec( alSource3f( m_monoSource, AL_POSITION, 1.f, 0.f, 0.f ) );
-    alec( alSource3f( m_monoSource, AL_VELOCITY, 0.f, 0.f, 0.f ) );
-    alec( alSourcef( m_monoSource, AL_PITCH, 1.f ) );
-    alec( alSourcef( m_monoSource, AL_GAIN, 1.f ) );
-    alec( alSourcei( m_monoSource, AL_LOOPING, AL_FALSE ) );
-    alec( alSourcei( m_monoSource, AL_BUFFER, m_monoSoundBuffer ) );
-
+        // create a sound source that play's our mono sound (from the sound buffer)
+        alec( alGenSources( 1, &m_monoSource ) );
+        alec( alSource3f( m_monoSource, AL_POSITION, 1.f, 0.f, 0.f ) );
+        alec( alSource3f( m_monoSource, AL_VELOCITY, 0.f, 0.f, 0.f ) );
+        alec( alSourcef( m_monoSource, AL_PITCH, 1.f ) );
+        alec( alSourcef( m_monoSource, AL_GAIN, 1.f ) );
+        alec( alSourcei( m_monoSource, AL_LOOPING, AL_FALSE ) );
+        alec( alSourcei( m_monoSource, AL_BUFFER, m_monoSoundBuffer ) );
+    } );
     return 0;
 }
 

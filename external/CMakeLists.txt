@@ -24,8 +24,8 @@ find_package(FFmpeg
     REQUIRED)
 
 # openal-soft
-option(ALSOFT_UTILS "Build utility programs"  OFF)
-OPTION(ALSOFT_EXAMPLES  "Build and install example programs"  OFF)
+option(ALSOFT_UTILS    "Build utility programs"             OFF)
+OPTION(ALSOFT_EXAMPLES "Build and install example programs" OFF)
 
 add_subdirectory_with_folder("openal-soft" openal-soft)
 

@@ -14,23 +14,26 @@ constexpr milliseconds AudioBufferTime { 20 };
 constexpr milliseconds AudioBufferTotalTime { 800 };
 constexpr auto AudioBufferCount = AudioBufferTotalTime / AudioBufferTime;
 
+// Forward declarations
 class Movie;
+
 class Audio
 {
     public:
         Audio( Movie &movie );
         ~Audio();
 
-        static int initAL();
+        bool play();
+        void cleanup();
 
+    private:
         int start();
         int decodeFrame();
-        int readAudio( uint8_t *samples, unsigned int length );
-        bool play();
+        int readAudio( uint8_t* samples, unsigned int length );
+
         nanoseconds getClock();
         nanoseconds getClockNoLock();
 
-    private:
         friend class Movie;
         Movie &m_movie;
 

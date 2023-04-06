@@ -1,16 +1,24 @@
 #pragma once
 
+#include <map>
 #include <glm/glm.hpp>
 
 
 // Forward declarations
 class Texture2D;
 class Shader;
+class Timer;
 
 enum class TextRendererState : unsigned char
 {
     FINISHED,
     HELP,
+};
+
+enum class TextRendererFont : unsigned char
+{
+    NORMAL,
+    OLD,
 };
 
 class TextRenderer
@@ -29,12 +37,11 @@ class TextRenderer
         void switchToFinishState( unsigned short stage );
         void switchToHelpState();
 
+        void selectFontType( TextRendererFont fontType ) { m_fontType = fontType; };
+
     private:
         void renderFinishMessage();
         void renderHelp();
-
-        texture2DPtr m_texture;
-        shaderPtr     m_shader;
 
         unsigned int m_vertexBufferID = 0;
         unsigned int m_UVBufferID = 0;
@@ -60,5 +67,15 @@ class TextRenderer
         wxCommandEvent m_eventCharShow;
 
         TextRendererState m_state = TextRendererState::FINISHED;
+        TextRendererFont m_fontType = TextRendererFont::NORMAL;
+
+        shaderPtr m_shader;
+
+        inline static std::map<TextRendererFont, std::pair<float, texture2DPtr> > s_fontData = {
+            { TextRendererFont::NORMAL, { 8.f, nullptr } },
+            { TextRendererFont::OLD, { 8.f, nullptr } }
+        };
 };
+
+using textRedererPtr = std::shared_ptr<TextRenderer>;
 

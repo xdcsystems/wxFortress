@@ -1,51 +1,53 @@
 #pragma once
 
 // Forward declarations
-class wxFFmpegView;
+class wxGLCanvas;
+class TextRenderer;
+class VideoRenderer;
+class Movie;
 
-class MediaManager final : public wxWindow
+class MediaManager final
 {
+    using textRedererPtr = std::shared_ptr<TextRenderer>;
+    using videoRedererPtr = std::shared_ptr<VideoRenderer>;
+    using moviePtr = std::shared_ptr<Movie>;
+
     public:
-        MediaManager(
-            wxWindow* parent,
-            wxWindowID id,
-            const wxPoint& pos = wxDefaultPosition,
-            const wxSize& size = wxDefaultSize,
-            long style = wxBORDER_NONE,
-            const wxString& name = wxASCII_STR( wxPanelNameStr ) );
-        
+        MediaManager( wxGLCanvas* canvas, const textRedererPtr &textRenderer );
         ~MediaManager();
 
+        void resize( const wxSize& size );
         void reset();
         void playIntro();
+        void stop();
 
-    private:
+   private:
         // Event Handlers
-        void onTimer( wxTimerEvent& );
-        //void onCheckEnd( wxTimerEvent& );
-        //void onKeyPressed( wxKeyEvent& );
-        /*void onMediaLoaded( wxMediaEvent& );
-        void onMediaFinished( wxMediaEvent& );
-        void onMediaPlayStarted( wxMediaEvent& );*/
+        void OnRenderTimer( wxTimerEvent& );
 
         // Helper functions
-        void createMediaControl();
-        //void open( std::string filename );
         void showSkipMessage( bool show = true );
-        //void close();
+        void open( std::string filename );
+        void close();
         
         // Private data
-        static const int s_timerInterval = 15000; // 15 sec
+        static const int64_t s_timerInterval = 15000000000; // 15 sec
         static const int s_timerCheckEndInterval = 1000; // 1 sec
 
-        wxTimer   m_timer;
-        wxTimer   m_timerCheckEnd;
+        wxTimer m_renderTimer;
 
-        const wxFont m_font;
-
-        wxFFmpegView* m_mediaControl { nullptr };
+        textRedererPtr m_textRenderer;
+        videoRedererPtr m_videoRenderer;
+        moviePtr m_movie;
         
-        bool m_isOK = false;
+        int64_t m_pts { 0 };
+        bool m_isOK { false };
 
-        //wxDECLARE_EVENT_TABLE();
+        wxGLCanvas* m_canvas { nullptr };
+
+        wxEvtHandler* m_eventHandler { nullptr };
+        wxCommandEvent m_eventMediaPlay;
+        wxCommandEvent m_eventMediaFinised;
+
+        wxDECLARE_EVENT_TABLE();
 };

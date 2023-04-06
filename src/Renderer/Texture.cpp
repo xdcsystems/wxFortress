@@ -111,5 +111,6 @@ void Texture2D::generate( const wxImage &image )
 
 void Texture2D::bind() const
 {
+    GL_CHECK( glActiveTexture( GL_TEXTURE0 ) );
     GL_CHECK( glBindTexture( GL_TEXTURE_2D, ID ) );
 }

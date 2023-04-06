@@ -34,7 +34,7 @@ namespace ControlPanel
 
         private:
              // Event Handlers
-            void onPaint( wxPaintEvent& event );
+            void onPaint( wxPaintEvent& );
 
             // Helper functions
             void init();
