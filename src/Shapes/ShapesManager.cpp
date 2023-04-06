@@ -1,10 +1,10 @@
 // For compilers that support precompilation, includes "wx/wx.h".
-#include "wx/wxprec.h"
+#include <wx/wxprec.h>
 
 // for all others, include the necessary headers (this file is usually all you
 // need because it includes almost all "standard" wxWidgets headers)
 #ifndef WX_PRECOMP
-    #include "wx/wx.h"
+    #include <wx/wx.h>
 #endif
 
 #include <thread>
@@ -59,7 +59,7 @@ ShapesManager::~ShapesManager()
     resumeWorker();
 }
 
-void ShapesManager::loadLevel( unsigned short level )
+void ShapesManager::loadLevel( unsigned short level ) const
 {
     // let's throw some bricks
     m_bricks->loadLevel( level );
@@ -117,9 +117,20 @@ void ShapesManager::resize( const wxSize& size )
         resumeWorker();
 }
 
+void ShapesManager::run( bool bNewRound )
+{
+    m_state = State::RUN;
+
+    if ( bNewRound )
+    {
+        initDirection();
+        calculateDelta();
+    }
+}
+
 void ShapesManager::stop()
 {
-    m_isRun = false;
+    m_state = State::STOPPED;
     m_isRoundCompleted = false;
     m_particles->clear();
     m_explosions->clear();
@@ -170,7 +181,7 @@ void ShapesManager::changeMoveDirection( ContactPosition contactPosition, TypeCo
     calculateDelta();
 }
 
-void ShapesManager::moveBoard( float value )
+void ShapesManager::moveBoard( float value ) const
 {
     auto boardBounds = m_board->bounds();
     boardBounds.m_x += value;
@@ -252,19 +263,6 @@ void ShapesManager::checkKeysState()
         m_accelerate = 0;
 }
 
-bool ShapesManager::switchRun( bool bNewRound )
-{
-    m_isRun = !m_isRun;
-
-    if ( m_isRun && bNewRound )
-    {
-        initDirection();
-        calculateDelta();
-    }
-
-    return m_isRun;
-};
-
 ContactPosition ShapesManager::checkContact(
     const glm::vec2 &ballPosition,
     float beginValue,
@@ -336,7 +334,7 @@ void ShapesManager::update( double deltaTime )
         return;
     }
 
-    if ( m_isRun )
+    if ( isRunning() )
     {
         const auto& ballPosition = m_ball->position();
         const auto rab = m_ball->velocity().x;
@@ -356,7 +354,7 @@ void ShapesManager::update( double deltaTime )
         // update the position of the particles according to the new position of the ball
         m_particles->update( deltaTime * 0.001, m_ball, 2, glm::vec2( m_ball->radius() / 2.0f ) );
     }
-    else
+    else if ( isStopped() )
         updateBallPosition( m_board->bounds() );
 
     checkKeysState();
@@ -378,7 +376,7 @@ void ShapesManager::renderFrame( const rendererPtr &spriteRenderer )
     {
         m_bricks->draw( spriteRenderer );
         
-        if ( m_isRun )
+        if ( isRunning() )
         {
             m_particles->draw();
             spriteRenderer->selectShader();

@@ -1,10 +1,10 @@
 // For compilers that support precompilation, includes "wx/wx.h".
-#include "wx/wxprec.h"
+#include <wx/wxprec.h>
 
 // for all others, include the necessary headers (this file is usually all you
 // need because it includes almost all "standard" wxWidgets headers)
 #ifndef WX_PRECOMP
-    #include "wx/wx.h"
+    #include <wx/wx.h>
 #endif
 
 #include "Renderer/SpriteRenderer.h"
@@ -14,12 +14,13 @@
 
 using namespace Shapes;
 
-Brick::Brick( float x, float y, BrickType type, const glm::vec2& texSize )
+Brick::Brick( const glm::vec2& position, BrickType type, const glm::vec2& texSize )
 {
-    m_size = s_defaultSize;
-    m_position = { x * m_size.x, y * m_size.y };
+     m_size = SizeOf( type );
+     m_position = position;
 
-    m_alive = type != BrickType::NONE;
+     m_alive = !( type == BrickType::NONE || type == BrickType::HALF );
+
     if ( m_alive )
     {
         const float divisionScale = 1.f / texSize.x;

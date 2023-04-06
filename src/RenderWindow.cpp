@@ -1,10 +1,10 @@
 // For compilers that support precompilation, includes "wx/wx.h".
-#include "wx/wxprec.h"
+#include <wx/wxprec.h>
 
 // for all others, include the necessary headers (this file is usually all you
 // need because it includes almost all "standard" wxWidgets headers)
 #ifndef WX_PRECOMP
-    #include "wx/wx.h"
+    #include <wx/wx.h>
 #endif
 
 #include <map>
@@ -23,16 +23,18 @@
 
 #include "Common/defs.h"
 #include "Common/Timer.h"
-#include "Common/Tools.h"
 #include "Common/Rect.hpp"
-#include "Shader.h"
-#include "SpriteRenderer.h"
+#include "Common/Tools.h"
+#include "Renderer/ResourceManager.h"
+#include "Renderer/Shader.h"
+#include "Renderer/SpriteRenderer.h"
+#include "Renderer/Overlay.h"
+#include "Renderer/TextRenderer.h"
 #include "Sounds/SoundManager.h"
 #include "Shapes/ShapesManager.h"
 #include "Shapes/ParticleGenerator.h"
-#include "ResourceManager.h"
-#include "Overlay.h"
-#include "TextRenderer.h"
+#include "Video/MediaManager.h"
+
 #include "RenderWindow.h"
 
 #if defined( _MSC_VER )
@@ -42,18 +44,23 @@
 DEFINE_LOCAL_EVENT_TYPE( wxEVT_LAUNCH_PRESSED )
 DEFINE_LOCAL_EVENT_TYPE( wxEVT_NEW_ROUND_STARTED )
 DEFINE_LOCAL_EVENT_TYPE( wxEVT_STAGE_FINISHED )
+DEFINE_LOCAL_EVENT_TYPE( wxEVT_RESET )
 
+// clang-format off
 BEGIN_EVENT_TABLE( RenderWindow, wxGLCanvas )
     EVT_PAINT( RenderWindow::onPaint )
     EVT_KEY_DOWN( RenderWindow::onKeyPressed )
     EVT_SIZE( RenderWindow::onSize )
+    EVT_HELP( wxID_ANY, RenderWindow::onHelp )
     EVT_COMMAND( wxID_ANY, wxEVT_CURRENT_SCORE_INCREASED, RenderWindow::onScoreIncreased )
     EVT_COMMAND( wxID_ANY, wxEVT_ROUND_COMLETED, RenderWindow::onRoundCompleted )
     EVT_COMMAND( wxID_ANY, wxEVT_BALL_LOST, RenderWindow::onBallLost )
     EVT_COMMAND( wxID_ANY, wxEVT_PING, RenderWindow::onPaddleContact )
     EVT_COMMAND( wxID_ANY, wxEVT_PONG, RenderWindow::onPaddleContact )
     EVT_COMMAND( wxID_ANY, wxEVT_STAGE_FINISHED, RenderWindow::onStageFinished )
+    EVT_COMMAND( wxID_ANY, wxEVT_CHAR_SHOW, RenderWindow::onTextCharShow )
 END_EVENT_TABLE()
+// clang-format on
 
 RenderWindow::RenderWindow(
     wxWindow *parent,
@@ -84,6 +91,8 @@ void RenderWindow::init()
     wxIdleEvent::SetMode( wxIDLE_PROCESS_SPECIFIED );
 
     m_timer = std::make_shared<Timer>( false );
+
+    m_mediaManager = std::make_shared<MediaManager>( this, m_textRenderer );
 }
 
 RenderWindow::~RenderWindow()
@@ -99,7 +108,7 @@ void RenderWindow::initializeGLEW()
     if ( err != GLEW_OK )
     {
         const GLubyte *msg = glewGetErrorString( err );
-        throw std::exception( reinterpret_cast<const char *>( msg ) );
+        throw std::runtime_error( reinterpret_cast<const char *>( msg ) );
     }
 }
 
@@ -115,23 +124,14 @@ void RenderWindow::setupGraphics()
     wglSwapIntervalEXT( GetContext()->GetWXGLContext() );
 #endif
 
-    const auto size = GetClientSize();
-
     // load shaders
     ResourceManager::LoadShader( "/../data/shaders/Sprite.vs",   "/../data/shaders/Sprite.fraq",   "", "sprite" );
     ResourceManager::LoadShader( "/../data/shaders/Particle.vs", "/../data/shaders/Particle.frag", "", "particle" );
-    ResourceManager::LoadShader( "/../data/shaders/Text.vs",     "/../data/shaders/Text.frag",     "", "text" );
-
-    // configure shaders
-    glm::mat4 projection =
-      glm::ortho( 0.0f, static_cast<float>( size.GetWidth() ), 0.0f, static_cast<float>( size.GetHeight() ), -1.0f, 1.0f );
-
-    ResourceManager::GetShader( "sprite" )->use().setInteger( "image", 0 );
-    ResourceManager::GetShader( "sprite" )->setMatrix4( "projection", projection );
-    ResourceManager::GetShader( "particle" )->use().setInteger( "sprite", 0 );
-    ResourceManager::GetShader( "particle" )->setMatrix4( "projection", projection );
-    ResourceManager::GetShader( "text" )->use().setInteger( "charImage", 0 );
-    ResourceManager::GetShader( "text" )->setMatrix4( "projection", projection );
+    ResourceManager::LoadShader( "/../data/shaders/Text.vs", "/../data/shaders/Text.frag", "", "text" );
+    
+    ResourceManager::GetShader( "sprite" )->setInteger( "image", 0, true );
+    ResourceManager::GetShader( "particle" )->setInteger( "sprite", 0, true );
+    ResourceManager::GetShader( "text" )->setInteger( "charImage", 0, true );
 
     GL_CHECK( glClearColor( 0.0, 0.0, 0.0, 1.0 ) );
     GL_CHECK( glEnable( GL_TEXTURE_2D ) );
@@ -143,18 +143,14 @@ void RenderWindow::setupGraphics()
     // set render-specific controls
     m_spriteRenderer = std::make_shared<SpriteRenderer>( ResourceManager::GetShader( "sprite" ) );
     m_shapesManager = std::make_shared<Shapes::ShapesManager>( this );
+    m_overlay = std::make_shared<Overlay>();
+    m_textRenderer = std::make_shared<TextRenderer>( this );
 }
 
-void RenderWindow::start()
+void RenderWindow::playIntro()
 {
-    Bind( wxEVT_IDLE, &RenderWindow::onIdle, this );
-    m_isRunning = true;
-}
-
-void RenderWindow::stop()
-{
-    m_isRunning = false;
-    Unbind( wxEVT_IDLE, &RenderWindow::onIdle, this );
+    m_state = State::PLAY;
+    m_mediaManager->playIntro();
 }
 
 void RenderWindow::loadLevel( unsigned short level )
@@ -168,6 +164,20 @@ void RenderWindow::loadLevel( unsigned short level )
         wxCommandEvent eventStageFinished( wxEVT_STAGE_FINISHED );
         AddPendingEvent( eventStageFinished );
     }
+}
+
+void RenderWindow::start()
+{
+    m_state = State::NEWROUND;
+
+    Bind( wxEVT_IDLE, &RenderWindow::onIdle, this );
+    m_isRunning = true;
+}
+
+void RenderWindow::stop()
+{
+    m_isRunning = false;
+    Unbind( wxEVT_IDLE, &RenderWindow::onIdle, this );
 }
 
 void RenderWindow::switchRun()
@@ -196,7 +206,17 @@ void RenderWindow::switchRun()
         m_soundManager->playRocket();
     }
 
-    m_state = m_shapesManager->switchRun( m_state == State::NEWROUND ) ? State::RUN : State::PAUSE;
+    if ( m_shapesManager->isRunning() )
+    {
+        m_shapesManager->pause();
+        m_state = State::PAUSE;
+    }
+    else
+    {
+        m_shapesManager->run( m_state == State::NEWROUND );
+        m_state = State::RUN;
+    }
+
     //wxCommandEvent eventStageFinished( wxEVT_STAGE_FINISHED );
     //AddPendingEvent( eventStageFinished );
 }
@@ -206,10 +226,23 @@ void RenderWindow::resize( const wxSize &size )
     if ( size.x < 1 || size.y < 1 )
         return;
 
-    //GL_CHECK( glViewport( 0, 0, ( GLint )size.GetWidth(), ( GLint )size.GetHeight() ) );
+    GL_CHECK( glViewport( 0, 0, ( GLint )size.GetWidth(), ( GLint )size.GetHeight() ) );
 
-    m_overlay = std::make_shared<Overlay>( size );
+    // configure shaders
+    const auto &projection =
+        glm::ortho( 0.0f, static_cast< float >( size.GetWidth() ), 0.0f, static_cast< float >( size.GetHeight() ), -1.0f, 1.0f );
+
+    ResourceManager::GetShader( "sprite" )->setMatrix4( "projection", projection, true );
+    ResourceManager::GetShader( "particle" )->setMatrix4( "projection", projection, true );
+    ResourceManager::GetShader( "text" )->setMatrix4( "projection", projection, true );
+
+// TODO    
+    clearScreen();
+    SwapBuffers();
+//
+    m_overlay->resize( size );
     m_shapesManager->resize( size );
+    m_mediaManager->resize( size );
 }
 
 void RenderWindow::onPaint( wxPaintEvent & )
@@ -262,8 +295,9 @@ void RenderWindow::render()
             m_overlay->showCountDown( m_spriteRenderer, m_countDown );
         break;
 
+        case State::HELP:
         case State::FINISHED:
-            m_textRender->renderFrame();
+            m_textRenderer->renderFrame();
         break;
 
         default :
@@ -280,26 +314,75 @@ void RenderWindow::render()
 void RenderWindow::onSize( wxSizeEvent &event )
 {
     resize( event.GetSize() );
+    event.Skip();
 }
 
 void RenderWindow::onKeyPressed( wxKeyEvent &event )
 {
-    switch ( event.GetKeyCode() )
+    switch ( m_state )
     {
-        case WXK_SPACE:
+        case State::PLAY:
+            if ( event.GetKeyCode() == 'R' ||
+                event.GetKeyCode() == 'r' )
+            {
+                m_mediaManager->stop();
+            }
+        break;
+
+        case State::HELP:
+            if ( event.GetKeyCode() == WXK_ESCAPE )
+                  m_state = m_prevState;
+        break;
+
+        case State::RUN:
+        case State::PAUSE:
+        case State::NEWROUND:
         {
-            switchRun();
-            m_timer->stop();
-            m_timer->start();
+            switch ( event.GetKeyCode() )
+            {
+                case WXK_SPACE:
+                {
+                    switchRun();
+                    m_timer->stop();
+                    m_timer->start();
+                }
+                break;
+
+                case WXK_F1:
+                {
+                    if ( m_state == State::RUN )
+                    {
+                        switchRun();
+                        m_timer->stop();
+                        m_timer->start();
+                    }
+                    m_prevState = m_state;
+                }
+                break;
+
+                case WXK_ESCAPE:
+                    m_parent->Close();
+                break;
+            }
         }
         break;
 
-        case WXK_F1:
-            //... give help ...
-        break;
+        case State::FINISHED:
+        {
+            if ( event.GetKeyCode() == 'Y' ||
+                event.GetKeyCode() == 'y' )
+            {
+                m_state = State::NEWROUND;
+                wxCommandEvent eventReset( wxEVT_RESET );
+                AddPendingEvent( eventReset );
 
-        case WXK_ESCAPE:
-            m_parent->Close();
+                break;
+            }
+
+            if ( event.GetKeyCode() == 'N' ||
+                event.GetKeyCode() == 'n' )
+                m_parent->Close();
+        }
         break;
     }
 }
@@ -340,11 +423,24 @@ void RenderWindow::onBallLost( wxCommandEvent &event )
     event.Skip();
 }
 
+void RenderWindow::onTextCharShow( wxCommandEvent& )
+{
+    m_soundManager->playCharShow();
+}
+
 void RenderWindow::onStageFinished( wxCommandEvent& )
 {
-    m_textRender = std::make_shared<TextRenderer>();
-    m_textRender->init();
-    
+    static unsigned short s_stage = 0;
+
+    m_textRenderer->selectFontType( TextRendererFont::OLD );
+    m_textRenderer->switchToFinishState( ++s_stage );
     m_state = State::FINISHED;
+}
+
+void RenderWindow::onHelp( wxHelpEvent& )
+{
+    m_textRenderer->selectFontType( TextRendererFont::OLD );
+    m_textRenderer->switchToHelpState();
+    m_state = State::HELP;
 }
 

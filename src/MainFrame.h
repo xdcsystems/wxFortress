@@ -33,6 +33,7 @@ class MainFrame final : public wxFrame
             const wxString& name = wxASCII_STR( wxFrameNameStr ) );
 
         bool isRunning() const { return m_isRunning; };
+        void playIntro() const;
         void start();
         void stop();
 
@@ -43,6 +44,7 @@ class MainFrame final : public wxFrame
         void onRoundStarted( wxCommandEvent& );
         void onRoundCompleted( wxCommandEvent& );
         void onBallLost( wxCommandEvent& );
+        void onReset( wxCommandEvent& );
         void onScoreIncreased( wxCommandEvent& );
         void onVideoFinished( wxCommandEvent& );
 
@@ -52,10 +54,9 @@ class MainFrame final : public wxFrame
         // Private data
         std::shared_ptr<RenderWindow> m_renderSurface;
         std::shared_ptr<ControlPanel::Panel> m_controlPanel;
-        std::shared_ptr <MediaManager> m_mediaManager;
-
+        
 #if defined( wxUSE_LOGWINDOW ) && defined( USE_LOGGER )
-        wxLogWindow* m_logWindow = nullptr;
+        wxLogWindow* m_logWindow { nullptr };
 #endif // wxUSE_LOGWINDOW
 
         bool m_isRunning = false;

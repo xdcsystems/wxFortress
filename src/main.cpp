@@ -1,10 +1,10 @@
 // For compilers that support precompilation, includes "wx/wx.h".
-#include "wx/wxprec.h"
+#include <wx/wxprec.h>
 
 // for all others, include the necessary headers (this file is usually all you
 // need because it includes almost all "standard" wxWidgets headers)
 #ifndef WX_PRECOMP
-    #include "wx/wx.h"
+    #include <wx/wx.h>
 #endif
 
 #if !wxUSE_EXCEPTIONS
@@ -31,6 +31,7 @@ bool App::OnInit()
             // Give it an icon
             m_mainFrame->SetIcon( sample_xpm );
             m_mainFrame->Show();
+            m_mainFrame->playIntro();
 
             return true;
         }
@@ -59,3 +60,4 @@ bool App::OnExceptionInMainLoop()
     }
     return false;
 }
+

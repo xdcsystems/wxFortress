@@ -1,10 +1,10 @@
 // For compilers that support precompilation, includes "wx/wx.h".
-#include "wx/wxprec.h"
+#include <wx/wxprec.h>
 
 // for all others, include the necessary headers (this file is usually all you
 // need because it includes almost all "standard" wxWidgets headers)
 #ifndef WX_PRECOMP
-    #include "wx/wx.h"
+    #include <wx/wx.h>
 #endif
 
 #include <GL/glew.h>
@@ -35,7 +35,7 @@ void Texture2D::generate( const wxImage &image )
     GL_CHECK( glBindTexture( GL_TEXTURE_2D, ID ) );
 
     GLubyte* alphaData = image.GetAlpha();
-    const bool hasAlfa = ( alphaData != NULL );
+    const bool hasAlfa = ( alphaData != nullptr );
 
     // https://www.khronos.org/opengl/wiki/Common_Mistakes#The_Object_Oriented_Language_Problem
     //glPixelStorei( GL_UNPACK_ALIGNMENT, 4 );
@@ -44,7 +44,7 @@ void Texture2D::generate( const wxImage &image )
 
     const int bytesPerPixel = hasAlfa ? 4 : 3;
     GLubyte* bitmapData = image.GetData();
-    GLubyte* imageData = nullptr;
+    GLubyte* imageData { nullptr };
 
     // note: must make a local copy before passing the data to OpenGL, as GetData() returns RGB 
     // and we want the Alpha channel if it's present. Additionally OpenGL seems to interpret the 
@@ -111,5 +111,6 @@ void Texture2D::generate( const wxImage &image )
 
 void Texture2D::bind() const
 {
+    GL_CHECK( glActiveTexture( GL_TEXTURE0 ) );
     GL_CHECK( glBindTexture( GL_TEXTURE_2D, ID ) );
 }

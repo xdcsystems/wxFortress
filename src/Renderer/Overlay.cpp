@@ -1,10 +1,10 @@
 // For compilers that support precompilation, includes "wx/wx.h".
-#include "wx/wxprec.h"
+#include <wx/wxprec.h>
 
 // for all others, include the necessary headers (this file is usually all you
 // need because it includes almost all "standard" wxWidgets headers)
 #ifndef WX_PRECOMP
-    #include "wx/wx.h"
+    #include <wx/wx.h>
 #endif
 
 #include <map>
@@ -17,18 +17,22 @@
 #include "Overlay.h"
 
 
-Overlay::Overlay( const wxSize& size )
- : m_font( 36, wxFONTFAMILY_SWISS, wxFONTSTYLE_ITALIC, wxFONTWEIGHT_NORMAL )
- , m_size( size )
-{
-    m_countdown = std::make_shared<CountDown>( size );
+Overlay::Overlay()
+ {
+    m_countdown = std::make_shared<CountDown>();
     
     m_pauseTex = ResourceManager::LoadTexture(
         "/../resources/images/Pause.png",
         "pause" );
 }
 
-void Overlay::showPause( const rendererPtr &renderer )
+void Overlay::resize( const wxSize& size )
+{
+    m_size = size;
+    m_countdown->resize( size );
+}
+
+void Overlay::showPause( const rendererPtr &renderer ) const
 {
     m_pauseTex->bind();
     renderer->drawSprite(
@@ -36,7 +40,7 @@ void Overlay::showPause( const rendererPtr &renderer )
         { m_pauseTex->Width, m_pauseTex->Height } );
 }
 
-void Overlay::showCountDown( const rendererPtr &renderer, unsigned char count )
+void Overlay::showCountDown( const rendererPtr &renderer, unsigned char count ) const
 {
     m_countdown->show( renderer, count );
 }

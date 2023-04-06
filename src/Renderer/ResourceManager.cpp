@@ -1,10 +1,10 @@
 // For compilers that support precompilation, includes "wx/wx.h".
-#include "wx/wxprec.h"
+#include <wx/wxprec.h>
 
 // for all others, include the necessary headers (this file is usually all you
 // need because it includes almost all "standard" wxWidgets headers)
 #ifndef WX_PRECOMP
-    #include "wx/wx.h"
+    #include <wx/wx.h>
 #endif
 
 #include <GL/glew.h>
@@ -17,10 +17,6 @@
 #include "Texture.h"
 #include "Shader.h"
 #include "ResourceManager.h"
-
-// Instantiate static variables
-std::map<std::string, texture2DPtr> ResourceManager::s_textures;
-std::map<std::string, shaderPtr> ResourceManager::s_shaders;
 
 
 shaderPtr ResourceManager::LoadShader( const std::string& vShaderFile, const std::string& fShaderFile, const std::string& gShaderFile, const std::string& name )

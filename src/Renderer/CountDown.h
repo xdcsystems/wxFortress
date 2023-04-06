@@ -10,12 +10,15 @@ class CountDown
     using texture2DPtr = std::shared_ptr<Texture2D>;
 
     public:
-        CountDown( const wxSize& size );
+        CountDown();
         ~CountDown();
 
-        void show( const rendererPtr& renderer, unsigned char count );
+        void resize( const wxSize& size );
+        void show( const rendererPtr& renderer, unsigned char count ) const;
 
     private:
+        void clear();
+
         texture2DPtr m_countdownSprite;
 
         std::map<unsigned char, unsigned int> m_countdownMap =

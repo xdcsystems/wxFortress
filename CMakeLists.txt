@@ -56,8 +56,36 @@ if( WIN32 )
 endif()
 
 target_compile_features( ${PROJECT_NAME} PRIVATE cxx_std_17 )
-target_include_directories( ${PROJECT_NAME} PRIVATE PRIVATE ${CMAKE_CURRENT_LIST_DIR} "${CMAKE_CURRENT_LIST_DIR}/src" )
-target_link_libraries( ${PROJECT_NAME} wx::core wx::base wx::media wx::gl OpenAL::OpenAL libglew_shared glm::glm )
+
+target_include_directories(
+	${PROJECT_NAME} 
+	PRIVATE 
+	${FFMPEG_INCLUDE_DIRS}
+	${CMAKE_CURRENT_LIST_DIR}
+	${CMAKE_CURRENT_LIST_DIR}/src
+)
+
+target_link_libraries(
+	${PROJECT_NAME}
+	glm::glm
+	wx::core
+	wx::base
+	wx::gl
+	OpenAL::OpenAL
+	libglew_shared
+	FFmpeg::FFmpeg
+)
+
+target_link_options(${CMAKE_PROJECT_NAME} PUBLIC "$<$<C_COMPILER_ID:MSVC>:-SAFESEH:NO>")
+
+# copy ffmpeg dll's
+if( WIN32 )
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+       COMMAND ${CMAKE_COMMAND} -E copy_directory 
+               ${PROJECT_SOURCE_DIR}/external/ffmpeg/win32/lib/dlls/
+               $<TARGET_FILE_DIR:${PROJECT_NAME}>
+    )
+endif()
 
 #set_target_properties(MyTarget PROPERTIES
 #    VS_GLOBAL_RunCodeAnalysis false
