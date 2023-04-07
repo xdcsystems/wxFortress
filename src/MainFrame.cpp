@@ -48,11 +48,11 @@ bool MainFrame::Create( wxWindow *parent, int id, const wxString &title, wxPoint
 void MainFrame::init()
 {
 #if defined( wxUSE_LOGWINDOW ) && defined( USE_LOGGER )
-    m_logWindow = new wxLogWindow( nullptr, wxT( "Log" ), true, false );
-    m_logWindow->SetVerbose( TRUE );
-    wxLog::SetActiveTarget( m_logWindow );
+    auto logWindow = new wxLogWindow( nullptr, wxT( "Log" ), true, false );
+    logWindow->SetVerbose( TRUE );
+    wxLog::SetActiveTarget( logWindow );
 
-    m_logWindow->GetFrame()->SetFocus();
+    //m_logWindow->GetFrame()->SetFocus();
 #endif
 
     SetBackgroundColour( *wxBLACK );

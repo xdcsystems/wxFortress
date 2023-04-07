@@ -62,16 +62,16 @@ namespace Shapes
         private:
             // Private data
             wxSize m_size;
-            State m_state = State::STOPPED;
+            State m_state { State::STOPPED };
 
-            bool m_isRobot = true;
-            bool m_isRoundCompleted = false;
+            bool m_isRobot { true };
+            bool m_isRoundCompleted { false };
 
-            float m_ballTopLimit = 0;
-            float m_ballBottomLimit = 0;
-            float m_accelerate = 0;
+            float m_ballTopLimit { 0 };
+            float m_ballBottomLimit { 0 };
+            float m_accelerate { 0 };
 
-            glm::vec2 m_delta { 0, 0 };
+            glm::vec2 m_delta { 0.f, 0.f };
 
             wxEvtHandler* m_eventHandler { nullptr };
             wxCommandEvent m_eventCurrentScoreInc;

@@ -1,3 +1,12 @@
+// For compilers that support precompilation, includes "wx/wx.h".
+#include <wx/wxprec.h>
+
+// for all others, include the necessary headers (this file is usually all you
+// need because it includes almost all "standard" wxWidgets headers)
+#ifndef WX_PRECOMP
+#include <wx/wx.h>
+#endif
+
 #include <memory>
 #include <vector>
 #include <string>
@@ -8,7 +17,6 @@
 #include "Renderer/ResourceManager.h"
 #include "Renderer/Texture.h"
 #include "Renderer/Shader.h"
-#include "Renderer/SpriteRenderer.h"
 #include "VideoRenderer.h"
 
 // clang-format off
@@ -20,8 +28,7 @@ float vertices[] = {
 };
 
 unsigned int indices[] = {
-    0, 1, 3,
-    1, 2, 3
+    0, 1,  3, 1,  2, 3
 };
 // clang-format on
 
@@ -29,18 +36,25 @@ VideoRenderer::VideoRenderer()
 {
     m_shader = ResourceManager::LoadShader( "/../data/shaders/Video.vs", "/../data/shaders/Video.fraq", "", "video" );
 
-    GL_CHECK( glGenVertexArrays( 1, &m_VAO ) );
+    //GL_CHECK( glGenVertexArrays( 1, &m_VAO ) );
     GL_CHECK( glGenBuffers( 1, &m_VBO ) );
     GL_CHECK( glGenBuffers( 1, &m_EBO ) );
-    GL_CHECK( glBindVertexArray( m_VAO ) );
+
+    //GL_CHECK( glBindVertexArray( m_VAO ) );
+
+    GL_CHECK( m_attrVertex = glGetAttribLocation( m_shader->ID, "aPos" ) );
+    GL_CHECK( m_attrUVs = glGetAttribLocation( m_shader->ID, "aTexCoord" ) );
+
     GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, m_VBO ) );
     GL_CHECK( glBufferData( GL_ARRAY_BUFFER, sizeof( vertices ), vertices, GL_DYNAMIC_DRAW ) );
     GL_CHECK( glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, m_EBO ) );
     GL_CHECK( glBufferData( GL_ELEMENT_ARRAY_BUFFER, sizeof( indices ), indices, GL_STATIC_DRAW ) );
-    GL_CHECK( glVertexAttribPointer( 0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof( float ), 0 ) );
-    GL_CHECK( glEnableVertexAttribArray( 0 ) );
-    GL_CHECK( glVertexAttribPointer( 1, 3, GL_FLOAT, GL_FALSE, 5 * sizeof( float ), (void *)( 3 * sizeof( float ) ) ) );
-    GL_CHECK( glEnableVertexAttribArray( 1 ) );
+    
+    GL_CHECK( glVertexAttribPointer( m_attrVertex, 3, GL_FLOAT, GL_FALSE, 5 * sizeof( float ), ( void* )nullptr ) );
+    GL_CHECK( glEnableVertexAttribArray( m_attrVertex ) );
+
+    GL_CHECK( glVertexAttribPointer( m_attrUVs, 2, GL_FLOAT, GL_FALSE, 5 * sizeof( float ), (void *)( 3 * sizeof( float ) ) ) );
+    GL_CHECK( glEnableVertexAttribArray( m_attrUVs ) );
 
     GL_CHECK( glGenTextures( 3, m_texs ) );
     for ( int i = 0; i < 3; i++ )
@@ -59,10 +73,10 @@ VideoRenderer::VideoRenderer()
 
 VideoRenderer::~VideoRenderer()
 {
-    GL_CHECK( glDisableVertexAttribArray( 0 ) );
-    GL_CHECK( glDisableVertexAttribArray( 1 ) );
+    GL_CHECK( glDisableVertexAttribArray( m_attrVertex ) );
+    GL_CHECK( glDisableVertexAttribArray( m_attrUVs ) );
 
-    GL_CHECK( glDeleteVertexArrays( 1, &m_VAO ) );
+    //GL_CHECK( glDeleteVertexArrays( 1, &m_VAO ) );
     GL_CHECK( glDeleteBuffers( 1, &m_VBO ) );
     GL_CHECK( glDeleteBuffers( 1, &m_EBO ) );
 }
@@ -79,8 +93,12 @@ void VideoRenderer::setViewport( int x, int y, int width, int height )
     GL_CHECK( glViewport( x, y, m_viewWidth, m_viewHeight ) );
 }
 
-void VideoRenderer::draw( int width, int height, uint8_t **data, int *linesize, bool showMessage )
+void VideoRenderer::draw( int width, int height, uint8_t **data, int *linesize )
 {
+    wxLogDebug("Frame received: w=%d, h=%d, data=%p", width, height, data[0] );
+    
+    m_shader->use();
+
     bool changed = false;
     if ( m_texWidth != width )
     {
@@ -131,10 +149,12 @@ void VideoRenderer::draw( int width, int height, uint8_t **data, int *linesize, 
 ////////////
     GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, m_VBO ) );
     GL_CHECK( glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, m_EBO ) );
-    GL_CHECK( glVertexAttribPointer( 0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof( float ), 0 ) );
-    GL_CHECK( glEnableVertexAttribArray( 0 ) );
-    GL_CHECK( glVertexAttribPointer( 1, 3, GL_FLOAT, GL_FALSE, 5 * sizeof( float ), ( void* )( 3 * sizeof( float ) ) ) );
-    GL_CHECK( glEnableVertexAttribArray( 1 ) );
+
+    GL_CHECK( glVertexAttribPointer( m_attrVertex, 3, GL_FLOAT, GL_FALSE, 5 * sizeof( float ), ( void* )nullptr ) );
+    GL_CHECK( glEnableVertexAttribArray( m_attrVertex ) );
+
+    GL_CHECK( glVertexAttribPointer( m_attrUVs, 2, GL_FLOAT, GL_FALSE, 5 * sizeof( float ), ( void* )( 3 * sizeof( float ) ) ) );
+    GL_CHECK( glEnableVertexAttribArray( m_attrUVs ) );
 ////////////
 
     GL_CHECK( glActiveTexture( GL_TEXTURE0 ) );
@@ -173,8 +193,12 @@ void VideoRenderer::draw( int width, int height, uint8_t **data, int *linesize, 
 
     GL_CHECK( glPixelStorei( GL_UNPACK_ROW_LENGTH, 0 ) );
 
-    m_shader->use();
-    GL_CHECK( glBindVertexArray( m_VAO ) );
+    //m_shader->use();
+    //GL_CHECK( glBindVertexArray( m_VAO ) );
+    //GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, m_VBO ) );
     GL_CHECK( glDrawElements( GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0 ) );
+
+    GL_CHECK( glDisableVertexAttribArray( m_attrVertex ) );
+    GL_CHECK( glDisableVertexAttribArray( m_attrUVs ) );
 }
 

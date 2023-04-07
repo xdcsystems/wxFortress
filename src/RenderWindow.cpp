@@ -71,13 +71,16 @@ RenderWindow::RenderWindow(
     long style,
     const wxString &name,
     const wxPalette &palette )
-  : wxGLCanvas( parent, id, attribList, pos, size, style, name, palette )
+    : wxGLCanvas( parent, id, attribList, { 0, 0 }, { 0, 0 }, style, name, palette )
 {
+    SetMinSize( size );
     init();
 }
 
 void RenderWindow::init()
 {
+    SetBackgroundColour( *wxBLACK );
+
     m_context = std::make_unique<wxGLContext>( this );
     SetCurrent( *m_context );  // TODO move to resize
 
@@ -93,6 +96,8 @@ void RenderWindow::init()
     m_timer = std::make_shared<Timer>( false );
 
     m_mediaManager = std::make_shared<MediaManager>( this, m_textRenderer );
+
+    Bind( wxEVT_IDLE, &RenderWindow::onIdle, this );
 }
 
 RenderWindow::~RenderWindow()
@@ -169,8 +174,6 @@ void RenderWindow::loadLevel( unsigned short level )
 void RenderWindow::start()
 {
     m_state = State::NEWROUND;
-
-    Bind( wxEVT_IDLE, &RenderWindow::onIdle, this );
     m_isRunning = true;
 }
 
@@ -236,10 +239,6 @@ void RenderWindow::resize( const wxSize &size )
     ResourceManager::GetShader( "particle" )->setMatrix4( "projection", projection, true );
     ResourceManager::GetShader( "text" )->setMatrix4( "projection", projection, true );
 
-// TODO    
-    clearScreen();
-    SwapBuffers();
-//
     m_overlay->resize( size );
     m_shapesManager->resize( size );
     m_mediaManager->resize( size );
@@ -253,33 +252,35 @@ void RenderWindow::onPaint( wxPaintEvent & )
 
 void RenderWindow::onIdle( wxIdleEvent &event )
 {
-    if ( m_isRunning )
+    m_elapsedTime = m_timer->getElapsedTimeInMilliSec();
+    if ( m_elapsedTime >= 16 )
     {
-        m_elapsedTime = m_timer->getElapsedTimeInMilliSec();
-        if ( m_elapsedTime >= 16 )
-        {
-            m_timer->start();
-            render();
-        }
+        m_timer->start();
+        render();
     }
+
     event.RequestMore();
 }
 
 void RenderWindow::clearScreen()
 {
     SetCurrent( *m_context );
-    GL_CHECK( glClear( GL_COLOR_BUFFER_BIT ) );
+    //GL_CHECK( glClear( GL_COLOR_BUFFER_BIT ) );
 }
 
 void RenderWindow::render()
 {
-    if ( !m_isRunning || !IsShown() )
+    if ( !IsShown() )
         return;
 
     clearScreen();
 
     switch ( m_state )
     {
+        case State::PLAY:
+            m_mediaManager->renderFrame();
+        break;
+
         case State::NEWROUND:
         case State::RUN:
             m_shapesManager->renderFrame( m_spriteRenderer );

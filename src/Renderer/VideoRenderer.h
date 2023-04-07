@@ -16,16 +16,19 @@ class VideoRenderer
 
         bool ok();
         void setViewport( int x, int y, int width, int height );
-        void draw( int width, int height, uint8_t **data, int *linesize, bool showMessage = false );
+        void draw( int width, int height, uint8_t **data, int *linesize );
 
         int viewWidth() const { return m_viewWidth; };
         int viewHeight() const { return m_viewHeight; };
 
     private:
-        unsigned int m_VBO = 0;
-        unsigned int m_VAO = 0;
-        unsigned int m_EBO = 0;
-        unsigned int m_texs[3];
+        unsigned int m_VBO { 0 };
+        unsigned int m_VAO { 0 };
+        unsigned int m_EBO { 0 };
+        unsigned int m_texs[ 3 ] {};
+
+        unsigned int m_attrVertex{ 0 };
+        unsigned int m_attrUVs{ 0 };
 
         float m_ratio { 1 };
         int m_viewWidth { -1 };

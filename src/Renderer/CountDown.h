@@ -21,12 +21,12 @@ class CountDown
 
         texture2DPtr m_countdownSprite;
 
-        std::map<unsigned char, unsigned int> m_countdownMap =
+        std::map<unsigned char, unsigned int> m_countdownMap
         {
             { 3, 0 },
             { 2, 0 },
             { 1, 0 },
         };
-        constexpr inline static glm::vec2 s_countdownSize = { 250.f, 250.f };
-        glm::vec2 m_countDownPosition = { .0f, .0f };
+        constexpr inline static glm::vec2 s_countdownSize { 250.f, 250.f };
+        glm::vec2 m_countDownPosition { .0f, .0f };
 };

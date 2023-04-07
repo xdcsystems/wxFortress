@@ -89,12 +89,12 @@ class RenderWindow final : public wxGLCanvas
 
         std::shared_ptr<Timer> m_timer;
 
-        double m_elapsedTime = 0;
+        double m_elapsedTime { 0 };
         
         bool m_isRunning = false;
-        unsigned char m_countDown = 0;
+        unsigned char m_countDown { 0 };
 
-        State m_state = State::NEWROUND;
+        State m_state = State::PLAY;
         State m_prevState = State::NEWROUND;
 
         wxDECLARE_EVENT_TABLE();

@@ -45,10 +45,10 @@ namespace ControlPanel
             void reset( T newValue = 0 ) { m_value = newValue; }
 
         private:
-            const wxSize m_size = { 79, 22 };
+            const wxSize m_size { 79, 22 };
             wxPoint m_position;
 
             T m_value;
-            unsigned char m_capacity = 3;
+            unsigned char m_capacity { 3 };
     };
 }  // namespace ControlPanel

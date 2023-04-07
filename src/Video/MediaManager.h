@@ -5,6 +5,7 @@ class wxGLCanvas;
 class TextRenderer;
 class VideoRenderer;
 class Movie;
+struct AVFrame;
 
 class MediaManager final
 {
@@ -21,33 +22,30 @@ class MediaManager final
         void playIntro();
         void stop();
 
-   private:
-        // Event Handlers
-        void OnRenderTimer( wxTimerEvent& );
+        void renderFrame();
 
+   private:
         // Helper functions
         void showSkipMessage( bool show = true );
         void open( std::string filename );
         void close();
         
         // Private data
-        static const int64_t s_timerInterval = 15000000000; // 15 sec
-        static const int s_timerCheckEndInterval = 1000; // 1 sec
-
-        wxTimer m_renderTimer;
+        static const int64_t s_timerInterval { 15000000000 }; // 15 sec
 
         textRedererPtr m_textRenderer;
         videoRedererPtr m_videoRenderer;
         moviePtr m_movie;
         
-        int64_t m_pts { 0 };
-        bool m_isOK { false };
+        int64_t m_duration { -1 };
 
         wxGLCanvas* m_canvas { nullptr };
 
         wxEvtHandler* m_eventHandler { nullptr };
         wxCommandEvent m_eventMediaPlay;
         wxCommandEvent m_eventMediaFinised;
+
+        std::pair<AVFrame*, int64_t> m_currentFrame { nullptr, 0 };
 
         wxDECLARE_EVENT_TABLE();
 };

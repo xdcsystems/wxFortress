@@ -25,7 +25,7 @@ namespace Shapes
             bool empty() const;
 
         protected:
-            static inline const glm::vec2 s_defaultSize = { 128.f, 128.f };
+            static inline const glm::vec2 s_defaultSize { 128.f, 128.f };
             std::vector<explosionPtr> m_explosions;
             texture2DPtr m_explosionsSprite;
             std::vector<unsigned int> m_VBO;

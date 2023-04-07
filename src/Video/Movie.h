@@ -20,6 +20,7 @@ class Movie
         bool isFinished() const { return m_quit.load( std::memory_order_relaxed ) == true; }
 
         std::pair<AVFrame *, int64_t> currentFrame();
+        int64_t duration();
 
         nanoseconds getMasterClock();
         nanoseconds getClock();
