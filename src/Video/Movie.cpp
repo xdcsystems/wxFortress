@@ -8,6 +8,34 @@
 
 static AVBufferRef* hw_device_ctx = nullptr;
 
+static int InitDecoderHW( AVCodecContext* ctx, const enum AVHWDeviceType type )
+{
+    int err = 0;
+
+    if ( ( err = av_hwdevice_ctx_create( &hw_device_ctx, type, NULL, NULL, 0 ) ) < 0 )
+    {
+        fprintf( stderr, "Failed to create specified HW device.\n" );
+        return err;
+    }
+    ctx->hw_device_ctx = av_buffer_ref( hw_device_ctx );
+
+    return err;
+}
+
+static enum AVPixelFormat GetFormatHW( AVCodecContext* ctx, const enum AVPixelFormat* pix_fmts )
+{
+    const enum AVPixelFormat* p;
+
+    for ( p = pix_fmts; *p != -1; p++ )
+    {
+        if ( *p == Movie::s_hwPixFormat )
+            return *p;
+    }
+
+    fprintf( stderr, "Failed to get HW surface format.\n" );
+    return AV_PIX_FMT_NONE;
+}
+
 Movie::Movie()
   : m_audio( *this )
   , m_video( *this )
@@ -48,32 +76,17 @@ std::pair<AVFrame *, int64_t> Movie::currentFrame()
     return m_video.currentFrame();
 }
 
-static int hw_decoder_init( AVCodecContext* ctx, const enum AVHWDeviceType type )
+int64_t Movie::duration()
 {
-    int err = 0;
-
-    if ( ( err = av_hwdevice_ctx_create( &hw_device_ctx, type, NULL, NULL, 0 ) ) < 0 )
+    if ( m_fmtCtx && m_fmtCtx->duration != AV_NOPTS_VALUE )
     {
-        fprintf( stderr, "Failed to create specified HW device.\n" );
-        return err;
+        return { 
+            std::chrono::duration_cast<nanoseconds>(
+                seconds_d64 { m_fmtCtx->duration / AV_TIME_BASE }
+            ).count()
+        };
     }
-    ctx->hw_device_ctx = av_buffer_ref( hw_device_ctx );
-
-    return err;
-}
-
-static enum AVPixelFormat get_hw_format( AVCodecContext* ctx, const enum AVPixelFormat* pix_fmts )
-{
-    const enum AVPixelFormat* p;
-
-    for ( p = pix_fmts; *p != -1; p++ )
-    {
-        if ( *p == Movie::s_hwPixFormat )
-            return *p;
-    }
-
-    fprintf( stderr, "Failed to get HW surface format.\n" );
-    return AV_PIX_FMT_NONE;
+    return -1;
 }
 
 int Movie::streamComponentOpen( unsigned int stream_index )
@@ -101,9 +114,9 @@ int Movie::streamComponentOpen( unsigned int stream_index )
         avctx->pix_fmt = AV_PIX_FMT_YUV420P;
 
         // try to use hw decoder
-        if ( hw_decoder_init( avctx.get(), AV_HWDEVICE_TYPE_DXVA2 ) == 0 )
+        if ( InitDecoderHW( avctx.get(), AV_HWDEVICE_TYPE_DXVA2 ) == 0 )
         {
-            avctx->get_format = get_hw_format;
+            avctx->get_format = GetFormatHW;
 
             for ( int i = 0;; i++ )
             {
