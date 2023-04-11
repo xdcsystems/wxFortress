@@ -66,38 +66,14 @@ RenderWindow::RenderWindow(
     wxWindow *parent,
     wxWindowID id,
     const int *attribList,
-    const wxPoint &pos,
     const wxSize &size,
     long style,
     const wxString &name,
     const wxPalette &palette )
-    : wxGLCanvas( parent, id, attribList, { 0, 0 }, { 0, 0 }, style, name, palette )
+    : wxGLCanvas( parent, id, attribList, { 0, 0 }, { 1, 1 }, style, name, palette )
 {
     SetMinSize( size );
     init();
-}
-
-void RenderWindow::init()
-{
-    SetBackgroundColour( *wxBLACK );
-
-    m_context = std::make_unique<wxGLContext>( this );
-    SetCurrent( *m_context );  // TODO move to resize
-
-    initializeGLEW();
-    setupGraphics();
-
-    m_soundManager = std::make_shared<SoundManager>();
-    m_soundManager->init();
-
-    SetExtraStyle( wxWS_EX_PROCESS_IDLE );
-    wxIdleEvent::SetMode( wxIDLE_PROCESS_SPECIFIED );
-
-    m_timer = std::make_shared<Timer>( false );
-
-    m_mediaManager = std::make_shared<MediaManager>( this, m_textRenderer );
-
-    Bind( wxEVT_IDLE, &RenderWindow::onIdle, this );
 }
 
 RenderWindow::~RenderWindow()
@@ -133,7 +109,7 @@ void RenderWindow::setupGraphics()
     ResourceManager::LoadShader( "/../data/shaders/Sprite.vs",   "/../data/shaders/Sprite.fraq",   "", "sprite" );
     ResourceManager::LoadShader( "/../data/shaders/Particle.vs", "/../data/shaders/Particle.frag", "", "particle" );
     ResourceManager::LoadShader( "/../data/shaders/Text.vs", "/../data/shaders/Text.frag", "", "text" );
-    
+
     ResourceManager::GetShader( "sprite" )->setInteger( "image", 0, true );
     ResourceManager::GetShader( "particle" )->setInteger( "sprite", 0, true );
     ResourceManager::GetShader( "text" )->setInteger( "charImage", 0, true );
@@ -144,13 +120,35 @@ void RenderWindow::setupGraphics()
     GL_CHECK( glEnable( GL_BLEND ) );
     GL_CHECK( glDisable( GL_DEPTH_TEST ) );
     GL_CHECK( glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA ) );
+}
+
+void RenderWindow::init()
+{
+    m_context = std::make_unique<wxGLContext>( this );
+    SetCurrent( *m_context );  // TODO move to resize
+
+    initializeGLEW();
+    setupGraphics();
 
     // set render-specific controls
     m_spriteRenderer = std::make_shared<SpriteRenderer>( ResourceManager::GetShader( "sprite" ) );
     m_shapesManager = std::make_shared<Shapes::ShapesManager>( this );
     m_overlay = std::make_shared<Overlay>();
     m_textRenderer = std::make_shared<TextRenderer>( this );
+
+    m_soundManager = std::make_shared<SoundManager>();
+    m_soundManager->init();
+
+    m_mediaManager = std::make_shared<MediaManager>( this, m_textRenderer );
+
+    SetExtraStyle( wxWS_EX_PROCESS_IDLE );
+    wxIdleEvent::SetMode( wxIDLE_PROCESS_SPECIFIED );
+
+    m_timer = std::make_shared<Timer>( false );
+
+    Bind( wxEVT_IDLE, &RenderWindow::onIdle, this );
 }
+
 
 void RenderWindow::playIntro()
 {
@@ -265,7 +263,7 @@ void RenderWindow::onIdle( wxIdleEvent &event )
 void RenderWindow::clearScreen()
 {
     SetCurrent( *m_context );
-    //GL_CHECK( glClear( GL_COLOR_BUFFER_BIT ) );
+    GL_CHECK( glClear( GL_COLOR_BUFFER_BIT ) );
 }
 
 void RenderWindow::render()

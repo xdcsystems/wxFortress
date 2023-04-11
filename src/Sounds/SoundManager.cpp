@@ -78,8 +78,8 @@ int SoundManager::loadBuffer( AudioFile<float>& soundFile, const std::string& fi
 
 int SoundManager::init()
 {
-    static std::once_flag once;
-    std::call_once( once, [ this ]() {
+    static std::once_flag s_once;
+    std::call_once( s_once, [ this ]() {
         // find the default audio device
         const ALCchar* defaultDeviceString = alcGetString( /*device*/ nullptr, ALC_DEFAULT_DEVICE_SPECIFIER );
         m_device = alcOpenDevice( defaultDeviceString );
@@ -141,6 +141,8 @@ int SoundManager::init()
         alec( alSourcef( m_monoSource, AL_GAIN, 1.f ) );
         alec( alSourcei( m_monoSource, AL_LOOPING, AL_FALSE ) );
         alec( alSourcei( m_monoSource, AL_BUFFER, m_monoSoundBuffer ) );
+
+        return 0;
     } );
     return 0;
 }

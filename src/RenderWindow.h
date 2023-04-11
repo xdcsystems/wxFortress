@@ -35,7 +35,6 @@ class RenderWindow final : public wxGLCanvas
             wxWindow* parent,
             wxWindowID id = wxID_ANY,
             const int* attribList = nullptr,
-            const wxPoint& pos = wxDefaultPosition,
             const wxSize& size = wxDefaultSize,
             long style = wxBORDER_NONE,
             const wxString& name = wxASCII_STR( wxPanelNameStr ),

@@ -25,11 +25,12 @@ class Movie
         nanoseconds getMasterClock();
         nanoseconds getClock();
 
-        inline static enum AVPixelFormat s_hwPixFormat = AV_PIX_FMT_NONE;
+        inline static enum AVPixelFormat s_hwPixFormat { AV_PIX_FMT_NONE };
+        inline static AVBufferRef* s_hwDeviceCtx { nullptr };
 
     private:
         int start();
-        int streamComponentOpen( unsigned int stream_index );
+        int streamComponentOpen( unsigned int streamIndex );
 
         friend class Audio;
         friend class Video;

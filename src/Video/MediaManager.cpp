@@ -52,7 +52,7 @@ void MediaManager::playIntro()
     m_eventHandler->AddPendingEvent( m_eventMediaPlay );
 }
 
-void MediaManager::showSkipMessage( bool show )
+void MediaManager::showSkipMessage()
 {
     m_textRenderer->print( "Press R key for skip",
         m_videoRenderer->viewWidth() - 300,
@@ -116,11 +116,22 @@ void MediaManager::renderFrame()
 
     if ( m_currentFrame.first )
     {
-        m_videoRenderer->draw( 
-            m_currentFrame.first->width, 
-            m_currentFrame.first->height,
-            m_currentFrame.first->data,
-            m_currentFrame.first->linesize );
+        switch ( m_currentFrame.first->format )
+        {
+            case AV_PIX_FMT_NV12:
+                m_videoRenderer->drawNV12(
+                    m_currentFrame.first->width,
+                    m_currentFrame.first->height,
+                    m_currentFrame.first->data );
+            break;
+
+            default:
+                m_videoRenderer->draw(
+                    m_currentFrame.first->width,
+                    m_currentFrame.first->height,
+                    m_currentFrame.first->data );
+            break;
+        }
     }
 
     if ( m_currentFrame.second > s_timerInterval && 

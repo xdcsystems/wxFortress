@@ -30,17 +30,17 @@ void Audio::cleanup()
     if ( m_samples )
     {
         av_freep( &m_samples );
-        m_samples = 0;
+        m_samples = nullptr;
     }
 }
 
 int Audio::start()
 {
     std::unique_lock<std::mutex> srclck( m_srcMutex, std::defer_lock );
-    milliseconds sleep_time { AudioBufferTime / 3 };
+    milliseconds sleepTime { AudioBufferTime / 3 };
 
-    ALenum FormatStereo8 { AL_FORMAT_STEREO8 };
-    ALenum FormatStereo16 { AL_FORMAT_STEREO16 };
+    ALenum formatStereo8 { AL_FORMAT_STEREO8 };
+    ALenum formatStereo16 { AL_FORMAT_STEREO16 };
 
     if ( m_codecCtx->sample_fmt == AV_SAMPLE_FMT_U8 || m_codecCtx->sample_fmt == AV_SAMPLE_FMT_U8P )
     {
@@ -56,7 +56,7 @@ int Audio::start()
         {
             m_dstChanLayout = AV_CH_LAYOUT_STEREO;
             m_frameSize *= 2;
-            m_format = FormatStereo8;
+            m_format = formatStereo8;
         }
     }
 
@@ -74,12 +74,12 @@ int Audio::start()
         {
             m_dstChanLayout = AV_CH_LAYOUT_STEREO;
             m_frameSize *= 2;
-            m_format = FormatStereo16;
+            m_format = formatStereo16;
         }
     }
 
     void *samples { nullptr };
-    ALsizei buffer_len { 0 };
+    ALsizei bufferLen { 0 };
 
     m_samples = nullptr;
     m_samplesMax = 0;
@@ -124,8 +124,8 @@ int Audio::start()
         goto finish;
     }
 
-    buffer_len = duration_cast<seconds>( m_codecCtx->sample_rate * AudioBufferTime ).count() * m_frameSize;
-    samples = av_malloc( buffer_len );
+    bufferLen = duration_cast<seconds>( m_codecCtx->sample_rate * AudioBufferTime ).count() * m_frameSize;
+    samples = av_malloc( bufferLen );
 
     // Prefill the codec buffer.
     do
@@ -140,14 +140,15 @@ int Audio::start()
             std::cout << "Fail to send packet audio: " << ret << std::endl;
         }
     }
-    while ( 1 );
+    while ( true );
 
     srclck.lock();
 
     while ( !m_movie.m_quit.load( std::memory_order_relaxed ) )
     {
-        ALenum state;
-        ALint processed, queued;
+        ALenum state( 0 );
+        ALint processed( 0 );
+        ALint queued( 0 );
 
         // First remove any processed buffers.
         alGetSourcei( m_source, AL_BUFFERS_PROCESSED, &processed );
@@ -161,13 +162,13 @@ int Audio::start()
         alGetSourcei( m_source, AL_BUFFERS_QUEUED, &queued );
         while ( queued < m_buffers.size() )
         {
-            if ( !readAudio( static_cast<uint8_t *>( samples ), buffer_len ) )
+            if ( !readAudio( static_cast<uint8_t *>( samples ), bufferLen ) )
             {
                 break;
             }
             ALuint bufid = m_buffers[m_bufferIdx];
             m_bufferIdx = ( m_bufferIdx + 1 ) % m_buffers.size();
-            alBufferData( bufid, m_format, samples, buffer_len, m_codecCtx->sample_rate );
+            alBufferData( bufid, m_format, samples, bufferLen, m_codecCtx->sample_rate );
             alSourceQueueBuffers( m_source, 1, &bufid );
             ++queued;
         }
@@ -193,7 +194,7 @@ int Audio::start()
             return false;
         }
 
-        m_srcCond.wait_for( srclck, sleep_time );
+        m_srcCond.wait_for( srclck, sleepTime );
     }
 
     alSourceRewind( m_source );
@@ -212,7 +213,9 @@ int Audio::decodeFrame()
 {
     while ( !m_movie.m_quit.load( std::memory_order_relaxed ) )
     {
-        int ret, pret;
+        int ret( 0 );
+        int pret( 0 );
+
         while ( ( ret = avcodec_receive_frame( m_codecCtx.get(), m_decodedFrame.get() ) ) == AVERROR( EAGAIN ) &&
                 ( pret = m_packets.sendTo( m_codecCtx.get() ) ) != AVErrorEOF )
         {
@@ -255,23 +258,23 @@ int Audio::decodeFrame()
 
 int Audio::readAudio( uint8_t *samples, unsigned int length )
 {
-    unsigned int audio_size = 0;
+    unsigned int audioSize = 0;
     length /= m_frameSize;
-    while ( audio_size < length )
+    while ( audioSize < length )
     {
         if ( m_samplesPos == m_samplesLen )
         {
-            int frame_len = decodeFrame();
-            if ( frame_len <= 0 )
+            int frameLen = decodeFrame();
+            if ( frameLen <= 0 )
             {
                 break;
             }
-            m_samplesLen = frame_len;
+            m_samplesLen = frameLen;
             m_samplesPos = 0;
         }
 
         const unsigned int len = m_samplesLen - m_samplesPos;
-        unsigned int rem = length - audio_size;
+        unsigned int rem = length - audioSize;
         if ( rem > len )
         {
             rem = len;
@@ -280,26 +283,26 @@ int Audio::readAudio( uint8_t *samples, unsigned int length )
         m_samplesPos += rem;
         m_currentPts += nanoseconds { seconds { rem } } / m_codecCtx->sample_rate;
         samples += rem * m_frameSize;
-        audio_size += rem;
+        audioSize += rem;
     }
 
-    if ( audio_size <= 0 )
+    if ( audioSize <= 0 )
     {
         return false;
     }
 
-    if ( audio_size < length )
+    if ( audioSize < length )
     {
-        const unsigned int rem = length - audio_size;
+        const unsigned int rem = length - audioSize;
         std::fill_n( samples, rem * m_frameSize, ( m_dstSampleFmt == AV_SAMPLE_FMT_U8 ? 0x80 : 0x00 ) );
         m_currentPts += nanoseconds { seconds { rem } } / m_codecCtx->sample_rate;
-        audio_size += rem;
+        audioSize += rem;
     }
 
     return true;
 }
 
-bool Audio::play()
+bool Audio::play() const
 {
     ALint queued {};
     alGetSourcei( m_source, AL_BUFFERS_QUEUED, &queued );
@@ -324,9 +327,10 @@ nanoseconds Audio::getClockNoLock()
 
     if ( m_source )
     {
-        ALint offset;
+        ALint offset( 0 );
         alGetSourcei( m_source, AL_SAMPLE_OFFSET, &offset );
-        ALint queued, status;
+        ALint queued( 0 );
+        ALint status( 0 );
         alGetSourcei( m_source, AL_BUFFERS_QUEUED, &queued );
         alGetSourcei( m_source, AL_SOURCE_STATE, &status );
 

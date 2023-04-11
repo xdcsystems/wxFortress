@@ -105,15 +105,15 @@ void ParticleGenerator::draw()
 void ParticleGenerator::init()
 {
     // set up mesh and attribute properties
-    float vertices[] = {
-        // pos        // tex
-        0.0f, 1.0f,   0.0f, 1.0f,   0.0f,
-        1.0f, 0.0f,   1.0f, 0.0f,   0.0f,
-        0.0f, 0.0f,   0.0f, 0.0f,   0.0f,
+    float vertices[] {
+        // pos      // tex
+        0.f, 1.f,   0.f, 1.f,   0.f,
+        1.f, 0.f,   1.f, 0.f,   0.f,
+        0.f, 0.f,   0.f, 0.f,   0.f,
 
-        0.0f, 1.0f,   0.0f, 1.0f,   0.0f,
-        1.0f, 0.0f,   1.0f, 0.0f,   0.0f,
-        1.0f, 1.0f,   1.0f, 1.0f,   0.0f,
+        0.f, 1.f,   0.f, 1.f,   0.f,
+        1.f, 0.f,   1.f, 0.f,   0.f,
+        1.f, 1.f,   1.f, 1.f,   0.f,
     };
 
     const auto sizeVAO = sizeof( vertices );

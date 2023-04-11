@@ -16,12 +16,17 @@ class VideoRenderer
 
         bool ok();
         void setViewport( int x, int y, int width, int height );
-        void draw( int width, int height, uint8_t **data, int *linesize );
+        
+        void draw( int width, int height, uint8_t **data );
+        void drawNV12( int width, int height, uint8_t** data );
 
         int viewWidth() const { return m_viewWidth; };
         int viewHeight() const { return m_viewHeight; };
 
     private:
+        void init();
+        bool bindBuffers( int width, int height );
+
         unsigned int m_VBO { 0 };
         unsigned int m_VAO { 0 };
         unsigned int m_EBO { 0 };
@@ -37,4 +42,5 @@ class VideoRenderer
         int m_texHeight { -1 };
 
         shaderPtr m_shader;
+        shaderPtr m_shaderNV12;
 };

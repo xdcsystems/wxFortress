@@ -26,7 +26,7 @@ class MediaManager final
 
    private:
         // Helper functions
-        void showSkipMessage( bool show = true );
+        void showSkipMessage();
         void open( std::string filename );
         void close();
         
