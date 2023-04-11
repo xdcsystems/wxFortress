@@ -39,8 +39,8 @@ class SpriteRenderer
 
         // Render state
         shaderPtr    m_shader;
-        unsigned int m_VBO = 0;
-        int m_attrVertex = 0;
+        unsigned int m_VBO { 0 };
+        int m_attrVertex { 0 };
 };
 
 using rendererPtr = std::shared_ptr<SpriteRenderer>;

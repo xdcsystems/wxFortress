@@ -20,15 +20,17 @@ class Movie
         bool isFinished() const { return m_quit.load( std::memory_order_relaxed ) == true; }
 
         std::pair<AVFrame *, int64_t> currentFrame();
+        int64_t duration();
 
         nanoseconds getMasterClock();
         nanoseconds getClock();
 
-        inline static enum AVPixelFormat s_hwPixFormat = AV_PIX_FMT_NONE;
+        inline static enum AVPixelFormat s_hwPixFormat { AV_PIX_FMT_NONE };
+        inline static AVBufferRef* s_hwDeviceCtx { nullptr };
 
     private:
         int start();
-        int streamComponentOpen( unsigned int stream_index );
+        int streamComponentOpen( unsigned int streamIndex );
 
         friend class Audio;
         friend class Video;

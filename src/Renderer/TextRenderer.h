@@ -43,19 +43,19 @@ class TextRenderer
         void renderFinishMessage();
         void renderHelp();
 
-        unsigned int m_vertexBufferID = 0;
-        unsigned int m_UVBufferID = 0;
-        unsigned int m_uniformID = 0;
-        unsigned int m_attrVertex = 0;
-        unsigned int m_attrUVs = 0;
+        unsigned int m_vertexBufferID { 0 };
+        unsigned int m_UVBufferID { 0 };
+        unsigned int m_uniformID { 0 };
+        unsigned int m_attrVertex { 0 };
+        unsigned int m_attrUVs { 0 };
 
-        unsigned short m_col = 0;
-        unsigned short m_row = 0;
-        unsigned short m_delay = 57;
+        unsigned short m_col { 0 };
+        unsigned short m_row { 0 };
+        unsigned short m_delay { 57 };
         
-        unsigned short m_stage = 0;
+        unsigned short m_stage { 0 };
 
-        float m_startLinePosition = .0f;
+        float m_startLinePosition { .0f };
 
         std::vector<std::string> m_message;
         std::vector<glm::vec2> m_vertices;
@@ -71,7 +71,7 @@ class TextRenderer
 
         shaderPtr m_shader;
 
-        inline static std::map<TextRendererFont, std::pair<float, texture2DPtr> > s_fontData = {
+        inline static std::map<TextRendererFont, std::pair<float, texture2DPtr> > s_fontData {
             { TextRendererFont::NORMAL, { 8.f, nullptr } },
             { TextRendererFont::OLD, { 8.f, nullptr } }
         };

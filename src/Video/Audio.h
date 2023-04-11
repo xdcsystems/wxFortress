@@ -23,7 +23,7 @@ class Audio
         Audio( Movie &movie );
         ~Audio();
 
-        bool play();
+        bool play() const;
         void cleanup();
 
     private:

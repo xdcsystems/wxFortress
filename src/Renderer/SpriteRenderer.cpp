@@ -66,10 +66,10 @@ void SpriteRenderer::initRenderData()
 
     m_VBO = generateBuffer( {
         // pos      // tex
-        0.f, 0.f,    0.f,  0.f,
-        0.f, 1.f,    0.f, -1.f,
-        1.f, 0.f,    1.f,  0.f,
-        1.f, 1.f,    1.f, -1.f,
+        0.f, 0.f,   0.f,  0.f,
+        0.f, 1.f,   0.f, -1.f,
+        1.f, 0.f,   1.f,  0.f,
+        1.f, 1.f,   1.f, -1.f,
      } );
 }
 

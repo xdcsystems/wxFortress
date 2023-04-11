@@ -50,17 +50,17 @@ class SoundManager final
 
         ALCdevice* m_device { nullptr };
         ALCcontext* m_context { nullptr };
-        ALuint m_monoSoundBuffer = 0;
+        ALuint m_monoSoundBuffer { 0 };
 
-        ALuint m_stereoLounchSoundBuffer = 0;
-        ALuint m_stereoCountdownSoundBuffer = 0;
-        ALuint m_stereoDesroyBrickSoundBuffer = 0;
-        ALuint m_stereoPingSoundBuffer = 0;
-        ALuint m_stereoPongSoundBuffer = 0;
-        ALuint m_stereoLevelCompleteSoundBuffer = 0;
-        ALuint m_stereoBallLostSoundBuffer = 0;
-        ALuint m_stereoCharShowSoundBuffer = 0;
+        ALuint m_stereoLounchSoundBuffer { 0 };
+        ALuint m_stereoCountdownSoundBuffer { 0 };
+        ALuint m_stereoDesroyBrickSoundBuffer { 0 };
+        ALuint m_stereoPingSoundBuffer { 0 };
+        ALuint m_stereoPongSoundBuffer { 0 };
+        ALuint m_stereoLevelCompleteSoundBuffer { 0 };
+        ALuint m_stereoBallLostSoundBuffer { 0 };
+        ALuint m_stereoCharShowSoundBuffer { 0 };
 
-        ALuint m_monoSource = 0;
-        ALuint m_stereoSource[250] = { 0 };
+        ALuint m_monoSource { 0 };
+        ALuint m_stereoSource[250] {};
 };

@@ -129,10 +129,10 @@ void TextRenderer::print( const std::string& text, int x, int y, const glm::vec2
 
     for ( unsigned int i = 0; i < length; i++ )
     {
-        glm::vec2 vertexUpLeft = glm::vec2( x + i * size.x, y + size.y );
-        glm::vec2 vertexUpRight = glm::vec2( x + i * size.x + size.x, y + size.y );
-        glm::vec2 vertexDownRight = glm::vec2( x + i * size.x + size.x, y );
-        glm::vec2 vertexDownLeft = glm::vec2( x + i * size.x, y );
+        glm::vec2 vertexUpLeft    { x + i * size.x,          y + size.y };
+        glm::vec2 vertexUpRight   { x + i * size.x + size.x, y + size.y };
+        glm::vec2 vertexDownRight { x + i * size.x + size.x, y };
+        glm::vec2 vertexDownLeft  { x + i * size.x,          y };
 
         vertices.emplace_back( vertexUpLeft );
         vertices.emplace_back( vertexDownLeft );
@@ -146,10 +146,10 @@ void TextRenderer::print( const std::string& text, int x, int y, const glm::vec2
         float uvX = ( character % 16 ) / 16.f;
         float uvY = ( character / 16 ) / s_fontData.at( m_fontType ).first;
 
-        glm::vec2 uvUpLeft = glm::vec2( uvX, uvY );
-        glm::vec2 uvUpRight = glm::vec2( uvX + 1.f / 16.f, uvY );
-        glm::vec2 uvDownRight = glm::vec2( uvX + 1.f / 16.f, ( uvY + 1.f / s_fontData.at( m_fontType ).first ) );
-        glm::vec2 uvDownLeft = glm::vec2( uvX, ( uvY + 1.f / s_fontData.at( m_fontType ).first ) );
+        glm::vec2 uvUpLeft    { uvX, uvY };
+        glm::vec2 uvUpRight   { uvX + 1.f / 16.f, uvY };
+        glm::vec2 uvDownRight { uvX + 1.f / 16.f, ( uvY + 1.f / s_fontData.at( m_fontType ).first ) };
+        glm::vec2 uvDownLeft  { uvX, ( uvY + 1.f / s_fontData.at( m_fontType ).first ) };
 
         coordsUV.emplace_back( uvUpLeft );
         coordsUV.emplace_back( uvDownLeft );

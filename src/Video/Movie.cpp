@@ -6,7 +6,47 @@
 #include "Chronons.h"
 #include "Video.h"
 
-static AVBufferRef* hw_device_ctx = nullptr;
+
+static int InitDecoderHW( AVCodecContext* ctx, const enum AVHWDeviceType type )
+{
+    int err = 0;
+    
+    if ( ( err = av_hwdevice_ctx_create( &Movie::s_hwDeviceCtx, type, nullptr, nullptr, 0 ) ) < 0 )
+    {
+        std::cerr << "Failed to create specified HW device" << std::endl;
+        return err;
+    }
+    ctx->hw_device_ctx = av_buffer_ref( Movie::s_hwDeviceCtx );
+    if ( !ctx->hw_device_ctx )
+    {
+        err = AVERROR( ENOMEM );
+        return err;
+    }
+    if ( av_hwdevice_ctx_init( ctx->hw_device_ctx ) < 0 )
+    {
+        std::cerr << "Error init hw codec" << std::endl;
+        return -1;
+    }
+
+    return err;
+}
+
+static enum AVPixelFormat GetFormatHW( AVCodecContext* ctx, const enum AVPixelFormat* pixFormats )
+{
+    static const enum AVPixelFormat *s_p = nullptr;
+
+    if ( s_p )
+        return *s_p;
+
+    for ( s_p = pixFormats; *s_p != -1; ++s_p )
+    {
+        if ( *s_p == Movie::s_hwPixFormat )
+            return *s_p;
+    }
+
+    std::cerr << "Failed to get HW surface format" << std::endl;
+    return AV_PIX_FMT_NONE;
+}
 
 Movie::Movie()
   : m_audio( *this )
@@ -48,105 +88,125 @@ std::pair<AVFrame *, int64_t> Movie::currentFrame()
     return m_video.currentFrame();
 }
 
-static int hw_decoder_init( AVCodecContext* ctx, const enum AVHWDeviceType type )
+int64_t Movie::duration()
 {
-    int err = 0;
-
-    if ( ( err = av_hwdevice_ctx_create( &hw_device_ctx, type, NULL, NULL, 0 ) ) < 0 )
+    if ( m_fmtCtx && m_fmtCtx->duration != AV_NOPTS_VALUE )
     {
-        fprintf( stderr, "Failed to create specified HW device.\n" );
-        return err;
+        return std::chrono::duration_cast<nanoseconds>(
+            seconds_d64 { m_fmtCtx->duration / AV_TIME_BASE } ).count();
     }
-    ctx->hw_device_ctx = av_buffer_ref( hw_device_ctx );
-
-    return err;
+    return -1;
 }
 
-static enum AVPixelFormat get_hw_format( AVCodecContext* ctx, const enum AVPixelFormat* pix_fmts )
+int Movie::streamComponentOpen( unsigned int streamIndex )
 {
-    const enum AVPixelFormat* p;
+    auto *codecpar = m_fmtCtx->streams[ streamIndex ]->codecpar;
 
-    for ( p = pix_fmts; *p != -1; p++ )
+    // find decoder for the stream
+    auto *decoder = avcodec_find_decoder( codecpar->codec_id );
+    if ( !decoder )
     {
-        if ( *p == Movie::s_hwPixFormat )
-            return *p;
+        std::cerr << "Failed to find "
+            << av_get_media_type_string( codecpar->codec_type ) << " codec"
+            << std::endl;
+        return AVERROR( EINVAL );
     }
 
-    fprintf( stderr, "Failed to get HW surface format.\n" );
-    return AV_PIX_FMT_NONE;
-}
-
-int Movie::streamComponentOpen( unsigned int stream_index )
-{
-    AVCodecContextPtr avctx { avcodec_alloc_context3( nullptr ) };
-    if ( !avctx )
+    if ( codecpar->codec_type == AVMEDIA_TYPE_VIDEO && codecpar->codec_id == AV_CODEC_ID_H264 )
     {
-        std::cerr << "Fail to avcodec_alloc_context3\n";
-        return -1;
-    }
-
-    int ret;
-
-    ret = avcodec_parameters_to_context( avctx.get(), m_fmtCtx->streams[stream_index]->codecpar );
-    if ( ret < 0 )
-    {
-        std::cerr << "Fail to avcodec_parameters_to_context\n";
-        return -1;
-    }
-
-    AVCodec* codec { avcodec_find_decoder( avctx->codec_id ) };
-
-    if ( avctx->codec_type == AVMEDIA_TYPE_VIDEO && avctx->codec_id == AV_CODEC_ID_H264 )
-    {
-        avctx->pix_fmt = AV_PIX_FMT_YUV420P;
-
-        // try to use hw decoder
-        if ( hw_decoder_init( avctx.get(), AV_HWDEVICE_TYPE_DXVA2 ) == 0 )
+        for ( int i = 0;; i++ )
         {
-            avctx->get_format = get_hw_format;
+            const AVCodecHWConfig* config = avcodec_get_hw_config( decoder, i );
+            if ( !config )
+                break;
 
-            for ( int i = 0;; i++ )
+            if ( config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX &&
+                config->device_type == AV_HWDEVICE_TYPE_DXVA2 )
             {
-                const AVCodecHWConfig* config = avcodec_get_hw_config( codec, i );
-                if ( !config )
-                    goto Next;
-
-                if ( config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX &&
-                    config->device_type == AV_HWDEVICE_TYPE_DXVA2 )
-                {
-                    s_hwPixFormat = config->pix_fmt;
-                    break;
-                }
+                s_hwPixFormat = config->pix_fmt;
+                break;
             }
         }
     }
 
-Next:
-    if ( !codec || avcodec_open2( avctx.get(), codec, nullptr ) < 0 )
+    // Allocate a codec context for the decoder
+    AVCodecContextPtr avctx { avcodec_alloc_context3( decoder ) };
+    if ( !avctx )
     {
-        std::cerr << "Unsupported codec: " << avcodec_get_name( avctx->codec_id ) << std::endl;
+        std::cerr << "Failed to allocate the "
+            << av_get_media_type_string( codecpar->codec_type ) << " codec context"
+            << std::endl;
         return -1;
+    }
+
+    // Copy codec parameters from input stream to output codec context
+    int ret = avcodec_parameters_to_context( avctx.get(), codecpar );
+    if ( ret < 0 )
+    {
+        std::cerr << "Failed to copy "
+            << av_get_media_type_string( codecpar->codec_type )
+            << " codec parameters to decoder context"
+            << std::endl;
+        return ret;
+    }
+
+    if ( avctx->codec_type == AVMEDIA_TYPE_VIDEO && avctx->codec_id == AV_CODEC_ID_H264 )
+    {
+        avctx->pix_fmt = AV_PIX_FMT_YUV420P; // https://habr.com/ru/companies/intel/articles/575632/
+        avctx->get_format = GetFormatHW;
+
+        // try to use hw decoder
+        if ( InitDecoderHW( avctx.get(), AV_HWDEVICE_TYPE_DXVA2 ) < 0 )
+        {
+            std::cerr << "Failed to init hw decoder for "
+                << av_get_media_type_string( codecpar->codec_type )
+                << " codec, will use sw decoder"
+                << std::endl;
+        }
+    }
+
+    // set codec to automatically determine how many threads suits best for the decoding job
+    avctx->thread_count = 0;
+
+    if ( decoder->capabilities | AV_CODEC_CAP_FRAME_THREADS )
+        avctx->thread_type = FF_THREAD_FRAME;
+    else if ( decoder->capabilities | AV_CODEC_CAP_SLICE_THREADS )
+        avctx->thread_type = FF_THREAD_SLICE;
+    else
+        avctx->thread_count = 1; //don't use multithreading
+
+    // Init the decoders
+    if ( ( ret = avcodec_open2( avctx.get(), decoder, nullptr ) ) < 0 )
+    {
+        std::cerr << "Failed to open "
+            << av_get_media_type_string( codecpar->codec_type )
+            << " codec"
+            << std::endl;
+
+        return ret;
     }
 
     switch ( avctx->codec_type )
     {
-        case AVMEDIA_TYPE_AUDIO :
-            m_audio.m_stream = m_fmtCtx->streams[stream_index];
+        case AVMEDIA_TYPE_AUDIO:
+        {
+            m_audio.m_stream = m_fmtCtx->streams[ streamIndex ];
             m_audio.m_codecCtx = std::move( avctx );
+        }
         break;
 
-        case AVMEDIA_TYPE_VIDEO :
+        case AVMEDIA_TYPE_VIDEO:
         {
-            m_video.m_stream = m_fmtCtx->streams[ stream_index ];
+            m_video.m_stream = m_fmtCtx->streams[ streamIndex ];
             m_video.m_codecCtx = std::move( avctx );
         }
         break;
 
-        default :
-            return -1;
+        default:
+        return -1;
     }
-
-    return static_cast<int>( stream_index );
+    
+    return static_cast<int>( streamIndex );
 }
 
 int Movie::start()
@@ -156,50 +216,60 @@ int Movie::start()
     fmtctx->interrupt_callback = intrcb;
     if ( avformat_open_input( &fmtctx, m_filename.c_str(), nullptr, nullptr ) != 0 )
     {
-        std::cerr << "Fail to avformat_open_input\n";
+        std::cerr << "Fail to avformat_open_input" << std::endl;
         return -1;
     }
     m_fmtCtx.reset( fmtctx );
 
     if ( avformat_find_stream_info( m_fmtCtx.get(), nullptr ) < 0 )
     {
-        std::cerr << "Fail to avformat_find_stream_info\n";
+        std::cerr << "Fail to avformat_find_stream_info" << std::endl;
         return -1;
     }
 
-    int video_index { -1 };
-    int audio_index { -1 };
+    int videoIndex { -1 };
+    int audioIndex { -1 };
 
     for ( unsigned int i = 0; i < m_fmtCtx->nb_streams; i++ )
     {
-        auto *codecpar = m_fmtCtx->streams[i]->codecpar;
-        if ( codecpar->codec_type == AVMEDIA_TYPE_VIDEO )
+        auto *codecpar = m_fmtCtx->streams[ i ]->codecpar;
+
+        int ret = av_find_best_stream( m_fmtCtx.get(), codecpar->codec_type, -1, -1, nullptr, 0 );
+        if ( ret < 0 )
         {
-            video_index = streamComponentOpen( i );
+            std::cerr << "Could not find "
+                << av_get_media_type_string( codecpar->codec_type ) << " stream in input file'"
+                << std::endl;
+            return ret;
         }
-        else if ( codecpar->codec_type == AVMEDIA_TYPE_AUDIO )
+
+        if ( codecpar->codec_type == AVMEDIA_TYPE_VIDEO && videoIndex == -1 )
         {
-            audio_index = streamComponentOpen( i );
+            videoIndex = streamComponentOpen( ret );
+        }
+        else if ( codecpar->codec_type == AVMEDIA_TYPE_AUDIO && audioIndex == -1 )
+        {
+            audioIndex = streamComponentOpen( ret );
         }
     }
 
-    if ( video_index < 0 && audio_index < 0 )
+    if ( videoIndex < 0 && audioIndex < 0 )
     {
-        std::cerr << "Fail to open codecs\n";
+        std::cerr << "Fail to open codecs" << std::endl;
         return -1;
     }
 
     m_clockBase = get_avtime() + milliseconds( 750 );
-    m_sync = ( audio_index > 0 ) ? SyncMaster::Audio : SyncMaster::Video;
+    m_sync = ( audioIndex > 0 ) ? SyncMaster::Audio : SyncMaster::Video;
 
-    auto &audio_queue = m_audio.m_packets;
-    auto &video_queue = m_video.m_packets;
+    auto &audioQueue = m_audio.m_packets;
+    auto &videoQueue = m_video.m_packets;
 
-    if ( audio_index >= 0 )
+    if ( audioIndex >= 0 )
     {
         m_audioThread = std::thread( &Audio::start, &m_audio );
     }
-    if ( video_index >= 0 )
+    if ( videoIndex >= 0 )
     {
         m_videoThread = std::thread( &Video::start, &m_video );
     }
@@ -210,16 +280,16 @@ int Movie::start()
         if ( av_read_frame( m_fmtCtx.get(), &packet ) < 0 )
             break;
 
-        if ( packet.stream_index == video_index )
+        if ( packet.stream_index == videoIndex )
         {
-            while ( !m_quit.load( std::memory_order_acquire ) && !video_queue.put( &packet ) )
+            while ( !m_quit.load( std::memory_order_acquire ) && !videoQueue.put( &packet ) )
             {
                 std::this_thread::sleep_for( milliseconds( 100 ) );
             }
         }
-        else if ( packet.stream_index == audio_index )
+        else if ( packet.stream_index == audioIndex )
         {
-            while ( !m_quit.load( std::memory_order_acquire ) && !audio_queue.put( &packet ) )
+            while ( !m_quit.load( std::memory_order_acquire ) && !audioQueue.put( &packet ) )
             {
                 std::this_thread::sleep_for( milliseconds( 100 ) );
             }
@@ -230,11 +300,11 @@ int Movie::start()
 
     if ( m_video.m_codecCtx )
     {
-        video_queue.setFinished();
+        videoQueue.setFinished();
     }
     if ( m_audio.m_codecCtx )
     {
-        audio_queue.setFinished();
+        audioQueue.setFinished();
     }
 
     if ( m_audioThread.joinable() )

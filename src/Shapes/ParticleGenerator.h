@@ -20,7 +20,7 @@ namespace Shapes
         glm::vec4 Color;
         float     Life;
 
-        Particle() : Position( 0.0f ), Velocity( 0.0f ), Color( 1.0f ), Life( 0.0f ) {}
+        Particle() : Position( 0.f ), Velocity( 0.f ), Color( 1.f ), Life( 0.f ) {}
     };
 
 
@@ -38,7 +38,7 @@ namespace Shapes
             ~ParticleGenerator();
 
             // update all particles
-            void update( float dt, const basePtr &object, unsigned int newParticles, glm::vec2 offset = glm::vec2( 0.0f, 0.0f ) );
+            void update( float dt, const basePtr &object, unsigned int newParticles, glm::vec2 offset = glm::vec2( 0.f, 0.f ) );
 
             // render all particles
             void draw();
@@ -54,15 +54,15 @@ namespace Shapes
             unsigned int firstUnusedParticle();
 
             // respawns particle
-            void respawnParticle( Particle& particle, const basePtr &object, glm::vec2 offset = glm::vec2( 0.0f, 0.0f ) );
+            void respawnParticle( Particle& particle, const basePtr &object, glm::vec2 offset = glm::vec2( 0.f, 0.f ) );
 
 
             // state
-            unsigned short m_amount = 0;
-            unsigned int m_VBO = 0;
+            unsigned short m_amount { 0 };
+            unsigned int m_VBO { 0 };
 
-            int m_attrPos = 0;
-            int m_attrIndex = 0;
+            int m_attrPos { 0 };
+            int m_attrIndex { 0 };
 
             std::vector<Particle> m_particles;
 

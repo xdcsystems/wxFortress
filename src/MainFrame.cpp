@@ -48,11 +48,8 @@ bool MainFrame::Create( wxWindow *parent, int id, const wxString &title, wxPoint
 void MainFrame::init()
 {
 #if defined( wxUSE_LOGWINDOW ) && defined( USE_LOGGER )
-    m_logWindow = new wxLogWindow( nullptr, wxT( "Log" ), true, false );
-    m_logWindow->SetVerbose( TRUE );
-    wxLog::SetActiveTarget( m_logWindow );
-
-    m_logWindow->GetFrame()->SetFocus();
+    wxLogWindow::SetVerbose( TRUE );
+    wxLog::SetActiveTarget( new wxLogWindow( nullptr, wxT( "Log" ), true, false ) );
 #endif
 
     SetBackgroundColour( *wxBLACK );
@@ -61,7 +58,7 @@ void MainFrame::init()
 
     const auto &size = GetSize();
     
-    m_renderSurface = std::make_shared<RenderWindow>( this, wxID_ANY, nullptr, wxPoint( 0, 0 ), wxSize( 800, size.y ) );
+    m_renderSurface = std::make_shared<RenderWindow>( this, wxID_ANY, nullptr, wxSize( 800, size.y ) );
     m_controlPanel = std::make_shared<ControlPanel::Panel>( this, wxID_ANY, wxPoint( 800, 0 ), wxSize( size.x - 800, size.y ) );
 
     auto *bSizer = new wxBoxSizer( wxHORIZONTAL );

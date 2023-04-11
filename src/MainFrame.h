@@ -55,11 +55,7 @@ class MainFrame final : public wxFrame
         std::shared_ptr<RenderWindow> m_renderSurface;
         std::shared_ptr<ControlPanel::Panel> m_controlPanel;
         
-#if defined( wxUSE_LOGWINDOW ) && defined( USE_LOGGER )
-        wxLogWindow* m_logWindow { nullptr };
-#endif // wxUSE_LOGWINDOW
-
-        bool m_isRunning = false;
+        bool m_isRunning { false };
 
         wxDECLARE_EVENT_TABLE();
 };

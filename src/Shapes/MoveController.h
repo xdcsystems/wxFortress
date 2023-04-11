@@ -56,8 +56,8 @@ namespace Shapes
             void changeMoveDirection( ContactPosition contactPosition );
 
             // Protected data
-            double m_angle = 90;
-            double m_scaleDivisionValue = 1;
-            MoveDirection m_moveDirection = MoveDirection::TopRight;
+            double m_angle { 90 };
+            double m_scaleDivisionValue { 1 };
+            MoveDirection m_moveDirection { MoveDirection::TopRight };
     };
 }

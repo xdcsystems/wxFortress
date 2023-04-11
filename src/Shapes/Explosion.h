@@ -23,8 +23,8 @@ namespace Shapes
             void kill() { m_active = false; }
 
         private:
-            bool m_active = true;
-            unsigned short m_current = 0;
+            bool m_active { true };
+            unsigned short m_current { 0 };
     };
     
     using explosionPtr = std::shared_ptr<Explosion>;

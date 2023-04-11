@@ -11,7 +11,7 @@ namespace Shapes
             float radius() const { return m_radius; }
 
         private:
-            float m_radius = 0;
-            float m_radiusSquared = 0;
+            float m_radius { 0 };
+            float m_radiusSquared { 0 };
     };
 }
