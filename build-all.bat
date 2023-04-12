@@ -5,8 +5,8 @@ set PATH=C:\cmake\bin;%;PATH%
 
 del /Q CMakeCache.txt >nul 2>nul
 
-cmake -G "Visual Studio 16 2019" -A Win32 -T host=x86 -S ..\wxArkanoid -B "x86"
-rem cmake -G "Visual Studio 16 2019" -S ..\wxArkanoid -B "x64"
+cmake -G "Visual Studio 16 2019" -A Win32 -T host=x86 -S ..\wxFortress -B "x86"
+rem cmake -G "Visual Studio 16 2019" -S ..\wxFortress -B "x64"
 
 if errorlevel 1 goto end
 
