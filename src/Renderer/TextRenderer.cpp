@@ -119,7 +119,7 @@ void TextRenderer::switchToHelpState()
     };
 }
 
-void TextRenderer::print( const std::string& text, int x, int y, const glm::vec2& size )
+void TextRenderer::print( const std::string& text, int x, int y, const glm::vec2& size, glm::vec3 color )
 {
     unsigned int length = text.length();
 
@@ -170,6 +170,9 @@ void TextRenderer::print( const std::string& text, int x, int y, const glm::vec2
 
     // Bind texture
     s_fontData.at( m_fontType ).second->bind();
+
+    // Set text color
+    m_shader->setVector3f( "textColor", color );
 
     // 1rst attribute buffer : vertices
     GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, m_vertexBufferID ) );

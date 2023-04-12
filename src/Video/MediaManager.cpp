@@ -57,7 +57,8 @@ void MediaManager::showSkipMessage()
     m_textRenderer->print( "Press R key for skip",
         m_videoRenderer->viewWidth() - 300,
         31,
-        glm::vec2( 14.f, 16.f ) );
+        glm::vec2( 14.f, 16.f ),
+        glm::vec3( .6f, .6f, .6f ) );
 }
 
 void MediaManager::open( std::string filename )

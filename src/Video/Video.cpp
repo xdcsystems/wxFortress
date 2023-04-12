@@ -60,17 +60,11 @@ int Video::start()
 
         if ( frame->format == Movie::s_hwPixFormat )
         {
-            AVFramePtr swFrame{ av_frame_alloc() };
-            if ( !swFrame )
-                return AVERROR( ENOMEM );
-
             // retrieve data from GPU to CPU
-            if ( av_hwframe_transfer_data( swFrame.get(), frame.get(), 0 ) < 0 )
+            if ( av_hwframe_transfer_data( vp->frame.get(), frame.get(), 0 ) < 0 )
                 return -1;
 
-            av_frame_copy_props( swFrame.get(), frame.get() );
-
-            vp->frame.swap( swFrame );
+            av_frame_copy_props( vp->frame.get(), frame.get() );
         }
         else
             vp->frame.swap( frame );
@@ -138,7 +132,7 @@ std::pair<AVFrame *, int64_t> Video::currentFrame()
 
     if ( currentIdx != readIdx )
     {
-        vp = &m_pictQ[currentIdx];
+        vp = &m_pictQ[ currentIdx ];
         m_pictQRead.store( currentIdx, std::memory_order_release );
         std::unique_lock<std::mutex> { m_pictQMutex }.unlock();
         m_pictQCond.notify_one();
