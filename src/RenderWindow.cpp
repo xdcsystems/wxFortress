@@ -260,18 +260,13 @@ void RenderWindow::onIdle( wxIdleEvent &event )
     event.RequestMore();
 }
 
-void RenderWindow::clearScreen()
-{
-    SetCurrent( *m_context );
-    GL_CHECK( glClear( GL_COLOR_BUFFER_BIT ) );
-}
-
 void RenderWindow::render()
 {
     if ( !IsShown() )
         return;
 
-    clearScreen();
+    SetCurrent( *m_context );
+    GL_CHECK( glClear( GL_COLOR_BUFFER_BIT ) );
 
     switch ( m_state )
     {

@@ -25,8 +25,6 @@ VideoRenderer::VideoRenderer()
     m_shaderNV12->setInteger( "textureUV", 1 );
 
     init();
-
-    GL_CHECK( glUseProgram( 0 ) );
 }
 
 VideoRenderer::~VideoRenderer()
@@ -71,12 +69,13 @@ void VideoRenderer::init()
         
         GL_CHECK( glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE ) );
         GL_CHECK( glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE ) );
+
         GL_CHECK( glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR ) );
         GL_CHECK( glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR ) );
-    }
 
-    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, 0 ) );
-    GL_CHECK( glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, 0 ) );
+        GL_CHECK( glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0 ) );
+        GL_CHECK( glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0 ) );
+    }
 }
 
 bool VideoRenderer::ok()
@@ -162,38 +161,21 @@ bool VideoRenderer::bindBuffers( int width, int height )
 void VideoRenderer::draw( int width, int height, uint8_t** data )
 {
     const bool changed = bindBuffers( width, height );
+    const GLsizei widths[ 3 ]  { width, width >> 1, width >> 1 };
+    const GLsizei heights[ 3 ] { height, height >> 1, height >> 1 };
 
-    GL_CHECK( glActiveTexture( GL_TEXTURE0 ) );
-    GL_CHECK( glBindTexture( GL_TEXTURE_2D, m_texs[ 0 ] ) );
-    if ( changed )
+    for ( int i = 0; i < 3; ++i )
     {
-        GL_CHECK( glTexImage2D( GL_TEXTURE_2D, 0, GL_LUMINANCE4, width, height, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, data[ 0 ] ) );
-    }
-    else
-    {
-        GL_CHECK( glTexSubImage2D( GL_TEXTURE_2D, 0, 0, 0, width, height, GL_LUMINANCE, GL_UNSIGNED_BYTE, data[ 0 ] ) );
-    }
-
-    GL_CHECK( glActiveTexture( GL_TEXTURE1 ) );
-    GL_CHECK( glBindTexture( GL_TEXTURE_2D, m_texs[ 1 ] ) );
-    if ( changed )
-    {
-        GL_CHECK( glTexImage2D( GL_TEXTURE_2D, 0, GL_LUMINANCE4, width >> 1, height >> 1, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, data[ 1 ] ) );
-    }
-    else
-    {
-        GL_CHECK( glTexSubImage2D( GL_TEXTURE_2D, 0, 0, 0, width >> 1, height >> 1, GL_LUMINANCE, GL_UNSIGNED_BYTE, data[ 1 ] ) );
-    }
-
-    GL_CHECK( glActiveTexture( GL_TEXTURE2 ) );
-    GL_CHECK( glBindTexture( GL_TEXTURE_2D, m_texs[ 2 ] ) );
-    if ( changed )
-    {
-        GL_CHECK( glTexImage2D( GL_TEXTURE_2D, 0, GL_LUMINANCE4, width >> 1, height >> 1, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, data[ 2 ] ) );
-    }
-    else
-    {
-        GL_CHECK( glTexSubImage2D( GL_TEXTURE_2D, 0, 0, 0, width >> 1, height >> 1, GL_LUMINANCE, GL_UNSIGNED_BYTE, data[ 2 ] ) );
+        GL_CHECK( glActiveTexture( GL_TEXTURE0 + i ) );
+        GL_CHECK( glBindTexture( GL_TEXTURE_2D, m_texs[ i ] ) );
+        if ( changed )
+        {
+            GL_CHECK( glTexImage2D( GL_TEXTURE_2D, 0, GL_LUMINANCE4, widths[ i ], heights[ i ], 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, data[ i ] ) );
+        }
+        else
+        {
+            GL_CHECK( glTexSubImage2D( GL_TEXTURE_2D, 0, 0, 0, widths[ i ], heights[ i ], GL_LUMINANCE, GL_UNSIGNED_BYTE, data[ i ] ) );
+        }
     }
 
     m_shader->use();
@@ -220,7 +202,7 @@ void VideoRenderer::drawNV12( int width, int height, uint8_t** data )
     GL_CHECK( glBindTexture( GL_TEXTURE_2D, m_texs[ 1 ] ) );
     if ( changed )
     {
-        GL_CHECK( glTexImage2D( GL_TEXTURE_2D, 0, GL_LUMINANCE4_ALPHA4, width >> 1, height >> 1, 0, GL_LUMINANCE_ALPHA, GL_UNSIGNED_BYTE, data[ 1 ] ) ); // GL_RG
+        GL_CHECK( glTexImage2D( GL_TEXTURE_2D, 0, GL_LUMINANCE4_ALPHA4, width >> 1, height >> 1, 0, GL_LUMINANCE_ALPHA, GL_UNSIGNED_BYTE, data[ 1 ] ) );
     }
     else
     {

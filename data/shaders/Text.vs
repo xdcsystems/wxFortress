@@ -6,6 +6,7 @@ attribute vec2 vertexUV;
 
 // Output data ; will be interpolated for each fragment.
 varying vec2 UV;
+
 uniform mat4 model;
 uniform mat4 projection;
 

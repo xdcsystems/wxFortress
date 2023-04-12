@@ -70,7 +70,6 @@ class RenderWindow final : public wxGLCanvas
         void init();
         void resize( const wxSize& size );
         void switchRun();
-        void clearScreen();
         void render();
 
         void initializeGLEW();

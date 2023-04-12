@@ -31,7 +31,7 @@ class TextRenderer
         ~TextRenderer();
 
         void renderFrame();
-        void print( const std::string &text, int x, int y, const glm::vec2& size );
+        void print( const std::string &text, int x, int y, const glm::vec2& size, glm::vec3 color = glm::vec3( 1.0f ) );
         void cleanup();
 
         void switchToFinishState( unsigned short stage );

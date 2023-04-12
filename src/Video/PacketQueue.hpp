@@ -63,7 +63,7 @@ class PacketQueue
                 {
                     return false;
                 }
-                m_packets.push_back( AVPacket {} );
+                m_packets.emplace_back( AVPacket {} );
                 if ( av_packet_ref( &m_packets.back(), pkt ) != 0 )
                 {
                     assert( 0 );
