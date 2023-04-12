@@ -1,6 +1,6 @@
 cmake_minimum_required( VERSION 3.14.7 FATAL_ERROR )
 set( CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake" )
-set( NAME wxArkanoid )
+set( NAME wxFortress )
 
 set( CMAKE_GENERATOR_PLATFORM Win32 )
 project( ${NAME} )
