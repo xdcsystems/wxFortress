@@ -42,3 +42,6 @@ set(wxUSE_MEDIACTRL 0)
 #set(wxUSE_XRC 0)
 
 add_subdirectory_with_folder("wxWidgets" wxWidgets)
+
+# google tests
+add_subdirectory_with_folder("googletest" googletest)

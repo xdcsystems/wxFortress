@@ -56,7 +56,9 @@ Explosions::Explosions()
 Explosions::~Explosions()
 {
     for ( const auto& vbo : m_VBO )
+    {
         SpriteRenderer::clearBuffer( vbo );
+    }
 }
 
 void Explosions::add( const basePtr &shape )

@@ -32,9 +32,8 @@ class PacketQueue
             if ( !pkt )
             {
                 if ( !ret )
-                {
                     return AVErrorEOF;
-                }
+
                 return ret;
             }
 
@@ -59,10 +58,10 @@ class PacketQueue
         {
             {
                 std::lock_guard<std::mutex> lck( m_mutex );
+
                 if ( m_totalSize >= SizeLimit )
-                {
                     return false;
-                }
+
                 m_packets.emplace_back( AVPacket {} );
                 if ( av_packet_ref( &m_packets.back(), pkt ) != 0 )
                 {

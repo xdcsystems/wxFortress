@@ -327,8 +327,10 @@ nanoseconds Movie::getMasterClock()
     {
         case SyncMaster::Audio :
             return m_audio.getClock();
+       
         case SyncMaster::Video :
             return m_video.getClock();
+        
         default :
             assert( 0 );
             return getClock();

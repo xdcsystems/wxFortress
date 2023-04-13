@@ -11,3 +11,6 @@
 	path = external/wxWidgets
 	url = https://github.com/wxWidgets/wxWidgets.git
 	branch = 3.2.2-hotfix
+[submodule "external/googletest"]
+	path = external/googletest
+	url = https://github.com/google/googletest.git

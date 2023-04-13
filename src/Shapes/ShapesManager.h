@@ -45,7 +45,7 @@ namespace Shapes
 
             void renderFrame( const rendererPtr &spriteRenderer );
 
-            void resize( const wxSize& size );
+            void resize( const wxSize& size, const glm::mat4& projection );
             void loadLevel( unsigned short level ) const;
 
         protected:

@@ -79,7 +79,7 @@ int Audio::start()
     }
 
     void *samples { nullptr };
-    ALsizei bufferLen { 0 };
+    size_t bufferLen { 0 };
 
     m_samples = nullptr;
     m_samplesMax = 0;
@@ -120,11 +120,9 @@ int Audio::start()
     alGenSources( 1, &m_source );
 
     if ( alGetError() != AL_NO_ERROR )
-    {
         goto finish;
-    }
 
-    bufferLen = duration_cast<seconds>( m_codecCtx->sample_rate * AudioBufferTime ).count() * m_frameSize;
+    bufferLen = static_cast< size_t >( duration_cast<seconds>( m_codecCtx->sample_rate * AudioBufferTime ).count() * m_frameSize );
     samples = av_malloc( bufferLen );
 
     // Prefill the codec buffer.
@@ -132,9 +130,8 @@ int Audio::start()
     {
         const int ret = m_packets.sendTo( m_codecCtx.get() );
         if ( ret == AVERROR( EAGAIN ) || ret == AVErrorEOF )
-        {
             break;
-        }
+
         if ( ret != 0 )
         {
             std::cout << "Fail to send packet audio: " << ret << std::endl;
@@ -160,12 +157,11 @@ int Audio::start()
 
         // Refill the buffer queue.
         alGetSourcei( m_source, AL_BUFFERS_QUEUED, &queued );
-        while ( queued < m_buffers.size() )
+        while ( queued < static_cast<ALint>( m_buffers.size() ) )
         {
             if ( !readAudio( static_cast<uint8_t *>( samples ), bufferLen ) )
-            {
                 break;
-            }
+
             ALuint bufid = m_buffers[m_bufferIdx];
             m_bufferIdx = ( m_bufferIdx + 1 ) % m_buffers.size();
             alBufferData( bufid, m_format, samples, bufferLen, m_codecCtx->sample_rate );
@@ -184,15 +180,11 @@ int Audio::start()
         if ( state != AL_PLAYING && state != AL_PAUSED )
         {
             if ( !play() )
-            {
                 break;
-            }
         }
 
         if ( alGetError() != AL_NO_ERROR )
-        {
             return false;
-        }
 
         m_srcCond.wait_for( srclck, sleepTime );
     }
@@ -217,22 +209,21 @@ int Audio::decodeFrame()
         int pret( 0 );
 
         while ( ( ret = avcodec_receive_frame( m_codecCtx.get(), m_decodedFrame.get() ) ) == AVERROR( EAGAIN ) &&
-                ( pret = m_packets.sendTo( m_codecCtx.get() ) ) != AVErrorEOF )
-        {
-        }
+                ( pret = m_packets.sendTo( m_codecCtx.get() ) ) != AVErrorEOF ) 
+        {}
+        
         if ( ret != 0 )
         {
             if ( ret == AVErrorEOF || pret == AVErrorEOF )
-            {
                 break;
-            }
+
             std::cerr << "Fail to receive frame: " << ret << std::endl;
             continue;
         }
+        
         if ( m_decodedFrame->nb_samples <= 0 )
-        {
             continue;
-        }
+        
         if ( m_decodedFrame->best_effort_timestamp != AVNoPtsValue )
         {
             m_currentPts = duration_cast<nanoseconds>(
@@ -266,9 +257,8 @@ int Audio::readAudio( uint8_t *samples, unsigned int length )
         {
             int frameLen = decodeFrame();
             if ( frameLen <= 0 )
-            {
                 break;
-            }
+
             m_samplesLen = frameLen;
             m_samplesPos = 0;
         }
@@ -287,16 +277,14 @@ int Audio::readAudio( uint8_t *samples, unsigned int length )
     }
 
     if ( audioSize <= 0 )
-    {
         return false;
-    }
 
     if ( audioSize < length )
     {
         const unsigned int rem = length - audioSize;
         std::fill_n( samples, rem * m_frameSize, ( m_dstSampleFmt == AV_SAMPLE_FMT_U8 ? 0x80 : 0x00 ) );
         m_currentPts += nanoseconds { seconds { rem } } / m_codecCtx->sample_rate;
-        audioSize += rem;
+        //audioSize += rem;
     }
 
     return true;
@@ -306,10 +294,9 @@ bool Audio::play() const
 {
     ALint queued {};
     alGetSourcei( m_source, AL_BUFFERS_QUEUED, &queued );
+
     if ( queued == 0 )
-    {
         return false;
-    }
 
     alSourcePlay( m_source );
     return true;

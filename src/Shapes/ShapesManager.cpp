@@ -80,9 +80,10 @@ Rect ShapesManager::updateBallPosition( const Rect& boardBounds ) const
     return m_ball->bounds();
 }
 
-void ShapesManager::resize( const wxSize& size )
+void ShapesManager::resize( const wxSize& size, const glm::mat4& projection )
 {
     m_size = size;
+    m_particles->resize( projection );
 
     // set board position 
     auto boardBounds = m_board->bounds();

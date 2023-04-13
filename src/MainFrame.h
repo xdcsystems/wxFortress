@@ -46,6 +46,7 @@ class MainFrame final : public wxFrame
         void onBallLost( wxCommandEvent& );
         void onReset( wxCommandEvent& );
         void onScoreIncreased( wxCommandEvent& );
+        void onVideoStarted( wxCommandEvent& );
         void onVideoFinished( wxCommandEvent& );
 
         // Helper functions

@@ -29,7 +29,8 @@ ParticleGenerator::ParticleGenerator( unsigned int amount )
         "/../resources/images/Particle.png",
         "particle" );
 
-    m_shader = ResourceManager::GetShader( "particle" );
+    m_shader = ResourceManager::LoadShader( "/../data/shaders/Particle.vs", "/../data/shaders/Particle.frag", "", "particle" );
+    m_shader->setInteger( "sprite", 0, true );
 
     init();
 }
@@ -37,6 +38,11 @@ ParticleGenerator::ParticleGenerator( unsigned int amount )
 ParticleGenerator::~ParticleGenerator()
 {
     GL_CHECK( glDeleteBuffers( 1, &m_VBO ) );
+}
+
+void ParticleGenerator::resize( const glm::mat4& projection )
+{
+    m_shader->setMatrix4( "projection", projection, true );
 }
 
 void ParticleGenerator::update( float dt, const basePtr &object, unsigned int newParticles, glm::vec2 offset )

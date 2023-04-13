@@ -13,10 +13,11 @@ class SpriteRenderer
     using shaderPtr = std::shared_ptr<Shader>;
 
     public:
-        SpriteRenderer( const shaderPtr &shader );
+        SpriteRenderer();
         ~SpriteRenderer();
 
         void selectShader();
+        void resize( const glm::mat4& projection );
 
         // Renders a defined quad textured with given sprite
         void drawSprite(

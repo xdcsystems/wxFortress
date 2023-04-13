@@ -29,6 +29,7 @@ class AudioFile;
 class SoundManager final
 {
     public:
+        SoundManager();
         ~SoundManager();
 
         int init();
