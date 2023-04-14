@@ -39,14 +39,14 @@ VideoRenderer::~VideoRenderer()
 void VideoRenderer::init()
 {
     // clang-format off
-    float vertices[] {
+    const float vertices[] {
          1.f,  1.f,  1.f, 0.f,
          1.f, -1.f,  1.f, 1.f,
         -1.f, -1.f,  0.f, 1.f,
         -1.f,  1.f,  0.f, 0.f,
     };
 
-    unsigned int indices[] {
+    const unsigned int indices[] {
         0, 1, 3, 1, 2, 3
     };
     // clang-format on

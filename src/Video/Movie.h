@@ -15,7 +15,7 @@ class Movie
         Movie();
         ~Movie();
 
-        int open( std::string filename );
+        int open( std::string &&filename );
         void close();
         bool isFinished() const { return m_quit.load( std::memory_order_relaxed ) == true; }
 

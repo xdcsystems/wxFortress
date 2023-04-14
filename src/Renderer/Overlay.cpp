@@ -17,7 +17,8 @@
 #include "Overlay.h"
 
 
-Overlay::Overlay()
+Overlay::Overlay( const rendererPtr& renderer )
+  : m_renderer( renderer )
  {
     m_countdown = std::make_shared<CountDown>();
     
@@ -32,15 +33,15 @@ void Overlay::resize( const wxSize& size )
     m_countdown->resize( size );
 }
 
-void Overlay::showPause( const rendererPtr &renderer ) const
+void Overlay::showPause() const
 {
     m_pauseTex->bind();
-    renderer->drawSprite(
+    m_renderer->drawSprite(
         { 0.0f, m_size.y - m_pauseTex->Height },
         { m_pauseTex->Width, m_pauseTex->Height } );
 }
 
-void Overlay::showCountDown( const rendererPtr &renderer, unsigned char count ) const
+void Overlay::showCountDown( unsigned char count ) const
 {
-    m_countdown->show( renderer, count );
+    m_countdown->show( m_renderer, count );
 }

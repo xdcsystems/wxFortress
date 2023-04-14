@@ -65,7 +65,7 @@ void TextRenderer::resize( const glm::mat4& projection )
 
 void TextRenderer::switchToFinishState( unsigned short stage )
 {
-    static std::map<unsigned short, std::string> s_stageName = {
+    static const std::map<unsigned short, std::string> s_stageName = {
         { 1, "First"  },
         { 2, "Second" },
         { 3, "Third"  },
@@ -225,7 +225,7 @@ void TextRenderer::renderFinishMessage()
         return;
     }
 
-    print( m_message[countRow].substr( 0, m_col ) + '\x60', beginPos.x, beginPos.y - lineHeight * m_row, charSize );
+    print( m_message[ countRow ].substr( 0, m_col ) + '\x60', beginPos.x, beginPos.y - lineHeight * m_row, charSize );
 
     if ( m_timer->getElapsedTimeInMilliSec() >= m_delay )
     {
@@ -234,7 +234,7 @@ void TextRenderer::renderFinishMessage()
         if ( m_col++ )
             m_eventHandler->ProcessEvent( m_eventCharShow );
 
-        if ( m_col < m_message[m_row].length() )
+        if ( m_col < m_message[ m_row ].length() )
         {
             m_timer->start();
             return;
@@ -243,7 +243,7 @@ void TextRenderer::renderFinishMessage()
         m_col = 0;
         if ( ++m_row < m_message.size() )
         {
-            if ( m_message[m_row - 1].back() == '.' || m_message[m_row - 1].back() == '\"' )
+            if ( m_message[ m_row - 1 ].back() == '.' || m_message[ m_row - 1 ].back() == '\"' )
                 m_delay = 500;
 
             renderFinishMessage();

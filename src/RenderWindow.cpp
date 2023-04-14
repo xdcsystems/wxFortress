@@ -133,8 +133,8 @@ void RenderWindow::setupGraphics()
 void RenderWindow::init()
 {
     m_spriteRenderer = std::make_shared<SpriteRenderer>();
-    m_shapesManager = std::make_shared<Shapes::ShapesManager>( this );
-    m_overlay = std::make_shared<Overlay>();
+    m_shapesManager = std::make_shared<Shapes::ShapesManager>( this, m_spriteRenderer );
+    m_overlay = std::make_shared<Overlay>( m_spriteRenderer );
 
     m_soundManager->init();
 }
@@ -257,28 +257,43 @@ void RenderWindow::render()
     if ( !IsShown() )
         return;
 
+    if ( m_state == State::PLAY )
+    {
+        if ( m_mediaManager->needRefresh() )
+        {
+            SetCurrent( *m_context );
+            GL_CHECK( glClear( GL_COLOR_BUFFER_BIT ) );
+
+            m_mediaManager->renderFrame();
+
+            SwapBuffers();
+        }
+
+#if defined( _MSC_VER )
+        DwmFlush();
+#endif
+
+        return;
+    }
+
     SetCurrent( *m_context );
     GL_CHECK( glClear( GL_COLOR_BUFFER_BIT ) );
 
     switch ( m_state )
     {
-        case State::PLAY:
-            m_mediaManager->renderFrame();
-        break;
-
         case State::NEWROUND:
         case State::RUN:
-            m_shapesManager->renderFrame( m_spriteRenderer );
+            m_shapesManager->renderFrame();
         break;
 
         case State::PAUSE:
-            m_shapesManager->renderFrame( m_spriteRenderer );
-            m_overlay->showPause( m_spriteRenderer );
+            m_shapesManager->renderFrame();
+            m_overlay->showPause();
         break;
 
         case State::COUNTDOWN:
-            m_shapesManager->renderFrame( m_spriteRenderer );
-            m_overlay->showCountDown( m_spriteRenderer, m_countDown );
+            m_shapesManager->renderFrame();
+            m_overlay->showCountDown( m_countDown );
         break;
 
         case State::HELP:

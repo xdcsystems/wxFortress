@@ -61,7 +61,7 @@ Movie::~Movie()
     }
 }
 
-int Movie::open( std::string filename )
+int Movie::open( std::string &&filename )
 {
     if ( m_parseThread.joinable() )
     {
@@ -282,20 +282,18 @@ int Movie::start()
 
         if ( packet.stream_index == videoIndex )
         {
-            while ( !m_quit.load( std::memory_order_acquire ) && !videoQueue.put( &packet ) )
+            while ( !m_quit.load( std::memory_order_acquire ) && !videoQueue.put( packet ) )
             {
                 std::this_thread::sleep_for( milliseconds( 100 ) );
             }
         }
         else if ( packet.stream_index == audioIndex )
         {
-            while ( !m_quit.load( std::memory_order_acquire ) && !audioQueue.put( &packet ) )
+            while ( !m_quit.load( std::memory_order_acquire ) && !audioQueue.put( packet ) )
             {
                 std::this_thread::sleep_for( milliseconds( 100 ) );
             }
         }
-
-        av_packet_unref( &packet );
     }
 
     if ( m_video.m_codecCtx )

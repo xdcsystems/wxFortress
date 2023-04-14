@@ -20,7 +20,7 @@ if( WIN32 )
 endif()
 
 find_package(FFmpeg
-    COMPONENTS AVCODEC AVFORMAT AVUTIL AVDEVICE AVFILTER SWSCALE SWRESAMPLE
+    COMPONENTS AVCODEC AVFORMAT AVUTIL SWRESAMPLE
     REQUIRED)
 
 # openal-soft
@@ -30,7 +30,7 @@ OPTION(ALSOFT_EXAMPLES "Build and install example programs" OFF)
 add_subdirectory_with_folder("openal-soft" openal-soft)
 
 # wxWidgets
-set(wxUSE_OPENGL, 1)
+set(wxUSE_OPENGL 1)
 set(wxUSE_AUI 0)
 set(wxUSE_PROPGRID 0)
 set(wxUSE_QA 0)
@@ -39,7 +39,16 @@ set(wxUSE_RICHTEXT 0)
 set(wxUSE_WEBVIEW 0)
 set(wxUSE_STC 0)
 set(wxUSE_MEDIACTRL 0)
-#set(wxUSE_XRC 0)
+set(wxUSE_XRC 0)
+set(wxUSE_XML 0)
+set(wxUSE_WXHTML_HELP 0)
+set(wxUSE_HTML 0)
+set(wxUSE_EXPAT 0)
+set(wxUSE_DEBUGREPORT 0)
+set(wxUSE_SOCKETS 0)
+set(wxUSE_URL 0)
+set(wxUSE_PROTOCOL_FTP 0)
+set(wxUSE_PROTOCOL_HTTP 0)
 
 add_subdirectory_with_folder("wxWidgets" wxWidgets)
 

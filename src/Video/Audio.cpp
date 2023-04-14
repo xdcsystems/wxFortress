@@ -235,12 +235,15 @@ int Audio::decodeFrame()
             av_samples_alloc( &m_samples, nullptr, m_codecCtx->channels, m_decodedFrame->nb_samples, m_dstSampleFmt, 0 );
             m_samplesMax = m_decodedFrame->nb_samples;
         }
+        
         int nsamples = swr_convert( m_swrCtx.get(),
                 &m_samples,
                 m_decodedFrame->nb_samples,
                 (const uint8_t **)m_decodedFrame->data,
                 m_decodedFrame->nb_samples );
+        
         av_frame_unref( m_decodedFrame.get() );
+        
         return nsamples;
     }
 
@@ -284,7 +287,6 @@ int Audio::readAudio( uint8_t *samples, unsigned int length )
         const unsigned int rem = length - audioSize;
         std::fill_n( samples, rem * m_frameSize, ( m_dstSampleFmt == AV_SAMPLE_FMT_U8 ? 0x80 : 0x00 ) );
         m_currentPts += nanoseconds { seconds { rem } } / m_codecCtx->sample_rate;
-        //audioSize += rem;
     }
 
     return true;
