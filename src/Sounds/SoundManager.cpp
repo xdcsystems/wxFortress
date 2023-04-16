@@ -76,13 +76,13 @@ SoundManager::~SoundManager()
     alcCloseDevice( m_device );
 }
 
-int SoundManager::loadBuffer( AudioFile<float>& soundFile, const std::string& fileName, ALuint* buffer )
+int SoundManager::loadBuffer( AudioFile<float>& soundFile, const std::string& name, ALuint* buffer )
 {
     std::vector<uint8_t> dataBytesPCM;
 
-    if ( !soundFile.load( Tools::Instance().getFullFileName( "/../resources/sounds/" + fileName ) ) )
+    if ( !soundFile.load( "resources/sounds/" + name ) )
     {
-        std::cerr << "failed to load sound file" << std::endl;
+        std::cerr << "failed to load sound resource" << std::endl;
         return -1;
     }
 

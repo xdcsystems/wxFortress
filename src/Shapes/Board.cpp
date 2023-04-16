@@ -19,7 +19,7 @@ using namespace Shapes;
 Board::Board()
 {
     load( ResourceManager::LoadTexture(
-        "/../resources/images/SimpleBoard.png",
+        "resources/images/SimpleBoard.png",
         "simple_board" ) );
 
     m_velocity = { BEGIN_BOARD_VELOCITY, BEGIN_BOARD_VELOCITY };

@@ -491,14 +491,12 @@ void AudioFile<T>::shouldLogErrorsToConsole( bool logErrors )
 
 //=============================================================
 template <class T>
-bool AudioFile<T>::load( std::string filePath )
+bool AudioFile<T>::load( std::string path )
 {
-    std::ifstream file( filePath, std::ios::binary );
-
-    // check the file exists
+    auto file = Tools::Instance().loadResourceStd( path );
     if ( !file.good() )
     {
-        reportError( "ERROR: File doesn't exist or otherwise can't load file\n" + filePath );
+        reportError( "ERROR: resource doesn't exist or otherwise can't load resource\n" + path );
         return false;
     }
 

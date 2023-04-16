@@ -23,7 +23,7 @@ Overlay::Overlay( const rendererPtr& renderer )
     m_countdown = std::make_shared<CountDown>();
     
     m_pauseTex = ResourceManager::LoadTexture(
-        "/../resources/images/Pause.png",
+        "resources/images/Pause.png",
         "pause" );
 }
 

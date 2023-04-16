@@ -21,7 +21,7 @@ using namespace Shapes;
 Explosions::Explosions()
 {
     m_explosionsSprite = ResourceManager::LoadTexture(
-        "/../resources/images/Explosion.png",
+        "resources/images/Explosion.png",
         "explosions" );
 
     const glm::vec2 divisionScale = { 

@@ -48,7 +48,7 @@ void MediaManager::reset()
 
 void MediaManager::playIntro()
 {
-    open( Tools::Instance().getFullFileName( "/../resources/video/Intro.mp4" ) );
+    open( Tools::Instance().getFullFileName( ( "/" + wxTheApp->GetAppName() + ".vid" ).ToStdString() ) );
     m_eventHandler->AddPendingEvent( m_eventMediaPlay );
 }
 

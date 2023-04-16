@@ -18,7 +18,12 @@
 
 SpriteRenderer::SpriteRenderer()
 {
-    m_shader = ResourceManager::LoadShader( "/../data/shaders/Sprite.vs", "/../data/shaders/Sprite.fraq", "", "sprite" );
+    m_shader = ResourceManager::LoadShader(
+        "resources/shaders/Sprite.vs",
+        "resources/shaders/Sprite.fraq",
+        "",
+        "sprite" );
+
     m_shader->setInteger( "image", 0, true );
 
     initRenderData();

@@ -19,7 +19,7 @@
 CountDown::CountDown()
 {
     m_countdownSprite = ResourceManager::LoadTexture(
-        "/../resources/images/CountDown.png",
+        "resources/images/CountDown.png",
         "pause" );
 }
 

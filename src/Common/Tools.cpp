@@ -18,6 +18,7 @@
 #include "Common/defs.h"
 #include "Tools.h"
 
+
 void CheckOpenGLError( const char *stmt, const char *fname, int line )
 {
     GLenum errorCode( 0 );
@@ -41,7 +42,8 @@ void CheckOpenGLError( const char *stmt, const char *fname, int line )
 
 std::string Tools::getFullFileName( const std::string &filename ) const
 {
-    wxFileName fileName( wxStandardPaths::Get().GetDataDir() + filename );
+    const auto path = wxFileName( wxStandardPaths::Get().GetExecutablePath() ).GetPath();
+    wxFileName fileName( path + filename );
     fileName.Normalize( wxPATH_NORM_ABSOLUTE | wxPATH_NORM_DOTS );
 
     auto fullFileName = fileName.GetFullPath();
@@ -53,21 +55,48 @@ std::string Tools::getFullFileName( const std::string &filename ) const
     return fullFileName.ToStdString();
 }
 
-std::shared_ptr<wxBitmap> Tools::loadBitmapFromFile( const std::string &filename ) const
+void Tools::loadResources()
 {
-    const auto &fullFileName = getFullFileName( filename );
-    auto bitmap = std::make_shared<wxBitmap>( fullFileName, wxBITMAP_TYPE_PNG );
+    // open the zip
+    m_zipFile = std::make_shared<wxFFileInputStream>( getFullFileName( ( "/" + wxTheApp->GetAppName() + ".dat" ).ToStdString() ) );
+    m_zip = std::make_shared<wxZipInputStream>( *m_zipFile );
+
+    // load the zip catalog
+    while ( m_entry.reset( m_zip->GetNextEntry() ), m_entry.get() != nullptr )
+        m_cat[ m_entry->GetInternalName() ] = std::move( m_entry );
+}
+
+wxInputStream& Tools::loadResource( const std::string& name ) const
+{
+    // open an entry by name
+    if ( auto it = m_cat.find( wxZipEntry::GetInternalName( name ) ); it != m_cat.end() )
+    {
+        m_zip->OpenEntry( *it->second );
+        return *m_zip.get();
+    }
+
+    throw std::out_of_range( "Can't find resource: " + name );
+}
+
+wxStdInputStream Tools::loadResourceStd( const std::string& name ) const
+{
+    return { loadResource( name ) };
+}
+
+std::shared_ptr<wxBitmap> Tools::loadBitmap( const std::string &name ) const
+{
+    auto bitmap = std::make_shared<wxBitmap>( wxImage { loadResource( name ), wxBITMAP_TYPE_PNG } );
     if ( !bitmap || !bitmap->IsOk() )
     {
-        throw std::runtime_error( "Error loading resource: " + filename );
+        throw std::runtime_error( "Error loading resource: " + name );
     }
 
     return bitmap;
 }
 
-std::vector< std::vector<int> > Tools::loadLevelFromFile( const std::string &filename, unsigned short levelNum ) const
+std::vector< std::vector<int> > Tools::loadLevel( const std::string &name, unsigned short levelNum ) const
 {
-    wxFileInputStream input( getFullFileName( filename ) );
+    wxInputStream &input( loadResource( name ) );
 
     if ( !input.IsOk() )
     {
@@ -77,7 +106,7 @@ std::vector< std::vector<int> > Tools::loadLevelFromFile( const std::string &fil
     const wxString label = wxT( "Level " );
     const wxString finishLabel = wxT( "End" );
 
-    wxTextInputStream text( input );
+    wxTextInputStream text( loadResource( name ) );
     wxString leveLabel( label );
     wxString line;
 

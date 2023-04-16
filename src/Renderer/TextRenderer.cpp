@@ -29,14 +29,19 @@ TextRenderer::TextRenderer( wxWindow* parent )
   : m_eventHandler( parent->GetEventHandler() )
   , m_eventCharShow( wxEVT_CHAR_SHOW )
 {
-    m_shader = ResourceManager::LoadShader( "/../data/shaders/Text.vs", "/../data/shaders/Text.frag", "", "text" );
+    m_shader = ResourceManager::LoadShader(
+        "resources/shaders/Text.vs",
+        "resources/shaders/Text.frag",
+        "",
+        "text" );
+
     m_shader->setInteger( "charImage", 0, true );
 
     s_fontData.at( TextRendererFont::NORMAL ).second = 
-        ResourceManager::LoadTexture( "/../resources/images/Font18.png", "font18" );
+        ResourceManager::LoadTexture( "resources/images/Font18.png", "font18" );
     
     s_fontData.at( TextRendererFont::OLD ).second = 
-        ResourceManager::LoadTexture( "/../resources/images/Font.png", "font" );
+        ResourceManager::LoadTexture( "resources/images/Font.png", "font" );
 
     GL_CHECK( glGenBuffers( 1, &m_vertexBufferID ) );
     GL_CHECK( glGenBuffers( 1, &m_UVBufferID ) );

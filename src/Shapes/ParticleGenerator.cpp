@@ -26,10 +26,15 @@ ParticleGenerator::ParticleGenerator( unsigned int amount )
     , m_particles( amount )
 {
     m_texture = ResourceManager::LoadTexture(
-        "/../resources/images/Particle.png",
+        "resources/images/Particle.png",
         "particle" );
 
-    m_shader = ResourceManager::LoadShader( "/../data/shaders/Particle.vs", "/../data/shaders/Particle.frag", "", "particle" );
+    m_shader = ResourceManager::LoadShader(
+        "resources/shaders/Particle.vs",
+        "resources/shaders/Particle.frag",
+        "",
+        "particle" );
+
     m_shader->setInteger( "sprite", 0, true );
 
     init();

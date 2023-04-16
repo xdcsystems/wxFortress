@@ -77,6 +77,8 @@ RenderWindow::RenderWindow(
     m_context = std::make_unique<wxGLContext>( this );
     SetCurrent( *m_context );  // TODO move to resize
 
+    ResourceManager::LoadResources();
+
     initializeGLEW();
     setupGraphics();
 

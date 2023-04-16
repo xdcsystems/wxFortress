@@ -21,13 +21,13 @@ using namespace Shapes;
 Bricks::Bricks()
 {
     m_bricksSprite = ResourceManager::LoadTexture(
-        "/../resources/images/bricks.png",
+        "resources/images/bricks.png",
         "bricks" );
 }
 
 void Bricks::loadLevel( unsigned short level )
 {
-    const auto bricks = Tools::Instance().loadLevelFromFile( "/../resources/levels.txt", level );
+    const auto bricks = Tools::Instance().loadLevel( "resources/levels.txt", level );
 
     const auto rows = bricks.size();
     const auto cols = bricks[ 0 ].size();
