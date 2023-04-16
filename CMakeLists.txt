@@ -18,23 +18,23 @@ set( TODO ON CACHE BOOL "Enable compiletime TODO messages" )
 set( RESOURCE_INSTALL_DIR "" CACHE PATH "Path to install resources to (leave empty for running uninstalled)" )
 
 if( NOT CMAKE_ARCHIVE_OUTPUT_DIRECTORY )
-  set( CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/lib/static" )
+  set( CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/.lib/static" )
 endif()
 
 if( NOT CMAKE_LIBRARY_OUTPUT_DIRECTORY )
-  set( CMAKE_LIBRARY_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/lib" )
+  set( CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/.lib" )
 endif()
 
 if( NOT CMAKE_RUNTIME_OUTPUT_DIRECTORY )
-  set( CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/bin" )
+  set( CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/.bin" )
 endif()
 
 # set output directories for all builds (Debug, Release, etc.)
 foreach( OUTPUTCONFIG ${CMAKE_CONFIGURATION_TYPES} )
     string( TOUPPER ${OUTPUTCONFIG} OUTPUTCONFIG )
-    set( CMAKE_ARCHIVE_OUTPUT_DIRECTORY_${OUTPUTCONFIG} ${CMAKE_SOURCE_DIR}/lib/${OUTPUTCONFIG} )
-    set( CMAKE_LIBRARY_OUTPUT_DIRECTORY_${OUTPUTCONFIG} ${CMAKE_SOURCE_DIR}/lib/${OUTPUTCONFIG} )
-    set( CMAKE_RUNTIME_OUTPUT_DIRECTORY_${OUTPUTCONFIG} ${CMAKE_SOURCE_DIR}/bin/${OUTPUTCONFIG} )
+    set( CMAKE_ARCHIVE_OUTPUT_DIRECTORY_${OUTPUTCONFIG} ${CMAKE_BINARY_DIR}/.lib/${OUTPUTCONFIG} )
+    set( CMAKE_LIBRARY_OUTPUT_DIRECTORY_${OUTPUTCONFIG} ${CMAKE_BINARY_DIR}/.lib/${OUTPUTCONFIG} )
+    set( CMAKE_RUNTIME_OUTPUT_DIRECTORY_${OUTPUTCONFIG} ${CMAKE_BINARY_DIR}/.bin/${OUTPUTCONFIG} )
 endforeach( OUTPUTCONFIG CMAKE_CONFIGURATION_TYPES )
 
 if( WIN32 )
@@ -76,26 +76,44 @@ target_link_libraries(
 	FFmpeg::FFmpeg
 )
 
+# it required for build with ffmpeg
 target_link_options(${CMAKE_PROJECT_NAME} PUBLIC "$<$<C_COMPILER_ID:MSVC>:-SAFESEH:NO>")
 
 # copy ffmpeg dll's
 if( WIN32 )
-    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-       COMMAND ${CMAKE_COMMAND} -E copy_directory 
-               ${PROJECT_SOURCE_DIR}/external/ffmpeg/win32/lib/dlls/
-               $<TARGET_FILE_DIR:${PROJECT_NAME}>
+    # list of required files
+    set( ffmpeg_dlls_path ${PROJECT_SOURCE_DIR}/external/ffmpeg/win32/lib/dlls )
+    set( ffmpeg_dlls
+        ${ffmpeg_dlls_path}/avcodec-58.dll
+        ${ffmpeg_dlls_path}/avformat-58.dll
+        ${ffmpeg_dlls_path}/avutil-56.dll
+        ${ffmpeg_dlls_path}/swresample-3.dll 
     )
+
+    foreach( dll_file ${ffmpeg_dlls} )
+        add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                ${dll_file}
+                $<TARGET_FILE_DIR:${PROJECT_NAME}>
+        )
+   endforeach( dll_file ffmpeg_dlls ) 
 endif()
 
-#set_target_properties(MyTarget PROPERTIES
-#    VS_GLOBAL_RunCodeAnalysis false
-#
-#    # Use visual studio core guidelines
-#    VS_GLOBAL_EnableMicrosoftCodeAnalysis false
-#    #VS_GLOBAL_CodeAnalysisRuleSet ${CMAKE_CURRENT_SOURCE_DIR}/foo.ruleset
-#    #VS_GLOBAL_CodeAnalysisRuleSet ${CMAKE_CURRENT_SOURCE_DIR}/foo.ruleset
-#
-#    # Use clangtidy
-#    VS_GLOBAL_EnableClangTidyCodeAnalysis true
-#    VS_GLOBAL_ClangTidyChecks "-* \"\"--config-file=${MY_CLANG_TIDY_CONFIG_PATH} --header-filter=.*" 
-#)
+# pack resources
+file( GLOB_RECURSE ZIP_FILES 
+    ${PROJECT_SOURCE_DIR}/resources/images/* 
+    ${PROJECT_SOURCE_DIR}/resources/shaders/*
+    ${PROJECT_SOURCE_DIR}/resources/sounds/*
+    ${PROJECT_SOURCE_DIR}/levels.txt 
+)
+
+add_custom_command( TARGET ${PROJECT_NAME} POST_BUILD 
+    COMMAND ${CMAKE_COMMAND} -E tar cvf ${CMAKE_BINARY_DIR}/.bin/$<CONFIG>/${PROJECT_NAME}.dat --format=zip ${ZIP_FILES}
+    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+)
+
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    ${PROJECT_SOURCE_DIR}/resources/video/Intro.mp4 
+    ${CMAKE_BINARY_DIR}/.bin/$<CONFIG>/${PROJECT_NAME}.vid
+)

@@ -29,13 +29,19 @@ TextRenderer::TextRenderer( wxWindow* parent )
   : m_eventHandler( parent->GetEventHandler() )
   , m_eventCharShow( wxEVT_CHAR_SHOW )
 {
-    m_shader = ResourceManager::GetShader( "text" );
+    m_shader = ResourceManager::LoadShader(
+        "resources/shaders/Text.vs",
+        "resources/shaders/Text.frag",
+        "",
+        "text" );
+
+    m_shader->setInteger( "charImage", 0, true );
 
     s_fontData.at( TextRendererFont::NORMAL ).second = 
-        ResourceManager::LoadTexture( "/../resources/images/Font18.png", "font18" );
+        ResourceManager::LoadTexture( "resources/images/Font18.png", "font18" );
     
     s_fontData.at( TextRendererFont::OLD ).second = 
-        ResourceManager::LoadTexture( "/../resources/images/Font.png", "font" );
+        ResourceManager::LoadTexture( "resources/images/Font.png", "font" );
 
     GL_CHECK( glGenBuffers( 1, &m_vertexBufferID ) );
     GL_CHECK( glGenBuffers( 1, &m_UVBufferID ) );
@@ -57,9 +63,14 @@ void TextRenderer::cleanup()
     GL_CHECK( glDeleteBuffers( 1, &m_UVBufferID ) );
 }
 
+void TextRenderer::resize( const glm::mat4& projection )
+{
+    m_shader->setMatrix4( "projection", projection, true );
+}
+
 void TextRenderer::switchToFinishState( unsigned short stage )
 {
-    static std::map<unsigned short, std::string> s_stageName = {
+    static const std::map<unsigned short, std::string> s_stageName = {
         { 1, "First"  },
         { 2, "Second" },
         { 3, "Third"  },
@@ -219,7 +230,7 @@ void TextRenderer::renderFinishMessage()
         return;
     }
 
-    print( m_message[countRow].substr( 0, m_col ) + '\x60', beginPos.x, beginPos.y - lineHeight * m_row, charSize );
+    print( m_message[ countRow ].substr( 0, m_col ) + '\x60', beginPos.x, beginPos.y - lineHeight * m_row, charSize );
 
     if ( m_timer->getElapsedTimeInMilliSec() >= m_delay )
     {
@@ -228,7 +239,7 @@ void TextRenderer::renderFinishMessage()
         if ( m_col++ )
             m_eventHandler->ProcessEvent( m_eventCharShow );
 
-        if ( m_col < m_message[m_row].length() )
+        if ( m_col < m_message[ m_row ].length() )
         {
             m_timer->start();
             return;
@@ -237,7 +248,7 @@ void TextRenderer::renderFinishMessage()
         m_col = 0;
         if ( ++m_row < m_message.size() )
         {
-            if ( m_message[m_row - 1].back() == '.' || m_message[m_row - 1].back() == '\"' )
+            if ( m_message[ m_row - 1 ].back() == '.' || m_message[ m_row - 1 ].back() == '\"' )
                 m_delay = 500;
 
             renderFinishMessage();

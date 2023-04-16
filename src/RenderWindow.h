@@ -47,6 +47,7 @@ class RenderWindow final : public wxGLCanvas
         RenderWindow& operator= ( const RenderWindow& ) = delete;
         RenderWindow& operator= ( RenderWindow&& ) = delete;
 
+        void init();
         void playIntro();
         void loadLevel( unsigned short level );
         void start();
@@ -67,11 +68,9 @@ class RenderWindow final : public wxGLCanvas
         void onIdle( wxIdleEvent& );
 
         // Helper functions
-        void init();
         void resize( const wxSize& size );
         void switchRun();
         void render();
-
         void initializeGLEW();
         void setupGraphics();
 
@@ -89,7 +88,7 @@ class RenderWindow final : public wxGLCanvas
 
         double m_elapsedTime { 0 };
         
-        bool m_isRunning = false;
+        bool m_isRunning { false };
         unsigned char m_countDown { 0 };
 
         State m_state = State::PLAY;

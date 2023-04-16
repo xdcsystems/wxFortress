@@ -44,33 +44,33 @@ void Texture2D::generate( const wxImage &image )
 
     const int bytesPerPixel = hasAlfa ? 4 : 3;
     GLubyte* bitmapData = image.GetData();
-    GLubyte* imageData { nullptr };
 
     // note: must make a local copy before passing the data to OpenGL, as GetData() returns RGB 
     // and we want the Alpha channel if it's present. Additionally OpenGL seems to interpret the 
     // data upside-down so we need to compensate for that.
-    int imageSize = Width * Height * bytesPerPixel;
-    imageData = new GLubyte[ imageSize ];
+    const int imageSize = Width * Height * bytesPerPixel;
+    std::vector<GLubyte> imageData( imageSize, 0 );
 
-    int revValue = Height - 1;
+    const int revValue = Height - 1;
+    int xIndex = 0;
+    int xRevIndex = 0;
 
     for ( int y = 0; y < Height; ++y )
     {
         for ( int x = 0; x < Width; ++x )
         {
-            imageData[ ( x + y * Width ) * bytesPerPixel + 0 ] =
-                bitmapData[ ( x + ( revValue - y ) * Width ) * 3 ];
+            xIndex = ( x + y * Width ) * bytesPerPixel;
+            xRevIndex = x + ( revValue - y ) * Width;
 
-            imageData[ ( x + y * Width ) * bytesPerPixel + 1 ] =
-                bitmapData[ ( x + ( revValue - y ) * Width ) * 3 + 1 ];
+            memcpy( &imageData[ xIndex ], &bitmapData[ xRevIndex * 3 ], 3 * sizeof( GLubyte ) );
 
-            imageData[ ( x + y * Width ) * bytesPerPixel + 2 ] =
-                bitmapData[ ( x + ( revValue - y ) * Width ) * 3 + 2 ];
+            //imageData[ xIndex      ] = bitmapData[ xRevIndex * 3 ];
+            //imageData[ xIndex + 1 ] = bitmapData[ xRevIndex * 3 + 1 ];
+            //imageData[ xIndex + 2 ] = bitmapData[ xRevIndex * 3 + 2 ];
 
-            if ( bytesPerPixel == 4 )
+            if ( hasAlfa )
             {
-                imageData[ ( x + y * Width ) * bytesPerPixel + 3 ] =
-                    alphaData[ x + ( revValue - y ) * Width ];
+                imageData[ xIndex + 3 ] = alphaData[ xRevIndex ];
             }
         }
     }
@@ -101,9 +101,7 @@ void Texture2D::generate( const wxImage &image )
         0,
         hasAlfa ? GL_RGBA : GL_RGB,
         GL_UNSIGNED_BYTE,
-        imageData ) );
-
-    delete[] imageData;
+        imageData.data() ) );
 
     // unbind texture
     GL_CHECK( glBindTexture( GL_TEXTURE_2D, 0 ) );

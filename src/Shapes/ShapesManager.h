@@ -32,7 +32,7 @@ namespace Shapes
         using particlesPtr = std::shared_ptr<ParticleGenerator>;
 
         public:
-            ShapesManager( wxWindow* parent );
+            ShapesManager( wxWindow* parent, const rendererPtr& spriteRenderer );
             virtual ~ShapesManager();
 
             void run( bool bNewRound = false );
@@ -43,9 +43,9 @@ namespace Shapes
             bool isPaused() const { return m_state == State::PAUSED; }
             bool isStopped() const { return m_state == State::STOPPED; }
 
-            void renderFrame( const rendererPtr &spriteRenderer );
+            void renderFrame();
 
-            void resize( const wxSize& size );
+            void resize( const wxSize& size, const glm::mat4& projection );
             void loadLevel( unsigned short level ) const;
 
         protected:
@@ -85,7 +85,8 @@ namespace Shapes
             std::shared_ptr<Bricks> m_bricks;
             std::shared_ptr<Explosions> m_explosions;
 
-            std::shared_ptr<ParticleGenerator> m_particles;
+            particlesPtr m_particles;
+            rendererPtr m_renderer;
 
             std::atomic<bool> m_keepGoing { true };
             std::future<void> m_asyncWorker;

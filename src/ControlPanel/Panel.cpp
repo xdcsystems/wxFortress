@@ -37,10 +37,10 @@ void Panel::init()
     SetBackgroundStyle( wxBG_STYLE_PAINT );
     SetBackgroundColour( *wxBLACK );
 
-    m_bitmapPanelBuffer = Tools::Instance().loadBitmapFromFile( "/../resources/images/ControlPanel/panel.png" );
-    m_bitmapPanelLaunchedBuffer = Tools::Instance().loadBitmapFromFile( "/../resources/images/ControlPanel/panel_launched.png" );
-    m_bitmapControlBgBuffer = Tools::Instance().loadBitmapFromFile( "/../resources/images/ControlPanel/control/background.png" );
-    m_numbers = Tools::Instance().loadBitmapFromFile( "/../resources/images/ControlPanel/control/numbers.png" );
+    m_bitmapPanelBuffer = Tools::Instance().loadBitmap( "resources/images/ControlPanel/panel.png" );
+    m_bitmapPanelLaunchedBuffer = Tools::Instance().loadBitmap( "resources/images/ControlPanel/panel_launched.png" );
+    m_bitmapControlBgBuffer = Tools::Instance().loadBitmap( "resources/images/ControlPanel/control/background.png" );
+    m_numbers = Tools::Instance().loadBitmap( "resources/images/ControlPanel/control/numbers.png" );
 
     // hi score counter
     // rectangle( 67, 181, 78, 21 );

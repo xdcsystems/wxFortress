@@ -21,7 +21,7 @@ using namespace Shapes;
 Explosions::Explosions()
 {
     m_explosionsSprite = ResourceManager::LoadTexture(
-        "/../resources/images/Explosion.png",
+        "resources/images/Explosion.png",
         "explosions" );
 
     const glm::vec2 divisionScale = { 
@@ -56,7 +56,9 @@ Explosions::Explosions()
 Explosions::~Explosions()
 {
     for ( const auto& vbo : m_VBO )
+    {
         SpriteRenderer::clearBuffer( vbo );
+    }
 }
 
 void Explosions::add( const basePtr &shape )

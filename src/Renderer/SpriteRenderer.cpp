@@ -10,13 +10,22 @@
 #include <GL/glew.h>
 
 #include "Common/Tools.h"
+#include "ResourceManager.h"
 #include "Texture.h"
 #include "Shader.h"
 #include "SpriteRenderer.h"
 
-SpriteRenderer::SpriteRenderer( const shaderPtr &shader )
+
+SpriteRenderer::SpriteRenderer()
 {
-    m_shader = shader;
+    m_shader = ResourceManager::LoadShader(
+        "resources/shaders/Sprite.vs",
+        "resources/shaders/Sprite.fraq",
+        "",
+        "sprite" );
+
+    m_shader->setInteger( "image", 0, true );
+
     initRenderData();
 }
 
@@ -33,6 +42,11 @@ void SpriteRenderer::clearBuffer( unsigned int sourceVBO)
 void SpriteRenderer::selectShader()
 {
     m_shader->use();
+}
+
+void SpriteRenderer::resize( const glm::mat4 &projection )
+{
+    m_shader->setMatrix4( "projection", projection, true );
 }
 
 void SpriteRenderer::drawSprite( unsigned int sourceVBO, const glm::vec2& position, glm::vec2 size, glm::vec3 color )

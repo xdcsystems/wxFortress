@@ -17,6 +17,43 @@
 #include "Common/Tools.h"
 #include "SoundManager.h"
 
+SoundManager::SoundManager()
+{
+    // find the default audio device
+    const ALCchar* defaultDeviceString = alcGetString( /*device*/ nullptr, ALC_DEFAULT_DEVICE_SPECIFIER );
+    m_device = alcOpenDevice( defaultDeviceString );
+    if ( !m_device )
+    {
+        std::cerr << "failed to get the default device for OpenAL" << std::endl;
+        throw std::runtime_error { "failed to get the default device for OpenAL" }; 
+    }
+    std::cout << "OpenAL Device: " << alcGetString( m_device, ALC_DEVICE_SPECIFIER ) << std::endl;
+    //OpenAL_ErrorCheck(device);
+
+    // Create an OpenAL audio context from the device
+    m_context = alcCreateContext( m_device, /*attrlist*/ nullptr );
+    //OpenAL_ErrorCheck(context);
+
+    // Activate this context so that OpenAL state modifications are applied to the context
+    if ( !alcMakeContextCurrent( m_context ) )
+    {
+        std::cerr << "failed to make the OpenAL context the current context" << std::endl;
+        throw std::runtime_error{ "failed to make the OpenAL context the current context" };
+    }
+    //OpenAL_ErrorCheck("Make context current");
+
+    // Create a listener in 3d space (ie the player); (there always exists as listener, you just configure data on it)
+    alec( alListener3f( AL_POSITION, 0.f, 0.f, 0.f ) );
+    alec( alListener3f( AL_VELOCITY, 0.f, 0.f, 0.f ) );
+    ALfloat forwardAndUpVectors[] = { /*forward = */ 1.f,
+        0.f,
+        0.f,
+        /* up = */ 0.f,
+        1.f,
+        0.f };
+    alec( alListenerfv( AL_ORIENTATION, forwardAndUpVectors ) );
+}
+
 SoundManager::~SoundManager()
 {
     // clean up our resources!
@@ -39,13 +76,13 @@ SoundManager::~SoundManager()
     alcCloseDevice( m_device );
 }
 
-int SoundManager::loadBuffer( AudioFile<float>& soundFile, const std::string& fileName, ALuint* buffer )
+int SoundManager::loadBuffer( AudioFile<float>& soundFile, const std::string& name, ALuint* buffer )
 {
     std::vector<uint8_t> dataBytesPCM;
 
-    if ( !soundFile.load( Tools::Instance().getFullFileName( "/../resources/sounds/" + fileName ) ) )
+    if ( !soundFile.load( "resources/sounds/" + name ) )
     {
-        std::cerr << "failed to load sound file" << std::endl;
+        std::cerr << "failed to load sound resource" << std::endl;
         return -1;
     }
 
@@ -80,40 +117,6 @@ int SoundManager::init()
 {
     static std::once_flag s_once;
     std::call_once( s_once, [ this ]() {
-        // find the default audio device
-        const ALCchar* defaultDeviceString = alcGetString( /*device*/ nullptr, ALC_DEFAULT_DEVICE_SPECIFIER );
-        m_device = alcOpenDevice( defaultDeviceString );
-        if ( !m_device )
-        {
-            std::cerr << "failed to get the default device for OpenAL" << std::endl;
-            return -1;
-        }
-        std::cout << "OpenAL Device: " << alcGetString( m_device, ALC_DEVICE_SPECIFIER ) << std::endl;
-        //OpenAL_ErrorCheck(device);
-
-        // Create an OpenAL audio context from the device
-        m_context = alcCreateContext( m_device, /*attrlist*/ nullptr );
-        //OpenAL_ErrorCheck(context);
-
-        // Activate this context so that OpenAL state modifications are applied to the context
-        if ( !alcMakeContextCurrent( m_context ) )
-        {
-            std::cerr << "failed to make the OpenAL context the current context" << std::endl;
-            return -1;
-        }
-        //OpenAL_ErrorCheck("Make context current");
-
-        // Create a listener in 3d space (ie the player); (there always exists as listener, you just configure data on it)
-        alec( alListener3f( AL_POSITION, 0.f, 0.f, 0.f ) );
-        alec( alListener3f( AL_VELOCITY, 0.f, 0.f, 0.f ) );
-        ALfloat forwardAndUpVectors[] = { /*forward = */ 1.f,
-                0.f,
-                0.f,
-                /* up = */ 0.f,
-                1.f,
-                0.f };
-        alec( alListenerfv( AL_ORIENTATION, forwardAndUpVectors ) );
-
         // Create buffers that hold our sound data; these are shared between contexts and ar defined at a device level
         AudioFile<float> soundFile;
         loadBuffer( soundFile, "Rocket.wav", &m_monoSoundBuffer );
@@ -269,5 +272,5 @@ void SoundManager::playBallLost()
 
 void SoundManager::playCharShow()
 {
-    playStereoSource( m_stereoCharShowSoundBuffer, 1.f );  // TODO play async
+    playStereoSource( m_stereoCharShowSoundBuffer );
 }

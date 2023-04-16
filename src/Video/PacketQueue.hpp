@@ -32,9 +32,8 @@ class PacketQueue
             if ( !pkt )
             {
                 if ( !ret )
-                {
                     return AVErrorEOF;
-                }
+
                 return ret;
             }
 
@@ -55,21 +54,15 @@ class PacketQueue
             m_cv.notify_one();
         }
 
-        bool put( const AVPacket *pkt )
+        bool put( AVPacket &pkt )
         {
             {
                 std::lock_guard<std::mutex> lck( m_mutex );
+
                 if ( m_totalSize >= SizeLimit )
-                {
                     return false;
-                }
-                m_packets.emplace_back( AVPacket {} );
-                if ( av_packet_ref( &m_packets.back(), pkt ) != 0 )
-                {
-                    assert( 0 );
-                    m_packets.pop_back();
-                    return true;
-                }
+
+                m_packets.emplace_back( std::move( pkt ) );
                 m_totalSize += static_cast<size_t>( m_packets.back().size );
             }
             m_cv.notify_one();

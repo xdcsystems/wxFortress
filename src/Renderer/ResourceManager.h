@@ -18,14 +18,16 @@ class ResourceManager
         inline static std::map<std::string, shaderPtr> s_shaders;
         inline static std::map<std::string, texture2DPtr> s_textures;
 
+        static bool LoadResources();
+
         // loads (and generates) a shader program from file loading vertex, fragment (and geometry) shader's source code. If gShaderFile is not nullptr, it also loads a geometry shader
-        static shaderPtr LoadShader( const std::string& vShaderFile, const std::string& fShaderFile, const std::string& gShaderFile, const std::string& name );
+        static shaderPtr LoadShader( const std::string& vShaderName, const std::string& fShaderName, const std::string& gShaderName, const std::string& name );
 
         // retrieves a stored sader
         static shaderPtr GetShader( const std::string& name );
 
         // loads (and generates) a texture from file
-        static texture2DPtr LoadTexture( const std::string& fileName, const std::string& textureName );
+        static texture2DPtr LoadTexture( const std::string& name, const std::string& textureName );
 
         // retrieves a stored texture
         static texture2DPtr GetTexture( const std::string& name );
@@ -38,8 +40,8 @@ class ResourceManager
         ResourceManager() = default;
 
         // loads and generates a shader from file
-        static shaderPtr LoadShaderFromFile( const std::string& vShaderFile, const std::string& fShaderFile, const std::string& gShaderFile = "" );
+        static shaderPtr LoadShader( const std::string& vShaderName, const std::string& fShaderName, const std::string& gShaderName = "" );
 
         // loads a single texture from file
-        static texture2DPtr LoadTextureFromFile( const std::string& fileName );
+        static texture2DPtr LoadTexture( const std::string& name );
 };

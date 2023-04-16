@@ -73,7 +73,26 @@ RenderWindow::RenderWindow(
     : wxGLCanvas( parent, id, attribList, { 0, 0 }, { 1, 1 }, style, name, palette )
 {
     SetMinSize( size );
-    init();
+
+    m_context = std::make_unique<wxGLContext>( this );
+    SetCurrent( *m_context );  // TODO move to resize
+
+    ResourceManager::LoadResources();
+
+    initializeGLEW();
+    setupGraphics();
+
+    // set render-specific controls
+    m_textRenderer = std::make_shared<TextRenderer>( this );
+    m_soundManager = std::make_shared<SoundManager>();
+    m_mediaManager = std::make_shared<MediaManager>( this, m_textRenderer );
+
+    SetExtraStyle( wxWS_EX_PROCESS_IDLE );
+    wxIdleEvent::SetMode( wxIDLE_PROCESS_SPECIFIED );
+
+    m_timer = std::make_shared<Timer>( false );
+
+    Bind( wxEVT_IDLE, &RenderWindow::onIdle, this );
 }
 
 RenderWindow::~RenderWindow()
@@ -105,15 +124,6 @@ void RenderWindow::setupGraphics()
     wglSwapIntervalEXT( GetContext()->GetWXGLContext() );
 #endif
 
-    // load shaders
-    ResourceManager::LoadShader( "/../data/shaders/Sprite.vs",   "/../data/shaders/Sprite.fraq",   "", "sprite" );
-    ResourceManager::LoadShader( "/../data/shaders/Particle.vs", "/../data/shaders/Particle.frag", "", "particle" );
-    ResourceManager::LoadShader( "/../data/shaders/Text.vs", "/../data/shaders/Text.frag", "", "text" );
-
-    ResourceManager::GetShader( "sprite" )->setInteger( "image", 0, true );
-    ResourceManager::GetShader( "particle" )->setInteger( "sprite", 0, true );
-    ResourceManager::GetShader( "text" )->setInteger( "charImage", 0, true );
-
     GL_CHECK( glClearColor( 0.0, 0.0, 0.0, 1.0 ) );
     GL_CHECK( glEnable( GL_TEXTURE_2D ) );
     GL_CHECK( glEnable( GL_COLOR_MATERIAL ) );
@@ -124,31 +134,12 @@ void RenderWindow::setupGraphics()
 
 void RenderWindow::init()
 {
-    m_context = std::make_unique<wxGLContext>( this );
-    SetCurrent( *m_context );  // TODO move to resize
+    m_spriteRenderer = std::make_shared<SpriteRenderer>();
+    m_shapesManager = std::make_shared<Shapes::ShapesManager>( this, m_spriteRenderer );
+    m_overlay = std::make_shared<Overlay>( m_spriteRenderer );
 
-    initializeGLEW();
-    setupGraphics();
-
-    // set render-specific controls
-    m_spriteRenderer = std::make_shared<SpriteRenderer>( ResourceManager::GetShader( "sprite" ) );
-    m_shapesManager = std::make_shared<Shapes::ShapesManager>( this );
-    m_overlay = std::make_shared<Overlay>();
-    m_textRenderer = std::make_shared<TextRenderer>( this );
-
-    m_soundManager = std::make_shared<SoundManager>();
     m_soundManager->init();
-
-    m_mediaManager = std::make_shared<MediaManager>( this, m_textRenderer );
-
-    SetExtraStyle( wxWS_EX_PROCESS_IDLE );
-    wxIdleEvent::SetMode( wxIDLE_PROCESS_SPECIFIED );
-
-    m_timer = std::make_shared<Timer>( false );
-
-    Bind( wxEVT_IDLE, &RenderWindow::onIdle, this );
 }
-
 
 void RenderWindow::playIntro()
 {
@@ -217,9 +208,6 @@ void RenderWindow::switchRun()
         m_shapesManager->run( m_state == State::NEWROUND );
         m_state = State::RUN;
     }
-
-    //wxCommandEvent eventStageFinished( wxEVT_STAGE_FINISHED );
-    //AddPendingEvent( eventStageFinished );
 }
 
 void RenderWindow::resize( const wxSize &size )
@@ -229,17 +217,23 @@ void RenderWindow::resize( const wxSize &size )
 
     GL_CHECK( glViewport( 0, 0, ( GLint )size.GetWidth(), ( GLint )size.GetHeight() ) );
 
-    // configure shaders
     const auto &projection =
         glm::ortho( 0.0f, static_cast< float >( size.GetWidth() ), 0.0f, static_cast< float >( size.GetHeight() ), -1.0f, 1.0f );
 
-    ResourceManager::GetShader( "sprite" )->setMatrix4( "projection", projection, true );
-    ResourceManager::GetShader( "particle" )->setMatrix4( "projection", projection, true );
-    ResourceManager::GetShader( "text" )->setMatrix4( "projection", projection, true );
+    if ( m_textRenderer )
+        m_textRenderer->resize( projection );
 
-    m_overlay->resize( size );
-    m_shapesManager->resize( size );
-    m_mediaManager->resize( size );
+    if ( m_spriteRenderer )
+        m_spriteRenderer->resize( projection );
+
+    if ( m_overlay )
+        m_overlay->resize( size );
+
+    if ( m_shapesManager )
+        m_shapesManager->resize( size, projection );
+
+    if ( m_mediaManager )
+        m_mediaManager->resize( size );
 }
 
 void RenderWindow::onPaint( wxPaintEvent & )
@@ -265,28 +259,43 @@ void RenderWindow::render()
     if ( !IsShown() )
         return;
 
+    if ( m_state == State::PLAY )
+    {
+        if ( m_mediaManager->needRefresh() )
+        {
+            SetCurrent( *m_context );
+            GL_CHECK( glClear( GL_COLOR_BUFFER_BIT ) );
+
+            m_mediaManager->renderFrame();
+
+            SwapBuffers();
+        }
+
+#if defined( _MSC_VER )
+        DwmFlush();
+#endif
+
+        return;
+    }
+
     SetCurrent( *m_context );
     GL_CHECK( glClear( GL_COLOR_BUFFER_BIT ) );
 
     switch ( m_state )
     {
-        case State::PLAY:
-            m_mediaManager->renderFrame();
-        break;
-
         case State::NEWROUND:
         case State::RUN:
-            m_shapesManager->renderFrame( m_spriteRenderer );
+            m_shapesManager->renderFrame();
         break;
 
         case State::PAUSE:
-            m_shapesManager->renderFrame( m_spriteRenderer );
-            m_overlay->showPause( m_spriteRenderer );
+            m_shapesManager->renderFrame();
+            m_overlay->showPause();
         break;
 
         case State::COUNTDOWN:
-            m_shapesManager->renderFrame( m_spriteRenderer );
-            m_overlay->showCountDown( m_spriteRenderer, m_countDown );
+            m_shapesManager->renderFrame();
+            m_overlay->showCountDown( m_countDown );
         break;
 
         case State::HELP:

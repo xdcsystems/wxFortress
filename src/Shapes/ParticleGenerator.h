@@ -37,6 +37,8 @@ namespace Shapes
             ParticleGenerator( unsigned int amount );
             ~ParticleGenerator();
 
+            void resize( const glm::mat4& projection );
+
             // update all particles
             void update( float dt, const basePtr &object, unsigned int newParticles, glm::vec2 offset = glm::vec2( 0.f, 0.f ) );
 

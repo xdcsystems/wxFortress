@@ -48,7 +48,7 @@ void MediaManager::reset()
 
 void MediaManager::playIntro()
 {
-    open( Tools::Instance().getFullFileName( "/../resources/video/Intro.mp4" ) );
+    open( Tools::Instance().getFullFileName( ( "/" + wxTheApp->GetAppName() + ".vid" ).ToStdString() ) );
     m_eventHandler->AddPendingEvent( m_eventMediaPlay );
 }
 
@@ -95,12 +95,12 @@ void MediaManager::resize( const wxSize& size )
     m_videoRenderer->setViewport( 0, 0, currentSize.x, currentSize.y );
 }
 
-void MediaManager::renderFrame()
+bool MediaManager::needRefresh()
 {
     if ( m_movie->isFinished() )
     {
         close();
-        return;
+        return false;
     }
 
     if ( m_duration < 0 )
@@ -108,13 +108,19 @@ void MediaManager::renderFrame()
         m_duration = m_movie->duration();
     }
 
-    auto [frame, pts] = m_movie->currentFrame();
+    const auto [ frame, pts ] = m_movie->currentFrame();
     if ( frame && m_currentFrame.second != pts )
     {
         m_currentFrame.first = frame;
         m_currentFrame.second = pts;
-    }
 
+        return true;
+    }
+    return false;
+}
+
+void MediaManager::renderFrame()
+{
     if ( m_currentFrame.first )
     {
         switch ( m_currentFrame.first->format )

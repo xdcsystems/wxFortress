@@ -21,7 +21,7 @@ class MediaManager final
         void reset();
         void playIntro();
         void stop();
-
+        bool needRefresh();
         void renderFrame();
 
    private:

@@ -33,13 +33,14 @@ DEFINE_LOCAL_EVENT_TYPE( wxEVT_PONG )
 
 using namespace Shapes;
 
-ShapesManager::ShapesManager( wxWindow* parent )
+ShapesManager::ShapesManager( wxWindow* parent, const rendererPtr& spriteRenderer )
     : m_eventHandler( parent->GetEventHandler() )
     , m_eventCurrentScoreInc( wxEVT_CURRENT_SCORE_INCREASED )
     , m_eventRoundCompleted( wxEVT_ROUND_COMLETED )
     , m_eventPing( wxEVT_PING )
     , m_eventPong( wxEVT_PONG )
     , m_eventBallLost( wxEVT_BALL_LOST )
+    , m_renderer( spriteRenderer )
 {
     m_ball = std::make_shared<Ball>();
     m_board = std::make_shared<Board>();
@@ -80,9 +81,10 @@ Rect ShapesManager::updateBallPosition( const Rect& boardBounds ) const
     return m_ball->bounds();
 }
 
-void ShapesManager::resize( const wxSize& size )
+void ShapesManager::resize( const wxSize& size, const glm::mat4& projection )
 {
     m_size = size;
+    m_particles->resize( projection );
 
     // set board position 
     auto boardBounds = m_board->bounds();
@@ -360,7 +362,7 @@ void ShapesManager::update( double deltaTime )
     checkKeysState();
 }
 
-void ShapesManager::renderFrame( const rendererPtr &spriteRenderer )
+void ShapesManager::renderFrame()
 {
     if ( pauseWorker() == std::cv_status::timeout )
     {
@@ -368,24 +370,24 @@ void ShapesManager::renderFrame( const rendererPtr &spriteRenderer )
         return;
     }
 
-    spriteRenderer->selectShader();
+    m_renderer->selectShader();
 
-    m_board->draw( spriteRenderer );
+    m_board->draw( m_renderer );
 
     if ( !m_isRoundCompleted )
     {
-        m_bricks->draw( spriteRenderer );
+        m_bricks->draw( m_renderer );
         
         if ( isRunning() )
         {
             m_particles->draw();
-            spriteRenderer->selectShader();
+            m_renderer->selectShader();
         }
         
-        m_ball->draw( spriteRenderer );
+        m_ball->draw( m_renderer );
     }
 
-    m_explosions->draw( spriteRenderer );
+    m_explosions->draw( m_renderer );
 
     resumeWorker();
 }

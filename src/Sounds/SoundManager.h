@@ -29,6 +29,7 @@ class AudioFile;
 class SoundManager final
 {
     public:
+        SoundManager();
         ~SoundManager();
 
         int init();
@@ -43,7 +44,7 @@ class SoundManager final
         void playCharShow();
 
     private:
-        int loadBuffer( AudioFile<float>& soundFile, const std::string& fileName, ALuint* buffer );
+        int loadBuffer( AudioFile<float>& soundFile, const std::string& name, ALuint* buffer );
         ALuint getFreeStereoSource() const;
         void cleanSources();
         void playStereoSource( ALuint buffer, float gain = 1.f, bool playAsync = true );

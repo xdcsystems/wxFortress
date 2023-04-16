@@ -18,7 +18,7 @@ BEGIN_EVENT_TABLE( MainFrame, wxFrame )
     EVT_CLOSE( MainFrame::onClose )
     EVT_COMMAND( wxID_ANY, wxEVT_CURRENT_SCORE_INCREASED, MainFrame::onScoreIncreased )
     EVT_COMMAND( wxID_ANY, wxEVT_ROUND_COMLETED, MainFrame::onRoundCompleted )
-    EVT_COMMAND( wxID_ANY, wxEVT_VIDEO_PLAY, MainFrame::onRoundCompleted )
+    EVT_COMMAND( wxID_ANY, wxEVT_VIDEO_PLAY, MainFrame::onVideoStarted )
     EVT_COMMAND( wxID_ANY, wxEVT_VIDEO_FINISHED, MainFrame::onVideoFinished )
     EVT_COMMAND( wxID_ANY, wxEVT_LAUNCH_PRESSED, MainFrame::onLaunchPressed )
     EVT_COMMAND( wxID_ANY, wxEVT_NEW_ROUND_STARTED, MainFrame::onRoundStarted )
@@ -79,6 +79,12 @@ void MainFrame::start()
     m_renderSurface->SetFocus();
 
     Layout();
+}
+
+void MainFrame::onVideoStarted( wxCommandEvent& )
+{
+    m_renderSurface->init();
+    m_renderSurface->loadLevel( m_controlPanel->increaseLevel() );
 }
 
 void MainFrame::onVideoFinished( wxCommandEvent& )

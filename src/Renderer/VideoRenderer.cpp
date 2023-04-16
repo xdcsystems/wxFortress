@@ -13,13 +13,21 @@
 
 VideoRenderer::VideoRenderer()
 {
-    m_shader = ResourceManager::LoadShader( "/../data/shaders/Video.vs", "/../data/shaders/Video.fraq", "", "video" );
+    m_shader = ResourceManager::LoadShader(
+        "resources/shaders/Video.vs",
+        "resources/shaders/Video.fraq",
+        "",
+        "video" );
 
     m_shader->setInteger( "textureY", 0, true );
     m_shader->setInteger( "textureU", 1 );
     m_shader->setInteger( "textureV", 2 );
 
-    m_shaderNV12 = ResourceManager::LoadShader( "/../data/shaders/Video.vs", "/../data/shaders/VideoNV12.fraq", "", "videoNV12" );
+    m_shaderNV12 = ResourceManager::LoadShader(
+        "resources/shaders/Video.vs",
+        "resources/shaders/VideoNV12.fraq",
+        "",
+        "videoNV12" );
 
     m_shaderNV12->setInteger( "textureY", 0, true );
     m_shaderNV12->setInteger( "textureUV", 1 );
@@ -39,14 +47,14 @@ VideoRenderer::~VideoRenderer()
 void VideoRenderer::init()
 {
     // clang-format off
-    float vertices[] {
+    const float vertices[] {
          1.f,  1.f,  1.f, 0.f,
          1.f, -1.f,  1.f, 1.f,
         -1.f, -1.f,  0.f, 1.f,
         -1.f,  1.f,  0.f, 0.f,
     };
 
-    unsigned int indices[] {
+    const unsigned int indices[] {
         0, 1, 3, 1, 2, 3
     };
     // clang-format on

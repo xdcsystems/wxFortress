@@ -30,6 +30,7 @@ class TextRenderer
         TextRenderer( wxWindow* parent );
         ~TextRenderer();
 
+        void resize( const glm::mat4& projection );
         void renderFrame();
         void print( const std::string &text, int x, int y, const glm::vec2& size, glm::vec3 color = glm::vec3( 1.0f ) );
         void cleanup();

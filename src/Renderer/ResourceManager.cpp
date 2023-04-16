@@ -19,9 +19,15 @@
 #include "ResourceManager.h"
 
 
-shaderPtr ResourceManager::LoadShader( const std::string& vShaderFile, const std::string& fShaderFile, const std::string& gShaderFile, const std::string& name )
+bool ResourceManager::LoadResources()
 {
-    s_shaders[ name ] = LoadShaderFromFile( vShaderFile, fShaderFile, gShaderFile );
+    Tools::Instance().loadResources();
+    return true;
+}
+
+shaderPtr ResourceManager::LoadShader( const std::string& vShaderName, const std::string& fShaderName, const std::string& gShaderName, const std::string& name )
+{
+    s_shaders[ name ] = LoadShader( vShaderName, fShaderName, gShaderName );
     return s_shaders[ name ];
 }
 
@@ -30,9 +36,9 @@ shaderPtr ResourceManager::GetShader( const std::string& name )
     return s_shaders[ name ];
 }
 
-texture2DPtr ResourceManager::LoadTexture( const std::string& fileName, const std::string& textureName )
+texture2DPtr ResourceManager::LoadTexture( const std::string& name, const std::string& textureName )
 {
-    s_textures[ textureName ] = LoadTextureFromFile( fileName );
+    s_textures[ textureName ] = LoadTexture( name );
     return s_textures[ textureName ];
 }
 
@@ -56,40 +62,21 @@ void ResourceManager::Clear()
     }
 }
 
-shaderPtr ResourceManager::LoadShaderFromFile( const std::string& vShaderFile, const std::string& fShaderFile, const std::string& gShaderFile )
+shaderPtr ResourceManager::LoadShader( const std::string& vShaderName, const std::string& fShaderName, const std::string& gShaderName )
 {
-    // 1. retrieve the vertex/fragment source code from filePath
+    // 1. retrieve the vertex/fragment source code from resource
     std::string vertexCode;
     std::string fragmentCode;
     std::string geometryCode;
     try
     {
-        // open files
-        std::ifstream vertexShaderFile( Tools::Instance().getFullFileName( vShaderFile ) );
-        std::ifstream fragmentShaderFile( Tools::Instance().getFullFileName( fShaderFile ) );
-        std::stringstream vShaderStream;
-        std::stringstream fShaderStream;
-        
-        // read file's buffer contents into streams
-        vShaderStream << vertexShaderFile.rdbuf();
-        fShaderStream << fragmentShaderFile.rdbuf();
-        
-        // close file handlers
-        vertexShaderFile.close();
-        fragmentShaderFile.close();
-        
-        // convert stream into string
-        vertexCode = vShaderStream.str();
-        fragmentCode = fShaderStream.str();
+        vertexCode = { std::istreambuf_iterator<char>( Tools::Instance().loadResourceStd( vShaderName ) ), {} };
+        fragmentCode = { std::istreambuf_iterator<char>( Tools::Instance().loadResourceStd( fShaderName ) ), {} };
         
         // if geometry shader path is present, also load a geometry shader
-        if ( !gShaderFile.empty() )
+        if ( !gShaderName.empty() )
         {
-            std::ifstream geometryShaderFile( Tools::Instance().getFullFileName( gShaderFile ) );
-            std::stringstream gShaderStream;
-            gShaderStream << geometryShaderFile.rdbuf();
-            geometryShaderFile.close();
-            geometryCode = gShaderStream.str();
+            geometryCode = { std::istreambuf_iterator<char>( Tools::Instance().loadResourceStd( gShaderName ) ), {} };
         }
     }
     catch ( const std::exception& e )
@@ -102,16 +89,16 @@ shaderPtr ResourceManager::LoadShaderFromFile( const std::string& vShaderFile, c
     
     // 2. now create shader object from source code
     auto shader = std::make_shared<Shader>();
-    shader->compile( vShaderCode, fShaderCode, gShaderFile.empty() ? nullptr : gShaderCode );
+    shader->compile( vShaderCode, fShaderCode, gShaderName.empty() ? nullptr : gShaderCode );
 
     return shader;
 }
 
-texture2DPtr ResourceManager::LoadTextureFromFile( const std::string& fileName )
+texture2DPtr ResourceManager::LoadTexture( const std::string& name )
 {
     // create texture object
     auto texture = std::make_shared<Texture2D>();
-    texture->generate( { Tools::Instance().getFullFileName( fileName ) } );
+    texture->generate( { Tools::Instance().loadResource( name ), wxBITMAP_TYPE_PNG } );
 
     return texture;
 }
