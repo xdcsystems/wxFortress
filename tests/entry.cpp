@@ -119,7 +119,7 @@ TEST_F( TestFortress, Ball_Creation )
     EXPECT_NO_THROW( m_testApp->clear() );
 }
 
-//Полезные параметры запуска --gtest_filter=<test_case_name.test_name|test_case_name.*> --gtest_repeat=1 --gtest_catch_exceptions=0
+// Useful launch options --gtest_filter=<test_case_name.test_name|test_case_name.*> --gtest_repeat=1 --gtest_catch_exceptions=0
 int main( int argc, char *argv[] )
 {
   ::setlocale(LC_ALL, "Russian");
