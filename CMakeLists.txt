@@ -5,6 +5,12 @@ set( NAME wxFortress )
 set( CMAKE_GENERATOR_PLATFORM Win32 )
 project( ${NAME} )
 
+list(APPEND CMAKE_MODULE_PATH
+ "${PROJECT_SOURCE_DIR}/external/.cmake/"
+)
+
+include( ExternalLibraries )
+
 # Turn on the ability to create folders to organize projects (.vcproj)
 # It creates "CMakePredefinedTargets" folder by default and adds CMake
 # defined projects like INSTALL.vcproj and ZERO_CHECK.vcproj
@@ -49,11 +55,15 @@ if( WIN32 )
        ${SOURCE_HEADERS}
        ${SOURCE_FILES}
     )
-     
-    add_subdirectory( external )
 
     set_property( DIRECTORY PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME} )
 endif()
+
+# add external libs
+add_subdirectory( external )
+
+# add tests
+add_subdirectory_with_folder("tests" tests )
 
 target_compile_features( ${PROJECT_NAME} PRIVATE cxx_std_17 )
 
@@ -75,6 +85,15 @@ target_link_libraries(
 	libglew_shared
 	FFmpeg::FFmpeg
 )
+
+if( WIN32 )
+    # for dwmapi.lib
+    target_link_directories(${CMAKE_PROJECT_NAME} PUBLIC "${PROJECT_SOURCE_DIR}/external/directX/x86/")
+    target_link_libraries(
+	${PROJECT_NAME}
+	dwmapi.lib
+    )
+endif()
 
 # it required for build with ffmpeg
 target_link_options(${CMAKE_PROJECT_NAME} PUBLIC "$<$<C_COMPILER_ID:MSVC>:-SAFESEH:NO>")

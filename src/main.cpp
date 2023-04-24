@@ -21,6 +21,8 @@
 #include "resources/sample.xpm"
 
 
+wxIMPLEMENT_APP( App );
+
 bool App::OnInit()
 {
     try
@@ -44,8 +46,6 @@ bool App::OnInit()
     // Something went wrong ...
     return false;
 }
-
-wxIMPLEMENT_APP( App );
 
 bool App::OnExceptionInMainLoop()
 {

@@ -37,9 +37,6 @@
 
 #include "RenderWindow.h"
 
-#if defined( _MSC_VER )
-    #pragma comment( lib, "../external/directX/x86/dwmapi.lib" )
-#endif
 
 DEFINE_LOCAL_EVENT_TYPE( wxEVT_LAUNCH_PRESSED )
 DEFINE_LOCAL_EVENT_TYPE( wxEVT_NEW_ROUND_STARTED )
