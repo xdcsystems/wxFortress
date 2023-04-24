@@ -6,7 +6,7 @@ list(APPEND CMAKE_MODULE_PATH
 
 include(ExternalLibraries)
 
-# External Libs
+## External Libs
 
 # glm
 add_subdirectory(glm)
@@ -52,4 +52,9 @@ set(wxUSE_PROTOCOL_HTTP 0)
 add_subdirectory_with_folder("wxWidgets" wxWidgets)
 
 # google tests
+if( WIN32 )
+    set( gtest_force_shared_crt ON CACHE BOOL "Always use msvcrt.dll" FORCE)
+endif()
+
+enable_testing()
 add_subdirectory_with_folder("googletest" googletest)

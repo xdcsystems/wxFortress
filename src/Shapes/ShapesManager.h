@@ -64,7 +64,7 @@ namespace Shapes
             wxSize m_size;
             State m_state { State::STOPPED };
 
-            bool m_isRobot { true };
+            bool m_isRobot { false };
             bool m_isRoundCompleted { false };
 
             float m_ballTopLimit { 0 };
