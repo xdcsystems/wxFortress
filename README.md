@@ -5,3 +5,4 @@ It's a fully cross-platform app. Windows and Linux builds are currently being te
 Thanks to used libraries, application can be easily ported to mobile platforms too.</br>
 CMake build system is used to build the project.</br>
 Automated googletests unit tests are connected to the build process.</br>
+You can see work of an already assembled application, taking files from the .bin folder
