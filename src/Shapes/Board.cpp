@@ -28,7 +28,7 @@ Board::Board()
 Rect Board::admissibleBounds( const Rect& bounds ) const
 {
     auto boundsRect = Base::bounds();
-    boundsRect.inset( bounds.m_width / 2, .0f );
+    boundsRect.inset( -bounds.m_width / 2, .0f );
     
     return boundsRect;
 }

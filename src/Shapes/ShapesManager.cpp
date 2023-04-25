@@ -52,6 +52,12 @@ ShapesManager::ShapesManager( wxWindow* parent, const rendererPtr& spriteRendere
 
     // the scale division value 
     m_scaleDivisionValue = ( END_ANGLE - BEGIN_ANGLE ) / m_board->size().x;
+
+    if ( wxTheApp->argc > 1 )
+    {
+        const std::string param { wxTheApp->argv[ 1 ] };
+        m_isRobot = param == "--robot";
+    }
 }
 
 ShapesManager::~ShapesManager()
