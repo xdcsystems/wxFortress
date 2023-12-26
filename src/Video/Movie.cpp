@@ -9,19 +9,20 @@
 
 static int InitDecoderHW( AVCodecContext* ctx, const enum AVHWDeviceType type )
 {
-    int err = 0;
-    
-    if ( ( err = av_hwdevice_ctx_create( &Movie::s_hwDeviceCtx, type, nullptr, nullptr, 0 ) ) < 0 )
+    int err { av_hwdevice_ctx_create( &Movie::s_hwDeviceCtx, type, nullptr, nullptr, 0 ) };
+    if ( err < 0 )
     {
         std::cerr << "Failed to create specified HW device" << std::endl;
         return err;
     }
+
     ctx->hw_device_ctx = av_buffer_ref( Movie::s_hwDeviceCtx );
     if ( !ctx->hw_device_ctx )
     {
         err = AVERROR( ENOMEM );
         return err;
     }
+    
     if ( av_hwdevice_ctx_init( ctx->hw_device_ctx ) < 0 )
     {
         std::cerr << "Error init hw codec" << std::endl;
@@ -45,6 +46,7 @@ static enum AVPixelFormat GetFormatHW( AVCodecContext* ctx, const enum AVPixelFo
     }
 
     std::cerr << "Failed to get HW surface format" << std::endl;
+   
     return AV_PIX_FMT_NONE;
 }
 
@@ -95,6 +97,7 @@ int64_t Movie::duration()
         return std::chrono::duration_cast<nanoseconds>(
             seconds_d64 { m_fmtCtx->duration / AV_TIME_BASE } ).count();
     }
+    
     return -1;
 }
 
@@ -109,6 +112,7 @@ int Movie::streamComponentOpen( unsigned int streamIndex )
         std::cerr << "Failed to find "
             << av_get_media_type_string( codecpar->codec_type ) << " codec"
             << std::endl;
+    
         return AVERROR( EINVAL );
     }
 

@@ -267,8 +267,7 @@ void ShapesManager::checkKeysState()
         return;
     }
 
-    if ( m_accelerate != 0 )
-        m_accelerate = 0;
+    m_accelerate = 0;
 }
 
 ContactPosition ShapesManager::checkContact(

@@ -95,10 +95,10 @@ int Video::start()
         if ( writeIdx == m_pictQRead.load( std::memory_order_acquire ) )
         {
             // Wait until we have space
-            std::unique_lock<std::mutex> lck( m_pictQMutex );
+            std::unique_lock<std::mutex> lock { m_pictQMutex };
             while ( writeIdx == m_pictQRead.load( std::memory_order_acquire ) && !m_movie.m_quit.load( std::memory_order_relaxed ) )
             {
-                m_pictQCond.wait( lck );
+                m_pictQCond.wait( lock );
             }
         }
     }
@@ -143,7 +143,7 @@ std::pair<AVFrame *, int64_t> Video::currentFrame()
 
     if ( currentIdx != readIdx )
     {
-        std::lock_guard<std::mutex> lck( m_dispPtsMutex );
+        std::unique_lock<std::mutex> lock { m_dispPtsMutex };
         m_displayPts = vp->pts;
         m_displayPtsTime = get_avtime();
     }
@@ -153,7 +153,7 @@ std::pair<AVFrame *, int64_t> Video::currentFrame()
 
 nanoseconds Video::getClock()
 {
-    std::lock_guard<std::mutex> _ { m_dispPtsMutex };
+    std::unique_lock<std::mutex> lock { m_dispPtsMutex };
     if ( m_displayPtsTime == microseconds::min() )
     {
         m_displayPtsTime = get_avtime();

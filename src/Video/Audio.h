@@ -32,7 +32,6 @@ class Audio
         int readAudio( uint8_t* samples, unsigned int length );
 
         nanoseconds getClock();
-        nanoseconds getClockNoLock();
 
         friend class Movie;
         Movie &m_movie;

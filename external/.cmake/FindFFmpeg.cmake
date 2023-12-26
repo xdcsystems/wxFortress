@@ -55,7 +55,7 @@ endmacro()
 # include directories.
 #
 macro(find_component _component _pkgconfig _library _header)
-    if(NOT WIN32)
+    if(NOT (WIN32 OR UNIX))
         # use pkg-config to get the directories and then use these values
         # in the FIND_PATH() and FIND_LIBRARY() calls
         find_package(PkgConfig)
@@ -91,7 +91,6 @@ macro(find_component _component _pkgconfig _library _header)
         ${_component}_DEFINITIONS
         ${_component}_VERSION)
 endmacro()
-
 
 set(FFMPEGSDK $ENV{FFMPEG_HOME})
 if(FFMPEGSDK)
