@@ -5,18 +5,20 @@
 class Rect
 {
     public:
-        Rect()
+        inline Rect()
         {
             m_x = m_y = m_width = m_height = 0;
         }
-        Rect( float x, float y, float w, float h )
+
+        inline Rect( float x, float y, float w, float h )
         {
             m_x = x;
             m_y = y;
             m_width = w;
             m_height = h;
         }
-        Rect( const glm::vec2 &pos, const glm::vec2 &size )
+
+        inline Rect( const glm::vec2 &pos, const glm::vec2 &size )
         {
             m_x = pos.x;
             m_y = pos.y;
@@ -30,11 +32,12 @@ class Rect
         */
         // single attribute accessors
 
-        glm::vec2 position() const
+        inline glm::vec2 position() const
         {
             return { m_x, m_y };
         }
-        glm::vec2 size() const
+
+        inline glm::vec2 size() const
         {
             return { m_width, m_height };
         }
@@ -308,8 +311,8 @@ class Rect
             return !( *this == rect );
         }
 
-        float m_x;
-        float m_y;
-        float m_width;
-        float m_height;
+        float m_x {};
+        float m_y {};
+        float m_width {};
+        float m_height {};
 };

@@ -12,17 +12,14 @@ class Semaphore
             std::unique_lock<std::mutex> lock( m_mutex );
             if ( s_pause.load() )  // already paused
             {
-                lock.unlock();
                 return std::cv_status::no_timeout;
             }
             s_pause.store( true );
 
             std::cv_status retval = m_cv2.wait_for( lock, std::chrono::milliseconds( 100 ) );
-
             if ( retval == std::cv_status::timeout )
                 s_pause.store( false );  // not paused
 
-            lock.unlock();
             return retval;
         }
 
@@ -40,7 +37,6 @@ class Semaphore
                     return s_pause.load() == false;
                 } );
             }
-            lock.unlock();
         }
 
         void resumeWorker()

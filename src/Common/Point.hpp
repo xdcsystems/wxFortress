@@ -45,8 +45,8 @@ class Point
         inline bool operator== ( const Point &pt ) const;
         inline bool operator!= ( const Point &pt ) const;
 
-        float m_x;
-        float m_y;
+        float m_x {};
+        float m_y {};
 };
 
 inline Point operator+ ( const Point &pt1, const Point &pt2 );
@@ -130,6 +130,7 @@ inline Point &Point::operator+= ( const Point &pt )
 {
     m_x = m_x + pt.m_x;
     m_y = m_y + pt.m_y;
+    
     return *this;
 }
 
@@ -137,6 +138,7 @@ inline Point &Point::operator-= ( const Point &pt )
 {
     m_x = m_x - pt.m_x;
     m_y = m_y - pt.m_y;
+    
     return *this;
 }
 
@@ -144,6 +146,7 @@ inline Point &Point::operator*= ( const Point &pt )
 {
     m_x = m_x * pt.m_x;
     m_y = m_y * pt.m_y;
+    
     return *this;
 }
 
@@ -151,6 +154,7 @@ inline Point &Point::operator/= ( const Point &pt )
 {
     m_x = m_x / pt.m_x;
     m_y = m_y / pt.m_y;
+    
     return *this;
 }
 

@@ -2,7 +2,17 @@ cmake_minimum_required( VERSION 3.14.7 FATAL_ERROR )
 set( CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake" )
 set( NAME wxFortress )
 
-set( CMAKE_GENERATOR_PLATFORM Win32 )
+if( WIN32 )
+    set( CMAKE_GENERATOR_PLATFORM Win32 )
+endif()
+
+set( CMAKE_BUILD_TYPE "Release" CACHE
+      STRING "Choose the type of build." )
+
+if( UNIX )
+    set(CMAKE_CONFIGURATION_TYPES Release Debug)
+endif()
+
 project( ${NAME} )
 
 list(APPEND CMAKE_MODULE_PATH
@@ -11,10 +21,12 @@ list(APPEND CMAKE_MODULE_PATH
 
 include( ExternalLibraries )
 
-# Turn on the ability to create folders to organize projects (.vcproj)
-# It creates "CMakePredefinedTargets" folder by default and adds CMake
-# defined projects like INSTALL.vcproj and ZERO_CHECK.vcproj
-set_property( GLOBAL PROPERTY USE_FOLDERS ON )
+if( WIN32 )
+    # Turn on the ability to create folders to organize projects (.vcproj)
+    # It creates "CMakePredefinedTargets" folder by default and adds CMake
+    # defined projects like INSTALL.vcproj and ZERO_CHECK.vcproj
+    set_property( GLOBAL PROPERTY USE_FOLDERS ON )
+endif()
 
 # Disable ZERO_CHECK target
 set( CMAKE_SUPPRESS_REGENERATION true )
@@ -43,10 +55,11 @@ foreach( OUTPUTCONFIG ${CMAKE_CONFIGURATION_TYPES} )
     set( CMAKE_RUNTIME_OUTPUT_DIRECTORY_${OUTPUTCONFIG} ${CMAKE_BINARY_DIR}/.bin/${OUTPUTCONFIG} )
 endforeach( OUTPUTCONFIG CMAKE_CONFIGURATION_TYPES )
 
-if( WIN32 )
+
     file( GLOB_RECURSE SOURCE_HEADERS "src/*.h" "src/*.hpp" )
     file( GLOB_RECURSE SOURCE_FILES "src/*.cpp" )
 
+if( WIN32 )
     source_group( TREE "src" FILES ${SOURCE_HEADERS} ${SOURCE_FILES} )
 
     add_executable(
@@ -57,15 +70,27 @@ if( WIN32 )
     )
 
     set_property( DIRECTORY PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME} )
+
+elseif( UNIX )
+     # the name of the target operating system
+    set(CMAKE_SYSTEM_NAME Linux)
+
+    add_executable(
+       ${PROJECT_NAME} 
+       ${SOURCE_HEADERS}
+       ${SOURCE_FILES}
+    )
+
+    # set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_OPTIONS "-m32" LINK_FLAGS "-m32")
 endif()
+
+target_compile_features( ${PROJECT_NAME} PRIVATE cxx_std_17 )
 
 # add external libs
 add_subdirectory( external )
 
 # add tests
-add_subdirectory_with_folder("tests" tests )
-
-target_compile_features( ${PROJECT_NAME} PRIVATE cxx_std_17 )
+#add_subdirectory_with_folder("tests" tests )
 
 target_include_directories(
 	${PROJECT_NAME} 

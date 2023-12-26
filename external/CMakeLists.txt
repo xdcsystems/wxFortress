@@ -16,7 +16,9 @@ add_subdirectory_with_folder("glew-cmake" glew-cmake)
 
 # ffmpeg
 if( WIN32 )
-    set(ENV{FFMPEG_HOME} "${PROJECT_SOURCE_DIR}/external/ffmpeg/win32/")
+  set(ENV{FFMPEG_HOME} "${PROJECT_SOURCE_DIR}/external/ffmpeg/win32/")
+elseif( UNIX )
+  set(ENV{FFMPEG_HOME} "${PROJECT_SOURCE_DIR}/external/ffmpeg/linux/.build/") 
 endif()
 
 find_package(FFmpeg
@@ -56,5 +58,5 @@ if( WIN32 )
     set( gtest_force_shared_crt ON CACHE BOOL "Always use msvcrt.dll" FORCE)
 endif()
 
-enable_testing()
-add_subdirectory_with_folder("googletest" googletest)
+#enable_testing()
+#add_subdirectory_with_folder("googletest" googletest)

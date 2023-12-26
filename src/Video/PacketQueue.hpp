@@ -24,9 +24,9 @@ class PacketQueue
 
         int sendTo( AVCodecContext *codecctx )
         {
-            std::unique_lock<std::mutex> lck( m_mutex );
+            std::unique_lock<std::mutex> lock { m_mutex };
 
-            AVPacket *pkt = getPacket( lck );
+            AVPacket *pkt = getPacket( lock );
             int ret = avcodec_send_packet( codecctx, pkt );
 
             if ( !pkt )
@@ -47,25 +47,27 @@ class PacketQueue
 
         void setFinished()
         {
-            {
-                std::lock_guard<std::mutex> lck( m_mutex );
-                m_finished = true;
-            }
+            std::unique_lock<std::mutex> lock { m_mutex };
+            m_finished = true;
+            lock.unlock();
+            
             m_cv.notify_one();
         }
 
         bool put( AVPacket &pkt )
         {
-            {
-                std::lock_guard<std::mutex> lck( m_mutex );
+            std::unique_lock<std::mutex> lock { m_mutex };
 
-                if ( m_totalSize >= SizeLimit )
-                    return false;
+            if ( m_totalSize >= SizeLimit )
+                return false;
 
-                m_packets.emplace_back( std::move( pkt ) );
-                m_totalSize += static_cast<size_t>( m_packets.back().size );
-            }
+            m_packets.emplace_back( std::move( pkt ) );
+            m_totalSize += static_cast<size_t>( m_packets.back().size );
+            
+            lock.unlock();
+
             m_cv.notify_one();
+            
             return true;
         }
 

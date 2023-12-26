@@ -306,12 +306,8 @@ bool Audio::play() const
 
 nanoseconds Audio::getClock()
 {
-    std::lock_guard<std::mutex> lck( m_srcMutex );
-    return getClockNoLock();
-}
+    std::unique_lock<std::mutex> lock( m_srcMutex );
 
-nanoseconds Audio::getClockNoLock()
-{
     nanoseconds pts = m_currentPts;
 
     if ( m_source )
@@ -326,7 +322,7 @@ nanoseconds Audio::getClockNoLock()
         if ( status != AL_STOPPED )
         {
             pts -= AudioBufferTime * queued;
-            pts += nanoseconds { seconds { offset } } / m_codecCtx->sample_rate;
+            pts += nanoseconds{ seconds{ offset } } / m_codecCtx->sample_rate;
         }
     }
 
