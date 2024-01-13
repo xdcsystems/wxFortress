@@ -7,6 +7,8 @@
     #include <wx/wx.h>
 #endif
 
+#include <memory>
+
 #include <wx/dc.h>
 #include <wx/dcbuffer.h>
 
@@ -89,7 +91,6 @@ void Panel::render( wxDC &dc, const bitmapPtr &panel )
             return;
 
         m_mdc = std::make_shared<wxMemoryDC>();
-        m_mdc->CopyAttributes( dc );
         m_mdc->SetBrush( *wxBLACK_BRUSH );
     }
 

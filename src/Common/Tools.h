@@ -1,6 +1,7 @@
 #pragma once
 
 #include <map>
+#include <memory>
 
 #include <GL/glew.h>
 #include "Singleton.hpp"
@@ -16,8 +17,8 @@ class wxSize;
 
 void CheckOpenGLError( const char *stmt, const char *fname, int line );
 
-#if defined( _DEBUG ) && !defined( SKIP_GL_CHECKS )
-    #define GL_CHECK( stmt )                               \
+#if defined( _DEBUG ) && SKIP_GL_CHECKS == 0
+    #define GL_CHECK( stmt )                           \
     do                                                 \
     {                                                  \
         stmt;                                          \

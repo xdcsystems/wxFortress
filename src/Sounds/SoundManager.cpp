@@ -13,8 +13,8 @@
 #include <AL/al.h>
 #include <AL/alc.h>
 
-#include "AudioFile/AudioFile.h"
 #include "Common/Tools.h"
+#include "AudioFile/AudioFile.h"
 #include "SoundManager.h"
 
 SoundManager::SoundManager()

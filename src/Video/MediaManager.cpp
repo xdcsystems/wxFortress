@@ -7,6 +7,8 @@
     #include <wx/wx.h>
 #endif
 
+#include <condition_variable>
+
 #include <GL/glew.h>
 #include <wx/glcanvas.h>
 
@@ -25,7 +27,7 @@ MediaManager::MediaManager( wxGLCanvas* canvas, const textRedererPtr& textRender
   , m_canvas( canvas )
   , m_eventHandler( canvas->GetEventHandler() )
   , m_eventMediaPlay( wxEVT_VIDEO_PLAY )
-  , m_eventMediaFinised( wxEVT_VIDEO_FINISHED )
+  , m_eventMediaFinished( wxEVT_VIDEO_FINISHED )
 {
     m_textRenderer->selectFontType( TextRendererFont::NORMAL );
     m_movie = std::make_shared<Movie>();
@@ -75,7 +77,7 @@ void MediaManager::stop()
 void MediaManager::close()
 {
     reset();
-    m_eventHandler->AddPendingEvent( m_eventMediaFinised );
+    m_eventHandler->AddPendingEvent( m_eventMediaFinished );
 }
 
 void MediaManager::resize( const wxSize& size )

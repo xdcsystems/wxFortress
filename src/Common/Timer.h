@@ -46,7 +46,7 @@ class Timer
           {0, 0}
         };  //
 #else
-        timeval m_startCount = 0;  //
-        timeval m_endCount = 0;    //
+        timeval m_startCount {0};  //
+        timeval m_endCount {0};    //
 #endif
 };

@@ -15,32 +15,43 @@
     #error "OpenGL required: set wxUSE_GLCANVAS to 1 and rebuild the library"
 #endif
 
+#if defined( __LINUX__ )
+    #include <X11/Xlib.h> 
+#endif
+
+#include <memory>
+
 #include "App.h"
 #include "MainFrame.h"
 
 #include "resources/sample.xpm"
 
-
 wxIMPLEMENT_APP( App );
+
+App::App()
+{
+#if defined( __LINUX__ )
+    XInitThreads();
+#endif
+}
 
 bool App::OnInit()
 {
     try
     {
-        m_mainFrame = new MainFrame(); // delete by wxApp at exit as top level window
+        m_mainFrame = new MainFrame(); // will delete by wxApp at exit as top level window
         if ( m_mainFrame->Create( nullptr ) )
         {
             // Give it an icon
             m_mainFrame->SetIcon( sample_xpm );
             m_mainFrame->Show();
-            m_mainFrame->playIntro();
 
             return true;
         }
     }
     catch ( const std::exception& e )
     {
-        wxMessageBox( e.what(), "Exception Caught", MB_OK );
+        wxMessageBox( e.what(), "Exception Caught", wxOK );
     }
   
     // Something went wrong ...
@@ -56,7 +67,7 @@ bool App::OnExceptionInMainLoop()
     catch ( const std::exception& e )
     {
         m_mainFrame->stop();
-        wxMessageBox( e.what(), "Exception Caught", MB_OK );
+        wxMessageBox( e.what(), "Exception Caught", wxOK );
     }
     return false;
 }

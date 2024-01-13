@@ -1,5 +1,6 @@
 #include <cassert>
 #include <iostream>
+#include <condition_variable>
 
 #include "Movie.h"
 #include "Audio.h"
@@ -9,7 +10,8 @@
 
 static int InitDecoderHW( AVCodecContext* ctx, const enum AVHWDeviceType type )
 {
-    int err { av_hwdevice_ctx_create( &Movie::s_hwDeviceCtx, type, nullptr, nullptr, 0 ) };
+    //int err { av_hwdevice_ctx_create( &Movie::s_hwDeviceCtx, type, nullptr, nullptr, 0 ) };
+    int err { av_hwdevice_ctx_create( &Movie::s_hwDeviceCtx, type, "/dev/dri/renderD128", nullptr, 0 ) };
     if ( err < 0 )
     {
         std::cerr << "Failed to create specified HW device" << std::endl;
@@ -103,6 +105,7 @@ int64_t Movie::duration()
 
 int Movie::streamComponentOpen( unsigned int streamIndex )
 {
+    const AVCodecHWConfig* config {nullptr};
     auto *codecpar = m_fmtCtx->streams[ streamIndex ]->codecpar;
 
     // find decoder for the stream
@@ -120,12 +123,12 @@ int Movie::streamComponentOpen( unsigned int streamIndex )
     {
         for ( int i = 0;; i++ )
         {
-            const AVCodecHWConfig* config = avcodec_get_hw_config( decoder, i );
+            config = avcodec_get_hw_config( decoder, i );
             if ( !config )
                 break;
 
             if ( config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX &&
-                config->device_type == AV_HWDEVICE_TYPE_DXVA2 )
+                ( config->device_type == AV_HWDEVICE_TYPE_DXVA2 || config->device_type == AV_HWDEVICE_TYPE_VAAPI ))
             {
                 s_hwPixFormat = config->pix_fmt;
                 break;
@@ -160,7 +163,7 @@ int Movie::streamComponentOpen( unsigned int streamIndex )
         avctx->get_format = GetFormatHW;
 
         // try to use hw decoder
-        if ( InitDecoderHW( avctx.get(), AV_HWDEVICE_TYPE_DXVA2 ) < 0 )
+        if ( InitDecoderHW( avctx.get(), config->device_type ) < 0 )
         {
             std::cerr << "Failed to init hw decoder for "
                 << av_get_media_type_string( codecpar->codec_type )

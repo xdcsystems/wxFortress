@@ -38,19 +38,20 @@
 #include "RenderWindow.h"
 
 
+DEFINE_LOCAL_EVENT_TYPE( wxEVT_WND_INITIALIZED )
 DEFINE_LOCAL_EVENT_TYPE( wxEVT_LAUNCH_PRESSED )
 DEFINE_LOCAL_EVENT_TYPE( wxEVT_NEW_ROUND_STARTED )
 DEFINE_LOCAL_EVENT_TYPE( wxEVT_STAGE_FINISHED )
 DEFINE_LOCAL_EVENT_TYPE( wxEVT_RESET )
+
 
 // clang-format off
 BEGIN_EVENT_TABLE( RenderWindow, wxGLCanvas )
     EVT_PAINT( RenderWindow::onPaint )
     EVT_KEY_DOWN( RenderWindow::onKeyPressed )
     EVT_SIZE( RenderWindow::onSize )
-    EVT_HELP( wxID_ANY, RenderWindow::onHelp )
     EVT_COMMAND( wxID_ANY, wxEVT_CURRENT_SCORE_INCREASED, RenderWindow::onScoreIncreased )
-    EVT_COMMAND( wxID_ANY, wxEVT_ROUND_COMLETED, RenderWindow::onRoundCompleted )
+    EVT_COMMAND( wxID_ANY, wxEVT_ROUND_COMPLETED, RenderWindow::onRoundCompleted )
     EVT_COMMAND( wxID_ANY, wxEVT_BALL_LOST, RenderWindow::onBallLost )
     EVT_COMMAND( wxID_ANY, wxEVT_PING, RenderWindow::onPaddleContact )
     EVT_COMMAND( wxID_ANY, wxEVT_PONG, RenderWindow::onPaddleContact )
@@ -72,17 +73,12 @@ RenderWindow::RenderWindow(
     SetMinSize( size );
 
     m_context = std::make_unique<wxGLContext>( this );
-    SetCurrent( *m_context );  // TODO move to resize
+    if ( !m_context->IsOK() )
+    {
+        throw std::runtime_error( "Unable to create wxGLContext" );
+    }
 
     ResourceManager::LoadResources();
-
-    initializeGLEW();
-    setupGraphics();
-
-    // set render-specific controls
-    m_textRenderer = std::make_shared<TextRenderer>( this );
-    m_soundManager = std::make_shared<SoundManager>();
-    m_mediaManager = std::make_shared<MediaManager>( this, m_textRenderer );
 
     SetExtraStyle( wxWS_EX_PROCESS_IDLE );
     wxIdleEvent::SetMode( wxIDLE_PROCESS_SPECIFIED );
@@ -100,7 +96,7 @@ RenderWindow::~RenderWindow()
 
 void RenderWindow::initializeGLEW()
 {
-    glewExperimental = true;
+    glewExperimental = GL_TRUE;
     GLenum err = glewInit();
     if ( err != GLEW_OK )
     {
@@ -253,7 +249,7 @@ void RenderWindow::onIdle( wxIdleEvent &event )
 
 void RenderWindow::render()
 {
-    if ( !IsShown() )
+    if ( !IsShown() || !m_mediaManager )
         return;
 
     if ( m_state == State::PLAY )
@@ -313,8 +309,37 @@ void RenderWindow::render()
 
 void RenderWindow::onSize( wxSizeEvent &event )
 {
-    resize( event.GetSize() );
     event.Skip();
+    
+    // If this window is not fully initialized, dismiss this event
+    if ( !IsShownOnScreen() )
+        return;
+
+    if ( !m_isInitialized )
+    {
+        if ( SetCurrent( *m_context ) )
+        {
+            initializeGLEW();
+            setupGraphics();
+
+            // set render-specific controls
+            m_textRenderer = std::make_shared<TextRenderer>( this );
+            m_soundManager = std::make_shared<SoundManager>();
+            m_mediaManager = std::make_shared<MediaManager>( this, m_textRenderer );
+
+            m_isInitialized = true;
+
+            resize( event.GetSize() );
+            
+            wxCommandEvent eventWndInitialized( wxEVT_WND_INITIALIZED );
+            AddPendingEvent( eventWndInitialized );
+
+            return;
+        }
+        throw std::runtime_error( "Unable to set context current." );
+    }
+
+    resize( event.GetSize() );
 }
 
 void RenderWindow::onKeyPressed( wxKeyEvent &event )
@@ -343,8 +368,8 @@ void RenderWindow::onKeyPressed( wxKeyEvent &event )
                 case WXK_SPACE:
                 {
                     switchRun();
-                    m_timer->stop();
                     m_timer->start();
+                    wxWakeUpIdle();
                 }
                 break;
 
@@ -353,10 +378,13 @@ void RenderWindow::onKeyPressed( wxKeyEvent &event )
                     if ( m_state == State::RUN )
                     {
                         switchRun();
-                        m_timer->stop();
                         m_timer->start();
                     }
                     m_prevState = m_state;
+
+                    m_textRenderer->selectFontType( TextRendererFont::OLD );
+                    m_textRenderer->switchToHelpState();
+                    m_state = State::HELP;
                 }
                 break;
 
@@ -436,11 +464,3 @@ void RenderWindow::onStageFinished( wxCommandEvent& )
     m_textRenderer->switchToFinishState( ++s_stage );
     m_state = State::FINISHED;
 }
-
-void RenderWindow::onHelp( wxHelpEvent& )
-{
-    m_textRenderer->selectFontType( TextRendererFont::OLD );
-    m_textRenderer->switchToHelpState();
-    m_state = State::HELP;
-}
-

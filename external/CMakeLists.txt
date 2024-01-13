@@ -12,13 +12,19 @@ include(ExternalLibraries)
 add_subdirectory(glm)
 
 # glew
-add_subdirectory_with_folder("glew-cmake" glew-cmake)
+if( WIN32 )
+  add_subdirectory_with_folder("glew-cmake" glew-cmake)
+elseif( UNIX )  
+#  If wxWidgets is compiled with egl, glew also needs to be compiled with egl support.
+  add_subdirectory(${PROJECT_SOURCE_DIR}/external/glew-cmake/build/cmake)
+endif()
 
 # ffmpeg
 if( WIN32 )
   set(ENV{FFMPEG_HOME} "${PROJECT_SOURCE_DIR}/external/ffmpeg/win32/")
 elseif( UNIX )
-  set(ENV{FFMPEG_HOME} "${PROJECT_SOURCE_DIR}/external/ffmpeg/linux/.build/") 
+  set(ENV{FFMPEG_HOME} "${PROJECT_SOURCE_DIR}/external/ffmpeg/linux/.build/")
+  set(ENV{PKG_CONFIG_PATH} "${PROJECT_SOURCE_DIR}/external/ffmpeg/linux/.build/lib/pkgconfig")
 endif()
 
 find_package(FFmpeg
@@ -27,7 +33,7 @@ find_package(FFmpeg
 
 # openal-soft
 option(ALSOFT_UTILS    "Build utility programs"             OFF)
-OPTION(ALSOFT_EXAMPLES "Build and install example programs" OFF)
+option(ALSOFT_EXAMPLES "Build and install example programs" OFF)
 
 add_subdirectory_with_folder("openal-soft" openal-soft)
 

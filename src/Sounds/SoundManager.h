@@ -3,7 +3,7 @@
 #include <AL/al.h>
 #include "Common/defs.h"
 
-#if defined( _DEBUG ) && !defined( SKIP_AL_CHECKS )
+#if defined( _DEBUG ) && SKIP_AL_CHECKS == 0
 //OpenAL error checking
 #define OpenAL_ErrorCheck( message )                                                              \
     {                                                                                             \

@@ -7,6 +7,8 @@
     #include <wx/wx.h>
 #endif
 
+#include <memory>
+
 #include "Common/defs.h"
 #include "ControlPanel/Panel.h"
 #include "RenderWindow.h"
@@ -17,9 +19,10 @@
 BEGIN_EVENT_TABLE( MainFrame, wxFrame )
     EVT_CLOSE( MainFrame::onClose )
     EVT_COMMAND( wxID_ANY, wxEVT_CURRENT_SCORE_INCREASED, MainFrame::onScoreIncreased )
-    EVT_COMMAND( wxID_ANY, wxEVT_ROUND_COMLETED, MainFrame::onRoundCompleted )
+    EVT_COMMAND( wxID_ANY, wxEVT_ROUND_COMPLETED, MainFrame::onRoundCompleted )
     EVT_COMMAND( wxID_ANY, wxEVT_VIDEO_PLAY, MainFrame::onVideoStarted )
     EVT_COMMAND( wxID_ANY, wxEVT_VIDEO_FINISHED, MainFrame::onVideoFinished )
+    EVT_COMMAND( wxID_ANY, wxEVT_WND_INITIALIZED, MainFrame::onChildWndInitialized )
     EVT_COMMAND( wxID_ANY, wxEVT_LAUNCH_PRESSED, MainFrame::onLaunchPressed )
     EVT_COMMAND( wxID_ANY, wxEVT_NEW_ROUND_STARTED, MainFrame::onRoundStarted )
     EVT_COMMAND( wxID_ANY, wxEVT_BALL_LOST, MainFrame::onBallLost )
@@ -47,7 +50,7 @@ bool MainFrame::Create( wxWindow *parent, int id, const wxString &title, wxPoint
 
 void MainFrame::init()
 {
-#if defined( wxUSE_LOGWINDOW ) && defined( USE_LOGGER )
+#if defined( wxUSE_LOGWINDOW ) && USE_LOGGER == 1
     wxLogWindow::SetVerbose( TRUE );
     wxLog::SetActiveTarget( new wxLogWindow( nullptr, wxT( "Log" ), true, false ) );
 #endif
@@ -55,17 +58,20 @@ void MainFrame::init()
     SetBackgroundColour( *wxBLACK );
 
     wxInitAllImageHandlers();
-
-    const auto &size = GetSize();
     
+    const auto &size = GetSize();
+
     m_renderSurface = std::make_shared<RenderWindow>( this, wxID_ANY, nullptr, wxSize( 800, size.y ) );
     m_controlPanel = std::make_shared<ControlPanel::Panel>( this, wxID_ANY, wxPoint( 800, 0 ), wxSize( size.x - 800, size.y ) );
 
-    auto *bSizer = new wxBoxSizer( wxHORIZONTAL );
-    bSizer->Add( m_renderSurface.get(), 1, wxEXPAND | wxALL );
-    bSizer->Add( m_controlPanel.get(), 1, wxEXPAND | wxALL );
+    auto *hSizer = new wxBoxSizer( wxHORIZONTAL );
+    hSizer->Add( m_renderSurface.get(), 1, wxEXPAND | wxALL );
+    hSizer->Add( m_controlPanel.get(), 1, wxEXPAND | wxALL );
 
-    SetSizer( bSizer );
+    hSizer->SetMinSize( size );
+    hSizer->SetSizeHints( this );
+
+    SetSizer( hSizer );
 }
 
 void MainFrame::start()
@@ -98,11 +104,6 @@ void MainFrame::stop()
     m_renderSurface->stop();
 }
 
-void MainFrame::playIntro() const
-{
-    m_renderSurface->playIntro();
-}
-
 void MainFrame::onClose( wxCloseEvent &event )
 {
     stop();
@@ -112,6 +113,11 @@ void MainFrame::onClose( wxCloseEvent &event )
 void MainFrame::onScoreIncreased( wxCommandEvent& )
 {
     m_controlPanel->increaseScore();
+}
+
+void MainFrame::onChildWndInitialized( wxCommandEvent& )
+{
+    m_renderSurface->playIntro();
 }
 
 void MainFrame::onLaunchPressed( wxCommandEvent& )
