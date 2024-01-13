@@ -24,9 +24,8 @@
 #include "Renderer/SpriteRenderer.h"
 #include "ShapesManager.h"
 
-
 DEFINE_LOCAL_EVENT_TYPE( wxEVT_CURRENT_SCORE_INCREASED )
-DEFINE_LOCAL_EVENT_TYPE( wxEVT_ROUND_COMLETED )
+DEFINE_LOCAL_EVENT_TYPE( wxEVT_ROUND_COMPLETED )
 DEFINE_LOCAL_EVENT_TYPE( wxEVT_BALL_LOST )
 DEFINE_LOCAL_EVENT_TYPE( wxEVT_PING )
 DEFINE_LOCAL_EVENT_TYPE( wxEVT_PONG )
@@ -36,7 +35,7 @@ using namespace Shapes;
 ShapesManager::ShapesManager( wxWindow* parent, const rendererPtr& spriteRenderer )
     : m_eventHandler( parent->GetEventHandler() )
     , m_eventCurrentScoreInc( wxEVT_CURRENT_SCORE_INCREASED )
-    , m_eventRoundCompleted( wxEVT_ROUND_COMLETED )
+    , m_eventRoundCompleted( wxEVT_ROUND_COMPLETED )
     , m_eventPing( wxEVT_PING )
     , m_eventPong( wxEVT_PONG )
     , m_eventBallLost( wxEVT_BALL_LOST )
@@ -115,11 +114,15 @@ void ShapesManager::resize( const wxSize& size, const glm::mat4& projection )
                 }
                 catch ( const std::exception& e )
                 {
-                    wxMessageBox( e.what(), "Exception Caught", MB_OK );
+                    wxMessageBox( e.what(), "Exception Caught", wxOK );
+                }
+                catch ( ... )
+                {
+                    wxMessageBox( "AsyncWorker: unknown exception", "Exception Caught", wxOK );
                 }
                 checkWorkerPaused( true );
             }
-         } );
+        } );
     }
     else
         resumeWorker();

@@ -33,7 +33,7 @@ namespace Shapes
 
         public:
             ShapesManager( wxWindow* parent, const rendererPtr& spriteRenderer );
-            virtual ~ShapesManager();
+            ~ShapesManager();
 
             void run( bool bNewRound = false );
             void pause() { m_state = State::PAUSED; };

@@ -1,5 +1,7 @@
 #include <algorithm>
 #include <iostream>
+#include <atomic>
+#include <condition_variable>
 
 #include "Video.h"
 #include "Movie.h"

@@ -57,8 +57,8 @@ class RenderWindow final : public wxGLCanvas
          // Event Handlers
         void onPaint( wxPaintEvent& );
         void onSize( wxSizeEvent& );
-        void onHelp( wxHelpEvent& );
         void onKeyPressed( wxKeyEvent& );
+        void onWndInitialized( wxCommandEvent& );
         void onScoreIncreased( wxCommandEvent& );
         void onPaddleContact( wxCommandEvent& );
         void onRoundCompleted( wxCommandEvent& );
@@ -87,12 +87,13 @@ class RenderWindow final : public wxGLCanvas
         std::shared_ptr<Timer> m_timer;
 
         double m_elapsedTime { 0 };
-        
+
+        bool m_isInitialized { false };
         bool m_isRunning { false };
         unsigned char m_countDown { 0 };
 
-        State m_state = State::PLAY;
-        State m_prevState = State::NEWROUND;
+        State m_state { State::PLAY };
+        State m_prevState { State::NEWROUND };
 
         wxDECLARE_EVENT_TABLE();
 };

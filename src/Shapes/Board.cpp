@@ -7,6 +7,7 @@
     #include <wx/wx.h>
 #endif
 
+#include <memory>
 
 #include "Common/defs.h"
 #include "Common/Rect.hpp"

@@ -18,6 +18,19 @@
 #include "Shader.h"
 #include "ResourceManager.h"
 
+namespace {
+    std::string gulp( wxInputStream& in )
+    {
+        std::string ret;
+        if ( in.CanRead() )
+        {
+            const auto streamSize { in.GetSize() };
+            ret.resize( streamSize );
+            in.Read( &ret[0], streamSize );
+        }
+        return ret;
+    }
+}
 
 bool ResourceManager::LoadResources()
 {
@@ -49,12 +62,12 @@ texture2DPtr ResourceManager::GetTexture( const std::string& name )
 
 void ResourceManager::Clear()
 {
-    // (properly) delete all shaders	
+    // (properly) delete all shaders
     for ( const auto &iter : s_shaders )
     {
         GL_CHECK( glDeleteProgram( iter.second->ID ) );
     }
-    
+
     // (properly) delete all textures
     for ( const auto &iter : s_textures )
     {
@@ -70,13 +83,13 @@ shaderPtr ResourceManager::LoadShader( const std::string& vShaderName, const std
     std::string geometryCode;
     try
     {
-        vertexCode = { std::istreambuf_iterator<char>( Tools::Instance().loadResourceStd( vShaderName ) ), {} };
-        fragmentCode = { std::istreambuf_iterator<char>( Tools::Instance().loadResourceStd( fShaderName ) ), {} };
-        
+        vertexCode = gulp( Tools::Instance().loadResource( vShaderName ) );
+        fragmentCode = gulp( Tools::Instance().loadResource( fShaderName ) );
+
         // if geometry shader path is present, also load a geometry shader
         if ( !gShaderName.empty() )
         {
-            geometryCode = { std::istreambuf_iterator<char>( Tools::Instance().loadResourceStd( gShaderName ) ), {} };
+            geometryCode = gulp( Tools::Instance().loadResource( gShaderName ) );
         }
     }
     catch ( const std::exception& e )
@@ -86,7 +99,7 @@ shaderPtr ResourceManager::LoadShader( const std::string& vShaderName, const std
     const char* vShaderCode = vertexCode.c_str();
     const char* fShaderCode = fragmentCode.c_str();
     const char* gShaderCode = geometryCode.c_str();
-    
+
     // 2. now create shader object from source code
     auto shader = std::make_shared<Shader>();
     shader->compile( vShaderCode, fShaderCode, gShaderName.empty() ? nullptr : gShaderCode );

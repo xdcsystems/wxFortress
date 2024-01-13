@@ -9,6 +9,7 @@
 
 #include <map>
 #include <random>
+#include <memory>
 
 #include "Common/defs.h"
 #include "Common/Rect.hpp"
