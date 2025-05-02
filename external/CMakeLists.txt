@@ -20,6 +20,21 @@ elseif( UNIX )
 endif()
 
 # ffmpeg
+if( UNIX )
+file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/external/ffmpeg)
+
+# Configure external project
+execute_process(
+    COMMAND ${CMAKE_COMMAND} ${PROJECT_SOURCE_DIR}/external/ffmpeg
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/external/ffmpeg
+)
+
+#Build external project
+execute_process(
+    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR}/external/ffmpeg
+)
+endif()
+
 if( WIN32 )
   set(ENV{FFMPEG_HOME} "${PROJECT_SOURCE_DIR}/external/ffmpeg/win32/")
 elseif( UNIX )
@@ -56,6 +71,7 @@ set(wxUSE_SOCKETS 0)
 set(wxUSE_URL 0)
 set(wxUSE_PROTOCOL_FTP 0)
 set(wxUSE_PROTOCOL_HTTP 0)
+set(wxUSE_GLCANVAS_EGL 0)
 
 add_subdirectory_with_folder("wxWidgets" wxWidgets)
 

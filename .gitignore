@@ -1,3 +1,4 @@
+# build & install folders
 /lib
 /x86
 /linux
@@ -5,17 +6,18 @@
 /src/Misc
 readme.txt
 misc
-bin/DEBUG/avcodec-58.def
-bin/DEBUG/avdevice-58.def
-bin/DEBUG/avfilter-7.def
-bin/DEBUG/avformat-58.def
-bin/DEBUG/avutil-56.def
-bin/DEBUG/libavcodec.dll.a
-bin/DEBUG/libavdevice.dll.a
-bin/DEBUG/libavfilter.dll.a
-bin/DEBUG/libavformat.dll.a
-bin/DEBUG/libavutil.dll.a
-bin/DEBUG/libswresample.dll.a
-bin/DEBUG/libswscale.dll.a
-bin/DEBUG/swresample-3.def
-bin/DEBUG/swscale-5.def
+build*/
+_build*/
+install*/
+tmp/
+bin/
+lib/
+.vscode*/
+.cache*/
+*.user
+Makefile
+*.stash
+md5sums
+build_tmp
+*.deb
+packages/
