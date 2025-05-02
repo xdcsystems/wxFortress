@@ -1,0 +1,100 @@
+####### ClangTidy runner
+
+####### CMAKE generated file: DO NOT EDIT!
+####### Any changes to this file will be overwritten by the next CMake run
+####### The input file was `clang-tidy-check.make.in`
+
+src_path := @CMAKE_SOURCE_DIR@
+build_dir := @CLANG_TIDY_CHECK_BUILD_DIR@
+cache_path := @CLANG_TIDY_CHECK_CACHE_DIR@
+
+all_targets :=
+
+clang_tidy_cfg := '\
+{ \
+	CheckOptions: [ \
+		{ \
+			key: cppcoreguidelines-macro-usage.AllowedRegexp, \
+			value: .+_EXPORT\($$|\\s\)|TEMP_FAILURE_RETRY.*|.+_DEPRECATED.*|DEBUG_* \
+		}, \
+		{ \
+			key: bugprone-narrowing-conversions.WarnOnIntegerNarrowingConversion, \
+			value: false \
+		}, \
+		{ \
+			key: cppcoreguidelines-narrowing-conversions.WarnOnIntegerNarrowingConversion, \
+			value: false \
+		}, \
+		{ \
+			key: concurrency-mt-unsafe.FunctionSet, \
+			value: glibc \
+		} \
+	] \
+}'
+
+define create_rule_impl =
+file_purview := $$(subst ?, ,$(1))
+
+file := $$(firstword $$(file_purview))
+compile_opts_arg := $$(wordlist 2,$$(words $$(file_purview)),$$(file_purview))
+compile_opts := $$(subst &, ,$$(compile_opts_arg))
+target := $$(subst $$(src_path),$$(cache_path),$$(file)).ct
+
+$$(target): COMPILE_OPTS := $$(addprefix --extra-arg=,$$(compile_opts))
+$$(target): $$(file) 
+	@mkdir -p "$$(dir $$@)" && \
+	@CLANG_TIDY@ \
+		--config=$$(clang_tidy_cfg) \
+		--checks='@CLANG_TIDY_CHECKS_OPTION_VALUE@' \
+		--warnings-as-errors='*' \
+		--quiet \
+		$$(COMPILE_OPTS) \
+		-p='@COMPILE_COMMANDS_FILE_DIR@' \
+		$$< 1>$$@.res 2>&1;\
+	if [ $$$$? -eq 0 ]; then \
+		rm $$@.res; \
+		echo "No errors in $$<\n"; \
+		date > $$@; \
+	else \
+        err_code=$$$$?; \
+		rm $$@ 2>/dev/null; \
+		cat $$@.res; \
+        exit $$$${err_code}; \
+	fi
+
+    all_targets += $$(target)
+endef
+
+define create_rule =
+    $(eval $(call create_rule_impl,$(1)))
+endef
+
+define create_file_purviews_impl =
+    dir_purview := $$(subst ?, ,$(1))
+
+    dir := $$(firstword $$(dir_purview))
+    compile_opts_arg := $$(wordlist 2,$$(words $$(dir_purview)),$$(dir_purview))
+
+    hdr_files := $$(wildcard $$(dir)/*.h)
+    hdr_files += $$(wildcard $$(dir)/*.hpp)
+
+    file_purviews += $$(foreach file,$$(hdr_files),$$(file)?$$(compile_opts_arg))
+endef
+
+define create_file_purviews =
+    $(eval $(call create_file_purviews_impl,$(1)))
+endef
+
+include $(build_dir)/chk_files.make
+
+file_purviews := $(subst ;, ,$(chk_files))
+dir_purviews := $(subst ;, ,$(chk_dirs)) 
+$(foreach item,$(dir_purviews),$(call create_file_purviews,$(item)))
+
+$(foreach item,$(file_purviews),$(call create_rule,$(item)))
+
+.PHONY: all
+.DEFAULT_GOAL = all
+
+all: $(all_targets) 
+

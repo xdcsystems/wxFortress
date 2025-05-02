@@ -1,0 +1,11 @@
+####### Package '@package@' config file
+@PACKAGE_INIT@
+
+@PACKAGE_DEPENDENCY_INIT_CODE@
+
+foreach(target_export @PACKAGE_TARGET_EXPORTS@)
+    include("${CMAKE_CURRENT_LIST_DIR}/${target_export}.cmake")
+endforeach()
+
+check_required_components(@package@)
+

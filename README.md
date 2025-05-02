@@ -5,4 +5,16 @@ It's a fully cross-platform app. Windows and Linux builds are currently being te
 Thanks to used libraries, application can be easily ported to mobile platforms too.</br>
 CMake build system is used to build the project.</br>
 Automated googletests unit tests are connected to the build process.</br>
-You can see work of an already assembled application, taking files from the .bin folder
+You can see work of an already assembled application, taking files from the .bin folder</br>
+</br>
+</br>
+</br>
+#Build
+For build on linux need:
+1. instal gtk 3.0: sudo apt-get install libgtk-3-dev
+2. extract ffmpeg from archive: 
+     2.1. cd to "external/ffmpeg/linux/"
+     2.2. tar -xvzf ./ffmpeg_4.3.tar.gz
+
+
+

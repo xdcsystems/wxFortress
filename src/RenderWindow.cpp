@@ -350,13 +350,14 @@ void RenderWindow::onKeyPressed( wxKeyEvent &event )
             if ( event.GetKeyCode() == 'R' ||
                 event.GetKeyCode() == 'r' )
             {
-                m_mediaManager->stop();
+                if (m_mediaManager)
+                    m_mediaManager->stop();
             }
         break;
 
         case State::HELP:
             if ( event.GetKeyCode() == WXK_ESCAPE )
-                  m_state = m_prevState;
+                m_state = m_prevState;
         break;
 
         case State::RUN:
