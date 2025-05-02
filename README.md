@@ -9,7 +9,7 @@ You can see work of an already assembled application, taking files from the .bin
 </br>
 </br>
 </br>
-#Build
+# Build
 For build on linux need:
 1. instal gtk 3.0: sudo apt-get install libgtk-3-dev
 2. extract ffmpeg from archive: 

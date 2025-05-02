@@ -18,6 +18,13 @@ if( UNIX )
     set(CMAKE_CONFIGURATION_TYPES Release Debug)
 endif()
 
+# to distinguish between debug and release lib
+if (CMAKE_BUILD_TYPE STREQUAL Debug)
+    set(BUILD_POSTFIX "d")
+else(CMAKE_BUILD_TYPE STREQUAL Debug)
+    set(BUILD_POSTFIX "")
+endif(CMAKE_BUILD_TYPE STREQUAL Debug)
+
 project( ${NAME}
     VERSION 0.0.1
     DESCRIPTION "Simple Arkanoid game"
@@ -126,7 +133,7 @@ if( UNIX )
     target_link_directories(${CMAKE_PROJECT_NAME} PUBLIC "${CMAKE_LIBRARY_OUTPUT_DIRECTORY_${OUTPUTCONFIG}}")
     target_link_libraries(
         ${PROJECT_NAME}
-        libGLEWd.so.2.2.0
+        libGLEW${BUILD_POSTFIX}.so.2.2.0
     )
 endif()
 
