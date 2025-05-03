@@ -150,7 +150,9 @@ endif()
 if( WIN32 )
     # it required for build with ffmpeg
     target_link_options(${CMAKE_PROJECT_NAME} PUBLIC "$<$<C_COMPILER_ID:MSVC>:-SAFESEH:NO>")
-
+    SET (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SAFESEH:NO")
+    SET (CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} /SAFESEH:NO")
+    
     # copy ffmpeg dll's
     # list of required files
     set( ffmpeg_dlls_path ${PROJECT_SOURCE_DIR}/external/ffmpeg/win32/lib/dlls )
