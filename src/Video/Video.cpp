@@ -60,7 +60,7 @@ int Video::start()
             continue;
         }
 
-        if ( frame->format == Movie::s_hwPixFormat )
+        if ( frame->format == m_movie.m_hwPixFormat )
         {
             // retrieve data from GPU to CPU
             if ( av_hwframe_transfer_data( vp->frame.get(), frame.get(), 0 ) < 0 )

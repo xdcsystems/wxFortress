@@ -1,5 +1,6 @@
 #include <cassert>
 #include <iostream>
+#include <algorithm>
 #include <condition_variable>
 
 #include "Movie.h"
@@ -7,49 +8,123 @@
 #include "Chronons.h"
 #include "Video.h"
 
-
-static int InitDecoderHW( AVCodecContext* ctx, const enum AVHWDeviceType type )
-{
-    //int err { av_hwdevice_ctx_create( &Movie::s_hwDeviceCtx, type, nullptr, nullptr, 0 ) };
-    int err { av_hwdevice_ctx_create( &Movie::s_hwDeviceCtx, type, "/dev/dri/renderD128", nullptr, 0 ) };
-    if ( err < 0 )
-    {
-        std::cerr << "Failed to create specified HW device" << std::endl;
-        return err;
-    }
-
-    ctx->hw_device_ctx = av_buffer_ref( Movie::s_hwDeviceCtx );
-    if ( !ctx->hw_device_ctx )
-    {
-        err = AVERROR( ENOMEM );
-        return err;
-    }
-    
-    if ( av_hwdevice_ctx_init( ctx->hw_device_ctx ) < 0 )
-    {
-        std::cerr << "Error init hw codec" << std::endl;
-        return -1;
-    }
-
-    return err;
+extern "C" {
+    #include <libavutil/pixdesc.h>
+    #include <libavutil/dict.h>
 }
 
-static enum AVPixelFormat GetFormatHW( AVCodecContext* ctx, const enum AVPixelFormat* pixFormats )
-{
-    static const enum AVPixelFormat *s_p = nullptr;
-
-    if ( s_p )
-        return *s_p;
-
-    for ( s_p = pixFormats; *s_p != -1; ++s_p )
+namespace {
+    int InitDecoderHW( AVCodecContext* ctx, const enum AVHWDeviceType type )
     {
-        if ( *s_p == Movie::s_hwPixFormat )
-            return *s_p;
+        auto d = reinterpret_cast<Movie*>(ctx->opaque);
+        AVDictionary *dict = nullptr;
+        
+        if (type == AV_HWDEVICE_TYPE_VAAPI)
+            av_dict_set(&dict, "connection_type", "x11", 0);
+
+        int err { av_hwdevice_ctx_create(&d->m_hwDeviceCtx, type, nullptr, dict, 0 ) };
+        if ( err < 0 )
+        {
+            av_dict_free(&dict);
+            std::cerr << "Failed to create specified HW device" << std::endl;
+            return err;
+        }
+
+        ctx->hw_device_ctx = av_buffer_ref( d->m_hwDeviceCtx );
+        if ( !ctx->hw_device_ctx )
+        {
+            av_dict_free(&dict);
+            err = AVERROR( ENOMEM );
+            return err;
+        }
+        
+        av_dict_free(&dict);
+        return err;
     }
 
-    std::cerr << "Failed to get HW surface format" << std::endl;
-   
-    return AV_PIX_FMT_NONE;
+    bool isSoftwarePixelFormat(AVPixelFormat from)
+    {
+        switch (from) {
+            case AV_PIX_FMT_VAAPI:
+            case AV_PIX_FMT_VDPAU:
+            case AV_PIX_FMT_MEDIACODEC:
+            case AV_PIX_FMT_VIDEOTOOLBOX:
+            case AV_PIX_FMT_D3D11:
+            case AV_PIX_FMT_D3D11VA_VLD:
+        #if LIBAVUTIL_VERSION_INT >= AV_VERSION_INT(56, 0, 0)
+            case AV_PIX_FMT_OPENCL:
+        #endif
+            case AV_PIX_FMT_CUDA:
+            case AV_PIX_FMT_DXVA2_VLD:
+        #if LIBAVUTIL_VERSION_INT >= AV_VERSION_INT(52, 58, 101) && LIBAVUTIL_VERSION_INT < AV_VERSION_INT(59, 8, 0)
+            case AV_PIX_FMT_XVMC:
+        #endif
+        #if LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(58, 134, 0)
+            case AV_PIX_FMT_VULKAN:
+        #endif
+            case AV_PIX_FMT_DRM_PRIME:
+            case AV_PIX_FMT_MMAL:
+            case AV_PIX_FMT_QSV:
+                return false;
+            default:
+                return true;
+        }
+    }
+
+    AVPixelFormat negotiate_pixel_format(AVCodecContext *c, const AVPixelFormat *f)
+    {
+        auto d = reinterpret_cast<Movie*>(c->opaque);
+
+        if (d->m_hwDevicesSupported.empty()) 
+        {
+            std::cout << "None of the hardware accelerations are supported" << std::endl;
+        }
+
+        std::list<AVPixelFormat> softwareFormats;
+        std::list<AVPixelFormat> hardwareFormats;
+        
+        for (int i = 0; f[i] != AV_PIX_FMT_NONE; ++i) 
+        {
+            if (!isSoftwarePixelFormat(f[i])) 
+            {
+                hardwareFormats.emplace_back(f[i]);
+                continue;
+            }
+            softwareFormats.emplace_back(f[i]);
+        }
+
+        std::cout << "Available pixel formats:" << std::endl;
+        for (auto a : softwareFormats) 
+        {
+            auto dsc = av_pix_fmt_desc_get(a);
+            std::cout << "sw:  " << dsc->name << ": AVPixelFormat(" << a << ")" << std::endl;
+        }
+
+        for (auto a : hardwareFormats) 
+        {
+            auto dsc = av_pix_fmt_desc_get(a);
+            std::cout << "hw:  " << dsc->name << ": AVPixelFormat(" << a << ")" << std::endl;
+        }
+
+        AVPixelFormat pf = !softwareFormats.empty() ? softwareFormats.front() : AV_PIX_FMT_NONE;
+        const char *decStr = "software";
+        
+        const auto itor = std::find_if(hardwareFormats.cbegin(), hardwareFormats.cend(), [&](const auto& format){
+            return format == d->m_hwPixFormat;
+        });
+        if (itor != hardwareFormats.cend())
+        {
+            pf = *itor;
+            decStr = "hardware";
+        }
+        
+        if (auto dsc = av_pix_fmt_desc_get(pf); dsc)
+            std::cout << "Using " << decStr << " decoding in " << dsc->name << std::endl;
+        else
+            std::cout << "None of the pixel formats" << std::endl;
+
+        return pf;
+    }
 }
 
 Movie::Movie()
@@ -118,21 +193,36 @@ int Movie::streamComponentOpen( unsigned int streamIndex )
     
         return AVERROR( EINVAL );
     }
-
+    
     if ( codecpar->codec_type == AVMEDIA_TYPE_VIDEO && codecpar->codec_id == AV_CODEC_ID_H264 )
     {
-        for ( int i = 0;; i++ )
+        for (int i = 0;; ++i) 
         {
-            config = avcodec_get_hw_config( decoder, i );
-            if ( !config )
+            const AVCodecHWConfig *config = avcodec_get_hw_config(decoder, i);
+            if (!config)
                 break;
 
-            if ( config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX &&
-                ( config->device_type == AV_HWDEVICE_TYPE_DXVA2 || config->device_type == AV_HWDEVICE_TYPE_VAAPI ))
+            if (config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX)
+                m_hwDevicesSupported.emplace_back(config);
+        }
+
+        if (!m_hwDevicesSupported.empty()) 
+        {
+            std::cout << decoder->name << ": supported hardware device contexts:" << std::endl;
+            for (const auto& a: m_hwDevicesSupported)
             {
-                s_hwPixFormat = config->pix_fmt;
-                break;
+                std::cout << "   " << av_hwdevice_get_type_name(a->device_type) << std::endl;
+                if (a->device_type == AV_HWDEVICE_TYPE_VDPAU || a->device_type == AV_HWDEVICE_TYPE_DXVA2) 
+                    config = a;
             }
+            if (!config)
+                config = m_hwDevicesSupported.front();
+                
+            m_hwPixFormat = config->pix_fmt;
+        } 
+        else 
+        {
+            std::cout << "None of the hardware accelerations are supported" << std::endl;
         }
     }
 
@@ -157,10 +247,14 @@ int Movie::streamComponentOpen( unsigned int streamIndex )
         return ret;
     }
 
-    if ( avctx->codec_type == AVMEDIA_TYPE_VIDEO && avctx->codec_id == AV_CODEC_ID_H264 )
+    // If exist hardware video decoder
+    if ( avctx->codec_type == AVMEDIA_TYPE_VIDEO && config )
     {
-        avctx->pix_fmt = AV_PIX_FMT_YUV420P; // https://habr.com/ru/companies/intel/articles/575632/
-        avctx->get_format = GetFormatHW;
+        auto deviceName = av_hwdevice_get_type_name(config->device_type);
+        std::cout << "Try to create hardware device context: " << deviceName << std::endl;
+
+        avctx->opaque = this;
+        avctx->get_format = negotiate_pixel_format;
 
         // try to use hw decoder
         if ( InitDecoderHW( avctx.get(), config->device_type ) < 0 )
@@ -169,6 +263,13 @@ int Movie::streamComponentOpen( unsigned int streamIndex )
                 << av_get_media_type_string( codecpar->codec_type )
                 << " codec, will use sw decoder"
                 << std::endl;
+
+            avctx->pix_fmt = AV_PIX_FMT_YUV420P; // https://habr.com/ru/companies/intel/articles/575632/
+        }
+        else
+        {
+            std::cout << "Using hardware device context:" << deviceName << std::endl;
+            avctx->pix_fmt = m_hwPixFormat;
         }
     }
 

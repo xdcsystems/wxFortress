@@ -3,11 +3,15 @@
 #include <atomic>
 #include <string>
 #include <thread>
+#include <list>
 
 #include "Audio.h"
 #include "Video.h"
 
 #include "Chronons.h"
+
+// Forward declarations
+struct AVCodecHWConfig;
 
 class Movie
 {
@@ -25,8 +29,9 @@ class Movie
         nanoseconds getMasterClock();
         nanoseconds getClock();
 
-        inline static enum AVPixelFormat s_hwPixFormat { AV_PIX_FMT_NONE };
-        inline static AVBufferRef* s_hwDeviceCtx { nullptr };
+        enum AVPixelFormat m_hwPixFormat { AV_PIX_FMT_NONE };
+        AVBufferRef* m_hwDeviceCtx { nullptr };
+        std::list<const AVCodecHWConfig*> m_hwDevicesSupported;
 
     private:
         int start();
