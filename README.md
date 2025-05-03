@@ -21,6 +21,9 @@ __For build on linux need:__
      2.2. tar -xvzf ./ffmpeg_4.3.tar.gz
 3. Create build folder at root of project and go to it
 4. Configure project. FFMPEG will build at this stage.
+     ```cmake -DCMAKE_BUILD_TYPE=Release ../```
+5. Build project
+     ```cmake --build . -j5```
 
 __For build on Windows need:__
 1. This project is guaranteed to build using the Visual Studio 2019 IDE. Build on other IDE is not guaranteed.
