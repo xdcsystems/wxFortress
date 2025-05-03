@@ -14,15 +14,19 @@ First of all, need clone repo with submodules:</br>
 
     git clone --recursive https://github.com/xdcsystems/wxFortress.git
 </br>
+
 __Build on linux:__
 1. Install gtk 3.0: sudo apt-get install libgtk-3-dev
 2. Extract ffmpeg from archive: 
      2.1. cd to "external/ffmpeg/linux/"
      2.2. tar -xvzf ./ffmpeg_4.3.tar.gz
 3. Create build folder at root of project and go to it
-4. Configure project. FFMPEG will build at this stage.</br>
+4. Configure project. FFMPEG will build at this stage.
+
      ```cmake -DCMAKE_BUILD_TYPE=Release ../```
-5. Build project</br>
+
+5. Build project
+
      ```cmake --build . -j5```
 
 __Build on Windows:__
