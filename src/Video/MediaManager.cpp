@@ -123,22 +123,24 @@ bool MediaManager::needRefresh()
 
 void MediaManager::renderFrame()
 {
-    if ( m_currentFrame.first )
+    if ( m_currentFrame.first && m_videoRenderer )
     {
-        switch ( m_currentFrame.first->format )
+        const AVFrame* f = m_currentFrame.first;
+        switch ( f->format )
         {
             case AV_PIX_FMT_NV12:
-                m_videoRenderer->drawNV12(
-                    m_currentFrame.first->width,
-                    m_currentFrame.first->height,
-                    m_currentFrame.first->data );
+                if ( f->data[ 0 ] && f->data[ 1 ] )
+                    m_videoRenderer->drawNV12( f->width, f->height, const_cast<uint8_t**>( f->data ), f->linesize );
+            break;
+
+            case AV_PIX_FMT_YUV420P:
+            case AV_PIX_FMT_YUVJ420P:
+                if ( f->data[ 0 ] && f->data[ 1 ] && f->data[ 2 ] )
+                    m_videoRenderer->draw( f->width, f->height, const_cast<uint8_t**>( f->data ), f->linesize );
             break;
 
             default:
-                m_videoRenderer->draw(
-                    m_currentFrame.first->width,
-                    m_currentFrame.first->height,
-                    m_currentFrame.first->data );
+                // Skip non-CPU or unsupported pixel formats rather than uploading null/invalid pointers.
             break;
         }
     }

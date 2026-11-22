@@ -134,10 +134,7 @@ Movie::Movie()
 
 Movie::~Movie()
 {
-    if ( m_parseThread.joinable() )
-    {
-        m_parseThread.join();
-    }
+    close();
 }
 
 int Movie::open( std::string &&filename )
@@ -194,7 +191,7 @@ int Movie::streamComponentOpen( unsigned int streamIndex )
         return AVERROR( EINVAL );
     }
     
-    if ( codecpar->codec_type == AVMEDIA_TYPE_VIDEO && codecpar->codec_id == AV_CODEC_ID_H264 )
+    if ( false && codecpar->codec_type == AVMEDIA_TYPE_VIDEO && codecpar->codec_id == AV_CODEC_ID_H264 )
     {
         for (int i = 0;; ++i) 
         {
@@ -264,24 +261,35 @@ int Movie::streamComponentOpen( unsigned int streamIndex )
                 << " codec, will use sw decoder"
                 << std::endl;
 
+            m_hwPixFormat = AV_PIX_FMT_NONE;
+            avctx->get_format = nullptr;
+            avctx->hw_device_ctx = nullptr;
             avctx->pix_fmt = AV_PIX_FMT_YUV420P; // https://habr.com/ru/companies/intel/articles/575632/
         }
         else
         {
             std::cout << "Using hardware device context:" << deviceName << std::endl;
-            avctx->pix_fmt = m_hwPixFormat;
         }
     }
 
-    // set codec to automatically determine how many threads suits best for the decoding job
-    avctx->thread_count = 0;
-
-    if ( decoder->capabilities | AV_CODEC_CAP_FRAME_THREADS )
-        avctx->thread_type = FF_THREAD_FRAME;
-    else if ( decoder->capabilities | AV_CODEC_CAP_SLICE_THREADS )
-        avctx->thread_type = FF_THREAD_SLICE;
+    // DXVA2/D3D11VA decoders in FFmpeg 4.x are not thread-safe under frame threading
+    // and can trigger GPU TDR / BSOD on Windows; force single-threaded decode for HW.
+    if ( avctx->hw_device_ctx )
+    {
+        avctx->thread_count = 1;
+    }
     else
-        avctx->thread_count = 1; //don't use multithreading
+    {
+        // set codec to automatically determine how many threads suits best for software decoding
+        avctx->thread_count = 0;
+
+        if ( decoder->capabilities & AV_CODEC_CAP_FRAME_THREADS )
+            avctx->thread_type = FF_THREAD_FRAME;
+        else if ( decoder->capabilities & AV_CODEC_CAP_SLICE_THREADS )
+            avctx->thread_type = FF_THREAD_SLICE;
+        else
+            avctx->thread_count = 1; // don't use multithreading
+    }
 
     // Init the decoders
     if ( ( ret = avcodec_open2( avctx.get(), decoder, nullptr ) ) < 0 )
@@ -351,7 +359,7 @@ int Movie::start()
             return ret;
         }
 
-        if ( codecpar->codec_type == AVMEDIA_TYPE_VIDEO && videoIndex == -1 )
+        if ( false && codecpar->codec_type == AVMEDIA_TYPE_VIDEO && videoIndex == -1 )
         {
             videoIndex = streamComponentOpen( ret );
         }

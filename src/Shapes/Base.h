@@ -1,4 +1,5 @@
 #pragma once
+#include <memory>
 
 #include <glm/glm.hpp>
 
@@ -53,3 +54,4 @@ namespace Shapes
 
     using basePtr = std::shared_ptr<Base>;
 }
+

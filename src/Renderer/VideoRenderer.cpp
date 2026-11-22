@@ -42,6 +42,7 @@ VideoRenderer::~VideoRenderer()
 
     GL_CHECK( glDeleteBuffers( 1, &m_VBO ) );
     GL_CHECK( glDeleteBuffers( 1, &m_EBO ) );
+    GL_CHECK( glDeleteTextures( 3, m_texs ) );
 }
 
 void VideoRenderer::init()
@@ -112,6 +113,9 @@ bool VideoRenderer::bindBuffers( int width, int height )
         changed = true;
     }
 
+    if ( m_texWidth <= 0 || m_texHeight <= 0 || m_viewWidth <= 0 || m_viewHeight <= 0 )
+        return changed;
+
     float tr = ( float )m_texWidth / m_texHeight;
     float vr = ( float )m_viewWidth / m_viewHeight;
     float r = tr / vr;
@@ -166,40 +170,52 @@ bool VideoRenderer::bindBuffers( int width, int height )
     return changed;
 }
 
-void VideoRenderer::draw( int width, int height, uint8_t** data )
+void VideoRenderer::draw( int width, int height, uint8_t** data, const int* linesize )
 {
+    if ( width <= 0 || height <= 0 || !data || !linesize )
+        return;
+
     const bool changed = bindBuffers( width, height );
     const GLsizei widths[ 3 ]  { width, width >> 1, width >> 1 };
     const GLsizei heights[ 3 ] { height, height >> 1, height >> 1 };
 
+    GL_CHECK( glPixelStorei( GL_UNPACK_ALIGNMENT, 1 ) );
     for ( int i = 0; i < 3; ++i )
     {
         GL_CHECK( glActiveTexture( GL_TEXTURE0 + i ) );
         GL_CHECK( glBindTexture( GL_TEXTURE_2D, m_texs[ i ] ) );
+        GL_CHECK( glPixelStorei( GL_UNPACK_ROW_LENGTH, linesize[ i ] > 0 ? linesize[ i ] : 0 ) );
         if ( changed )
         {
-            GL_CHECK( glTexImage2D( GL_TEXTURE_2D, 0, GL_LUMINANCE4, widths[ i ], heights[ i ], 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, data[ i ] ) );
+            GL_CHECK( glTexImage2D( GL_TEXTURE_2D, 0, GL_LUMINANCE, widths[ i ], heights[ i ], 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, data[ i ] ) );
         }
         else
         {
             GL_CHECK( glTexSubImage2D( GL_TEXTURE_2D, 0, 0, 0, widths[ i ], heights[ i ], GL_LUMINANCE, GL_UNSIGNED_BYTE, data[ i ] ) );
         }
     }
+    GL_CHECK( glPixelStorei( GL_UNPACK_ROW_LENGTH, 0 ) );
 
     m_shader->use();
 
     GL_CHECK( glDrawElements( GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr ) );
 }
 
-void VideoRenderer::drawNV12( int width, int height, uint8_t** data )
+void VideoRenderer::drawNV12( int width, int height, uint8_t** data, const int* linesize )
 {
+    if ( width <= 0 || height <= 0 || !data || !linesize )
+        return;
+
     const bool changed = bindBuffers( width, height );
+
+    GL_CHECK( glPixelStorei( GL_UNPACK_ALIGNMENT, 1 ) );
 
     GL_CHECK( glActiveTexture( GL_TEXTURE0 ) );
     GL_CHECK( glBindTexture( GL_TEXTURE_2D, m_texs[ 0 ] ) );
+    GL_CHECK( glPixelStorei( GL_UNPACK_ROW_LENGTH, linesize[ 0 ] > 0 ? linesize[ 0 ] : 0 ) );
     if ( changed )
     {
-        GL_CHECK( glTexImage2D( GL_TEXTURE_2D, 0, GL_LUMINANCE4, width, height, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, data[ 0 ] ) );
+        GL_CHECK( glTexImage2D( GL_TEXTURE_2D, 0, GL_LUMINANCE, width, height, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, data[ 0 ] ) );
     }
     else
     {
@@ -208,14 +224,18 @@ void VideoRenderer::drawNV12( int width, int height, uint8_t** data )
 
     GL_CHECK( glActiveTexture( GL_TEXTURE1 ) );
     GL_CHECK( glBindTexture( GL_TEXTURE_2D, m_texs[ 1 ] ) );
+    // UV plane has 2 bytes per texel (GL_LUMINANCE_ALPHA), so row length in texels is linesize[1] / 2.
+    GL_CHECK( glPixelStorei( GL_UNPACK_ROW_LENGTH, linesize[ 1 ] > 0 ? ( linesize[ 1 ] >> 1 ) : 0 ) );
     if ( changed )
     {
-        GL_CHECK( glTexImage2D( GL_TEXTURE_2D, 0, GL_LUMINANCE4_ALPHA4, width >> 1, height >> 1, 0, GL_LUMINANCE_ALPHA, GL_UNSIGNED_BYTE, data[ 1 ] ) );
+        GL_CHECK( glTexImage2D( GL_TEXTURE_2D, 0, GL_LUMINANCE_ALPHA, width >> 1, height >> 1, 0, GL_LUMINANCE_ALPHA, GL_UNSIGNED_BYTE, data[ 1 ] ) );
     }
     else
     {
         GL_CHECK( glTexSubImage2D( GL_TEXTURE_2D, 0, 0, 0, width >> 1, height >> 1, GL_LUMINANCE_ALPHA, GL_UNSIGNED_BYTE, data[ 1 ] ) );
     }
+
+    GL_CHECK( glPixelStorei( GL_UNPACK_ROW_LENGTH, 0 ) );
 
     m_shaderNV12->use();
 
