@@ -1,0 +1,71 @@
+name: Build wxFortress (Windows MinGW32)
+
+on:
+  push:
+    branches: [ master, "feat/**", "fix/**" ]
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  build-win32:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+      - name: Checkout repository (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup MSYS2 (MINGW32 / i686)
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW32
+          update: true
+          install: >-
+            mingw-w64-i686-gcc
+            mingw-w64-i686-cmake
+            mingw-w64-i686-ninja
+            mingw-w64-i686-ccache
+
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: wxfortress-mingw32
+          max-size: 1G
+
+      - name: Run BallPhysics unit tests (if present)
+        run: |
+          if [ -f tests/test_ball_physics.cpp ]; then
+            g++ -std=c++17 -O2 -Wall -Wextra -Werror -Isrc/Shapes tests/test_ball_physics.cpp -o /tmp/test_ball_physics.exe
+            /tmp/test_ball_physics.exe
+          fi
+
+      - name: Configure CMake
+        run: |
+          cmake -S . -B ../wxFortress-build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_FLAGS="-include cstdint"
+
+      - name: Build wxFortress
+        run: |
+          cmake --build ../wxFortress-build --target wxFortress -j
+
+      - name: Stage release bundle
+        run: |
+          mkdir -p dist
+          find ../wxFortress-build .bin -maxdepth 3 \( -name "wxFortress.exe" -o -name "*.dll" \) -exec cp -n {} dist/ \; 2>/dev/null || true
+          cp -r resources dist/ 2>/dev/null || true
+          ls -la dist
+
+      - name: Upload Windows x86 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wxFortress-win32
+          path: dist/
+          retention-days: 14
