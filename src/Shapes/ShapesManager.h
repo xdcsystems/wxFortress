@@ -1,10 +1,9 @@
 #pragma once
 
+#include <memory>
 #include <glm/glm.hpp>
 
-#include <future>
-#include "MoveController.h"
-#include "Common/Semaphore.hpp"
+#include "BallPhysics.hpp"
 
 
 // Forward declarations
@@ -26,23 +25,24 @@ namespace Shapes
         STOPPED,
     };
 
-    class ShapesManager final: public MoveController, public Semaphore
+    class ShapesManager final
     {
         using rendererPtr = std::shared_ptr<SpriteRenderer>;
         using particlesPtr = std::shared_ptr<ParticleGenerator>;
 
         public:
             ShapesManager( wxWindow* parent, const rendererPtr& spriteRenderer );
-            ~ShapesManager();
+            ~ShapesManager() = default;
 
             void run( bool bNewRound = false );
-            void pause() { m_state = State::PAUSED; };
+            void pause() { m_state = State::PAUSED; }
             void stop();
 
-            bool isRunning() const { return m_state == State::RUN; };
+            bool isRunning() const { return m_state == State::RUN; }
             bool isPaused() const { return m_state == State::PAUSED; }
             bool isStopped() const { return m_state == State::STOPPED; }
 
+            void update( double deltaTimeSec );
             void renderFrame();
 
             void resize( const wxSize& size, const glm::mat4& projection );
@@ -50,14 +50,9 @@ namespace Shapes
 
         protected:
             // Helper functions
-            void update( double deltaTime );
-            void calculateDelta();
-            void changeMoveDirection( ContactPosition contactPosition, TypeContact typeContact = TypeContact::WallContact );
-            void moveBoard( float value ) const;
-            void checkKeysState();
-            ContactPosition checkPaddleContact( bool checkOnly = true );
-            ContactPosition checkContact( const glm::vec2& ballPosition, float beginValue, float endValue, float increment );
-            Rect updateBallPosition( const Rect& boardBounds ) const;
+            void initBallVelocity();
+            void updatePaddleInput( float dtSec );
+            Rect updateBallPosition( const Rect& boardBounds );
 
         private:
             // Private data
@@ -67,11 +62,9 @@ namespace Shapes
             bool m_isRobot { false };
             bool m_isRoundCompleted { false };
 
-            float m_ballTopLimit { 0 };
-            float m_ballBottomLimit { 0 };
-            float m_accelerate { 0 };
-
-            glm::vec2 m_delta { 0.f, 0.f };
+            Physics::ArenaConfig m_arenaCfg {};
+            Physics::BallState m_ballState {};
+            Physics::PaddleState m_paddleState {};
 
             wxEvtHandler* m_eventHandler { nullptr };
             wxCommandEvent m_eventCurrentScoreInc;
@@ -87,8 +80,5 @@ namespace Shapes
 
             particlesPtr m_particles;
             rendererPtr m_renderer;
-
-            std::atomic<bool> m_keepGoing { true };
-            std::future<void> m_asyncWorker;
     };
 }

@@ -24,7 +24,6 @@ if( WIN32 )
 	${OBJS_PATH}/main.obj
 	${OBJS_PATH}/MainFrame.obj
 	${OBJS_PATH}/MediaManager.obj
-	${OBJS_PATH}/MoveController.obj
 	${OBJS_PATH}/Movie.obj
 	${OBJS_PATH}/Overlay.obj
 	${OBJS_PATH}/Panel.obj

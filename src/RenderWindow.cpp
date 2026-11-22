@@ -157,6 +157,7 @@ void RenderWindow::start()
 {
     m_state = State::NEWROUND;
     m_isRunning = true;
+    m_timer->start();
 }
 
 void RenderWindow::stop()
@@ -240,7 +241,12 @@ void RenderWindow::onIdle( wxIdleEvent &event )
     m_elapsedTime = m_timer->getElapsedTimeInMilliSec();
     if ( m_elapsedTime >= 16 )
     {
+        const double dtSec = m_elapsedTime * 0.001;
         m_timer->start();
+        if ( m_shapesManager && ( m_state == State::NEWROUND || m_state == State::RUN ) )
+        {
+            m_shapesManager->update( dtSec );
+        }
         render();
     }
 
