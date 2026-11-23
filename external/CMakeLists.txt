@@ -81,6 +81,16 @@ if( WIN32 )
 endif()
 
 enable_testing()
+if( NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/googletest/CMakeLists.txt" )
+    find_package( Git QUIET )
+    if( GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git" )
+        message( STATUS "Initializing external/googletest submodule automatically..." )
+        execute_process(
+            COMMAND ${GIT_EXECUTABLE} submodule update --init -- external/googletest
+            WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
+        )
+    endif()
+endif()
 if( EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/googletest/CMakeLists.txt" )
     set( INSTALL_GTEST OFF CACHE BOOL "" FORCE )
     add_subdirectory_with_folder("googletest" googletest)

@@ -109,6 +109,7 @@ endif()
 add_subdirectory( external )
 
 if( MINGW AND TARGET libglew_shared )
+    set_target_properties( libglew_shared PROPERTIES LINK_FLAGS "" )
     target_link_options( libglew_shared PRIVATE -Wl,--allow-multiple-definition )
 endif()
 

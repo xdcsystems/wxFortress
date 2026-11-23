@@ -20,8 +20,7 @@
 #define alec( stmt ) stmt
 #endif
 
-struct ALCdevice;
-struct ALCcontext;
+#include <AL/alc.h>
 
 template <class T>
 class AudioFile;
