@@ -1,6 +1,10 @@
 #pragma once
 
+#include <array>
+#include <string>
+
 #include <AL/al.h>
+#include <AL/alc.h>
 #include "Common/defs.h"
 
 #if defined( _DEBUG ) && SKIP_AL_CHECKS == 0
@@ -20,14 +24,15 @@
 #define alec( stmt ) stmt
 #endif
 
-#include <AL/alc.h>
-
 template <class T>
 class AudioFile;
 
 class SoundManager final
 {
     public:
+        static constexpr size_t kMusicTrackCount = 5;
+        static constexpr size_t kSfxSourceCount = 64;
+
         SoundManager();
         ~SoundManager();
 
@@ -42,11 +47,23 @@ class SoundManager final
         void playBallLost();
         void playCharShow();
 
+        // Background music (OpenAL looping + smooth ducking/mute)
+        void playMusic( unsigned short level );
+        void playHelpMusic();
+        void stopMusic();
+        void setMusicDucked( bool ducked );
+        void duckMusicTemporarily( double durationSec );
+        void toggleMusicMute();
+        bool isMusicMuted() const { return m_musicMuted; }
+        void updateMusic( double dtSec );
+
     private:
         int loadBuffer( AudioFile<float>& soundFile, const std::string& name, ALuint* buffer );
+        int loadOggBuffer( const std::string& name, ALuint* buffer );
         ALuint getFreeStereoSource() const;
         void cleanSources();
         void playStereoSource( ALuint buffer, float gain = 1.f, bool playAsync = true );
+        void applyMusicGain( float gain );
 
         ALCdevice* m_device { nullptr };
         ALCcontext* m_context { nullptr };
@@ -62,5 +79,16 @@ class SoundManager final
         ALuint m_stereoCharShowSoundBuffer { 0 };
 
         ALuint m_monoSource { 0 };
-        ALuint m_stereoSource[250] {};
+        ALuint m_stereoSource[ kSfxSourceCount ] {};
+
+        ALuint m_musicSource { 0 };
+        std::array<ALuint, kMusicTrackCount> m_musicBuffers {};
+        ALuint m_helpMusicBuffer { 0 };
+        bool m_inHelpMusic { false };
+        unsigned short m_currentMusicTrack { 0 };
+        bool m_musicPlaying { false };
+        bool m_musicMuted { false };
+        bool m_musicDucked { false };
+        double m_tempDuckRemaining { 0.0 };
+        float m_currentMusicGain { 0.030f };
 };

@@ -109,7 +109,7 @@ void TextRenderer::switchToFinishState( unsigned short stage )
 void TextRenderer::switchToHelpState()
 {
     m_state = TextRendererState::HELP;
-    m_startLinePosition = 500.f;
+    m_startLinePosition = 530.f;
 
     m_message = {
         "LABORATORY NO. 8",
@@ -119,12 +119,15 @@ void TextRenderer::switchToHelpState()
         "After video channel activated, start item movement",
         "by press the Launch button [ <space> key ].",
         " ",
-        "To manipulator control use LEFT and RIGHT",
-        "control lever position [ <left> <right> keys ].",
+        "To manipulator control use LEFT / RIGHT lever",
+        "or pointer [ <left> <right> keys / mouse ].",
         " ",
         "To stop item movement, press the Launch button again.",
         "The chamber with the item will be transferred to stasis,",
         "the item will frozen.",
+        " ",
+        "Chamber acoustic resonance feed runs nonstop.",
+        "To mute or restore it, press [ <M> key ].",
         " ",
         "To exit press Emergency button [ <Esc> key ]"
     };

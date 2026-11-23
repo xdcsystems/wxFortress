@@ -96,6 +96,7 @@ class RenderWindow final : public wxGLCanvas
         bool m_inLaunchSequence { false };
         std::chrono::steady_clock::time_point m_lastLaunchTime {};
         unsigned char m_countDown { 0 };
+        unsigned short m_currentLevel { 1 };
 
         State m_state { State::PLAY };
         State m_prevState { State::NEWROUND };

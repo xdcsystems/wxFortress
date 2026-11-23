@@ -147,6 +147,9 @@ void RenderWindow::loadLevel( unsigned short level )
     try
     {
         m_shapesManager->loadLevel( level );
+        m_currentLevel = level;
+        if ( m_soundManager && m_state != State::PLAY )
+            m_soundManager->playMusic( level );
     }
     catch ( const stage_complete_exception& )
     {
@@ -160,6 +163,8 @@ void RenderWindow::start()
     m_state = State::NEWROUND;
     m_isRunning = true;
     m_timer->start();
+    if ( m_soundManager )
+        m_soundManager->playMusic( m_currentLevel );
 }
 
 void RenderWindow::triggerLaunch()
@@ -187,6 +192,8 @@ void RenderWindow::triggerLaunch()
 void RenderWindow::stop()
 {
     m_isRunning = false;
+    if ( m_soundManager )
+        m_soundManager->stopMusic();
     Unbind( wxEVT_IDLE, &RenderWindow::onIdle, this );
 }
 
@@ -280,6 +287,12 @@ void RenderWindow::onIdle( wxIdleEvent &event )
     {
         const double dtSec = m_elapsedTime * 0.001;
         m_timer->start();
+        if ( m_soundManager && m_state != State::PLAY )
+        {
+            const bool shouldDuck = ( m_state == State::PAUSE || m_state == State::FINISHED );
+            m_soundManager->setMusicDucked( shouldDuck );
+            m_soundManager->updateMusic( dtSec );
+        }
         if ( m_shapesManager && ( m_state == State::NEWROUND || m_state == State::RUN ) )
         {
             m_shapesManager->update( dtSec );
@@ -402,6 +415,13 @@ void RenderWindow::onKeyPressed( wxKeyEvent &event )
     if ( m_inLaunchSequence )
         return;
 
+    if ( m_state != State::PLAY && ( event.GetKeyCode() == 'M' || event.GetKeyCode() == 'm' ) )
+    {
+        if ( m_soundManager )
+            m_soundManager->toggleMusicMute();
+        return;
+    }
+
     switch ( m_state )
     {
         case State::PLAY:
@@ -415,7 +435,11 @@ void RenderWindow::onKeyPressed( wxKeyEvent &event )
 
         case State::HELP:
             if ( event.GetKeyCode() == WXK_ESCAPE )
+            {
                 m_state = m_prevState;
+                if ( m_soundManager )
+                    m_soundManager->playMusic( m_currentLevel );
+            }
         break;
 
         case State::RUN:
@@ -442,6 +466,8 @@ void RenderWindow::onKeyPressed( wxKeyEvent &event )
                     m_textRenderer->selectFontType( TextRendererFont::OLD );
                     m_textRenderer->switchToHelpState();
                     m_state = State::HELP;
+                    if ( m_soundManager )
+                        m_soundManager->playHelpMusic();
                 }
                 break;
 

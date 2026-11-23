@@ -36,6 +36,7 @@ A lightweight, cross-platform Arkanoid-style desktop game built with **C++17**, 
 | `Mouse` / `Left` / `Right` | Move paddle |
 | `LAUNCH` button / `Space` | Launch ball / Pause & Resume |
 | `R` | Skip intro video |
+| `M` | Mute / unmute background music |
 | `F1` | Show help overlay |
 | `Esc` | Close help overlay / Exit game |
 
