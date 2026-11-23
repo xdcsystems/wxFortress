@@ -1,5 +1,7 @@
 #pragma once
 
+DECLARE_LOCAL_EVENT_TYPE( wxEVT_LAUNCH_CLICKED, -1 )
+
 namespace ControlPanel
 {
     // Forward declarations
@@ -35,6 +37,9 @@ namespace ControlPanel
         private:
              // Event Handlers
             void onPaint( wxPaintEvent& );
+            void onLeftDown( wxMouseEvent& );
+            void onMouseMove( wxMouseEvent& );
+            bool isPointInLaunchButton( const wxPoint& pt ) const;
 
             // Helper functions
             void init();

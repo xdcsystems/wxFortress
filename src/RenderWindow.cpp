@@ -50,7 +50,6 @@ BEGIN_EVENT_TABLE( RenderWindow, wxGLCanvas )
     EVT_PAINT( RenderWindow::onPaint )
     EVT_KEY_DOWN( RenderWindow::onKeyPressed )
     EVT_MOTION( RenderWindow::onMouseMove )
-    EVT_LEFT_DOWN( RenderWindow::onMouseLeftDown )
     EVT_SIZE( RenderWindow::onSize )
     EVT_COMMAND( wxID_ANY, wxEVT_CURRENT_SCORE_INCREASED, RenderWindow::onScoreIncreased )
     EVT_COMMAND( wxID_ANY, wxEVT_ROUND_COMPLETED, RenderWindow::onRoundCompleted )
@@ -161,6 +160,16 @@ void RenderWindow::start()
     m_state = State::NEWROUND;
     m_isRunning = true;
     m_timer->start();
+}
+
+void RenderWindow::triggerLaunch()
+{
+    if ( m_state == State::NEWROUND || m_state == State::RUN || m_state == State::PAUSE )
+    {
+        switchRun();
+        m_timer->start();
+        wxWakeUpIdle();
+    }
 }
 
 void RenderWindow::stop()
@@ -359,17 +368,6 @@ void RenderWindow::onMouseMove( wxMouseEvent &event )
     if ( m_shapesManager && ( m_state == State::RUN || m_state == State::NEWROUND ) )
     {
         m_shapesManager->setPaddleMouseX( static_cast<float>( event.GetX() ) );
-    }
-    event.Skip();
-}
-
-void RenderWindow::onMouseLeftDown( wxMouseEvent &event )
-{
-    if ( m_state == State::NEWROUND )
-    {
-        switchRun();
-        m_timer->start();
-        wxWakeUpIdle();
     }
     event.Skip();
 }

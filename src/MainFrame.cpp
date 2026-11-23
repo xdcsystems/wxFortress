@@ -24,6 +24,7 @@ BEGIN_EVENT_TABLE( MainFrame, wxFrame )
     EVT_COMMAND( wxID_ANY, wxEVT_VIDEO_FINISHED, MainFrame::onVideoFinished )
     EVT_COMMAND( wxID_ANY, wxEVT_WND_INITIALIZED, MainFrame::onChildWndInitialized )
     EVT_COMMAND( wxID_ANY, wxEVT_LAUNCH_PRESSED, MainFrame::onLaunchPressed )
+    EVT_COMMAND( wxID_ANY, wxEVT_LAUNCH_CLICKED, MainFrame::onLaunchClicked )
     EVT_COMMAND( wxID_ANY, wxEVT_NEW_ROUND_STARTED, MainFrame::onRoundStarted )
     EVT_COMMAND( wxID_ANY, wxEVT_BALL_LOST, MainFrame::onBallLost )
     EVT_COMMAND( wxID_ANY, wxEVT_RESET, MainFrame::onReset )
@@ -123,6 +124,15 @@ void MainFrame::onChildWndInitialized( wxCommandEvent& )
 void MainFrame::onLaunchPressed( wxCommandEvent& )
 {
     m_controlPanel->paintLaunched();
+}
+
+void MainFrame::onLaunchClicked( wxCommandEvent& )
+{
+    if ( m_renderSurface )
+    {
+        m_renderSurface->triggerLaunch();
+        m_renderSurface->SetFocus();
+    }
 }
 
 void MainFrame::onRoundStarted( wxCommandEvent& )
