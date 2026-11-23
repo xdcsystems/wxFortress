@@ -19,9 +19,11 @@
     #include <X11/Xlib.h> 
 #endif
 
+#include <iostream>
 #include <memory>
 
 #include "App.h"
+#include "Common/Version.h"
 #include "MainFrame.h"
 
 #include "resources/sample.xpm"
@@ -41,10 +43,21 @@ App::App()
 
 bool App::OnInit()
 {
+    for ( int i = 1; i < argc; ++i )
+    {
+        const wxString arg = argv[ i ];
+        if ( arg == "--version" || arg == "-v" )
+        {
+            std::cout << "wxFortress " << WXFORTRESS_VERSION_STRING << std::endl;
+            return false;
+        }
+    }
+
     try
     {
         m_mainFrame = new MainFrame(); // will delete by wxApp at exit as top level window
-        if ( m_mainFrame->Create( nullptr ) )
+        const wxString windowTitle = wxString::Format( "wxFortress %s", WXFORTRESS_VERSION_STRING );
+        if ( m_mainFrame->Create( nullptr, wxID_ANY, windowTitle ) )
         {
             // Give it an icon
             m_mainFrame->SetIcon( sample_xpm );

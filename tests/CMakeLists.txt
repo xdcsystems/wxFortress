@@ -49,6 +49,7 @@ if( TARGET GTest::gtest AND TARGET GTest::gmock )
         ${CMAKE_CURRENT_LIST_DIR}
         "${CMAKE_SOURCE_DIR}"
         "${CMAKE_SOURCE_DIR}/src"
+        "${CMAKE_BINARY_DIR}/generated"
         "${CMAKE_SOURCE_DIR}/external/glew-cmake/include"
         ${FFMPEG_INCLUDE_DIRS}
     )

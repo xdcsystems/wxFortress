@@ -25,10 +25,23 @@ else(CMAKE_BUILD_TYPE STREQUAL Debug)
     set(BUILD_POSTFIX "")
 endif(CMAKE_BUILD_TYPE STREQUAL Debug)
 
+include( "${CMAKE_SOURCE_DIR}/cmake/Version.cmake" )
+
 project( ${NAME}
-    VERSION 0.0.1
+    VERSION ${WXFORTRESS_VERSION_MAJOR}.${WXFORTRESS_VERSION_MINOR}.${WXFORTRESS_VERSION_PATCH}.${WXFORTRESS_VERSION_TWEAK}
     DESCRIPTION "Simple Arkanoid game"
-    LANGUAGES CXX
+    LANGUAGES C CXX
+)
+
+configure_file(
+    "${CMAKE_SOURCE_DIR}/src/Common/Version.h.in"
+    "${CMAKE_BINARY_DIR}/generated/Common/Version.h"
+    @ONLY
+)
+file( WRITE "${CMAKE_BINARY_DIR}/wxFortress_version.txt"
+    "WXFORTRESS_VERSION_STRING=\"${WXFORTRESS_VERSION_STRING}\"\n"
+    "WXFORTRESS_VERSION_DEBIAN=\"${WXFORTRESS_VERSION_DEBIAN}\"\n"
+    "WXFORTRESS_VERSION_NUMERIC=\"${WXFORTRESS_VERSION_NUMERIC}\"\n"
 )
 
 list( APPEND CMAKE_MODULE_PATH
@@ -75,6 +88,12 @@ file( GLOB_RECURSE SOURCE_HEADERS "src/*.h" "src/*.hpp" )
 file( GLOB_RECURSE SOURCE_FILES "src/*.cpp" )
 
 if( WIN32 )
+    enable_language( RC )
+    configure_file(
+        "${CMAKE_SOURCE_DIR}/resources/wxFortress.rc.in"
+        "${CMAKE_BINARY_DIR}/generated/wxFortress.rc"
+        @ONLY
+    )
     source_group( TREE "src" FILES ${SOURCE_HEADERS} ${SOURCE_FILES} )
 
     add_executable(
@@ -82,6 +101,7 @@ if( WIN32 )
        WIN32
        ${SOURCE_HEADERS}
        ${SOURCE_FILES}
+       "${CMAKE_BINARY_DIR}/generated/wxFortress.rc"
     )
 
     set_property( DIRECTORY PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME} )
@@ -141,6 +161,7 @@ target_include_directories(
     ${FFMPEG_INCLUDE_DIRS}
     ${CMAKE_CURRENT_LIST_DIR}
     ${CMAKE_CURRENT_LIST_DIR}/src
+    "${CMAKE_BINARY_DIR}/generated"
 )
 
 target_link_libraries(
