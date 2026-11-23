@@ -73,9 +73,16 @@ cd ..\wxFortress-build\.bin
 
 > Pre-built Windows x86 bundles (`wxFortress-win32`) are also published as build artifacts on every run of [GitHub Actions](https://github.com/xdcsystems/wxFortress/actions/workflows/build.yml).
 
-### Windows (Visual Studio 2019+)
+### Windows (One-Command Script: `build-all.bat`)
 
-Run `build.bat` from the repository root to generate an x86 Visual Studio solution in `x86/wxFortress.sln` (Debug by default; adjust `build.bat` for Release), then open and build it in Visual Studio.
+`build-all.bat` auto-detects **Ninja + MinGW/GCC** (or falls back to **Visual Studio Win32**) without hardcoded paths, configures an out-of-source build in `..\wxFortress-build`, builds the project, and runs all GoogleTest suites:
+
+```powershell
+.\build-all.bat            # Release build + tests (incremental)
+.\build-all.bat run        # Build + tests + launch wxFortress.exe
+.\build-all.bat clean      # Clean rebuild from scratch
+.\build-all.bat Debug vs   # Force Visual Studio Win32 Debug build
+```
 
 ### Linux (Ubuntu / Debian — Vendored Submodules)
 
