@@ -151,10 +151,17 @@ void ShapesManager::stop()
 {
     m_state = State::STOPPED;
     m_isRoundCompleted = false;
+    m_hasMouseTarget = false;
     m_paddleState.speed = 0.0f;
     m_ballState.vel = { 0.0f, 0.0f };
     m_particles->clear();
     m_explosions->clear();
+}
+
+void ShapesManager::setPaddleMouseX( float mouseX )
+{
+    m_mouseTargetX = mouseX;
+    m_hasMouseTarget = true;
 }
 
 void ShapesManager::updatePaddleInput( float dtSec )
@@ -168,7 +175,20 @@ void ShapesManager::updatePaddleInput( float dtSec )
     else if ( wxGetKeyState( WXK_RIGHT ) )
         moveDir = +1;
 
-    Physics::updatePaddle( m_paddleState, moveDir, dtSec, m_arenaCfg );
+    if ( moveDir != 0 )
+    {
+        m_hasMouseTarget = false;
+        Physics::updatePaddle( m_paddleState, moveDir, dtSec, m_arenaCfg );
+    }
+    else if ( m_hasMouseTarget )
+    {
+        Physics::setPaddleTargetX( m_paddleState, m_mouseTargetX, m_arenaCfg );
+        m_hasMouseTarget = false;
+    }
+    else
+    {
+        Physics::updatePaddle( m_paddleState, 0, dtSec, m_arenaCfg );
+    }
 
     if ( isRunning() && m_isRobot && moveDir == 0 )
     {

@@ -512,4 +512,17 @@ namespace Shapes::Physics
 
         return events;
     }
+// Positions paddle so its horizontal center tracks targetCenterX (e.g. mouse X),
+// clamped strictly within [0, cfg.width - paddle.box.w]. Resets keyboard velocity
+// so keyboard inertia does not fight pointer input. Non-finite inputs are ignored.
+inline void setPaddleTargetX( PaddleState& paddle, float targetCenterX, const ArenaConfig& cfg )
+{
+    if ( !std::isfinite( targetCenterX ) )
+        return;
+
+    const float maxX = std::max( 0.0f, cfg.width - paddle.box.w );
+    paddle.box.x = std::clamp( targetCenterX - 0.5f * paddle.box.w, 0.0f, maxX );
+    paddle.speed = 0.0f;
+}
+
 } // namespace Shapes::Physics
