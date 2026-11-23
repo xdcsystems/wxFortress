@@ -3,13 +3,14 @@ name: Build wxFortress
 on:
   push:
     branches: [ master, "feat/**", "fix/**" ]
+    tags: [ "v*" ]
   pull_request:
     branches: [ master ]
   workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' && !startsWith(github.ref, 'refs/tags/') }}
 
 env:
   WINLIBS_TAG: 16.2.0posix-23.1.3-14.0.0-ucrt-r3
@@ -27,6 +28,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: recursive
+          fetch-depth: 0
 
       - name: Cache WinLibs i686 toolchain
         id: cache-winlibs
@@ -98,6 +100,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: recursive
+          fetch-depth: 0
 
       - name: Install Linux build dependencies (for vendored submodules)
         run: |
@@ -152,7 +155,12 @@ jobs:
 
       - name: Build & verify Debian package (.deb)
         run: |
-          PKG_VERSION="1.0.0-${{ github.run_number }}"
+          if [ -f ../wxFortress-build-linux/wxFortress_version.txt ]; then
+            . ../wxFortress-build-linux/wxFortress_version.txt
+            PKG_VERSION="${WXFORTRESS_VERSION_DEBIAN}"
+          else
+            PKG_VERSION="1.0.1+git${{ github.run_number }}"
+          fi
           PKG_ARCH="$(dpkg --print-architecture)"
           PKG_DIR="/tmp/wxfortress_${PKG_VERSION}_${PKG_ARCH}"
           rm -rf "$PKG_DIR"
@@ -221,3 +229,92 @@ jobs:
             dist-linux/
             dist-deb/*.deb
           retention-days: 14
+
+  publish-release:
+    needs: [ build-win32, build-linux ]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release-assets
+          (cd artifacts/wxFortress-win32 && zip -r ../../release-assets/wxFortress-win32.zip .)
+          DEB_SRC=$(find artifacts/wxFortress-linux -name '*.deb' | head -n 1)
+          if [ -z "$DEB_SRC" ]; then
+            echo "ERROR: .deb package not found in wxFortress-linux artifact"
+            exit 1
+          fi
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            TAG="${GITHUB_REF_NAME}"
+            mv release-assets/wxFortress-win32.zip "release-assets/wxFortress-${TAG}-win32.zip"
+            cp -f "$DEB_SRC" "release-assets/$(basename "$DEB_SRC")"
+          else
+            cp -f "$DEB_SRC" "release-assets/wxfortress_latest_amd64.deb"
+          fi
+          ls -lh release-assets
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            TAG="${GITHUB_REF_NAME}"
+            if gh release view "$TAG" >/dev/null 2>&1; then
+              gh release upload "$TAG" release-assets/* --clobber
+            else
+              gh release create "$TAG" release-assets/* \
+                --title "wxFortress ${TAG}" \
+                --generate-notes \
+                --latest
+            fi
+          else
+            TAG="latest"
+            NOTES="Automated rolling build from \`master\` (\`${GITHUB_SHA:0:7}\`). Includes Windows x86 portable zip and Linux amd64 \`.deb\` package."
+            if gh release view "$TAG" >/dev/null 2>&1; then
+              gh api -X PATCH "repos/${GITHUB_REPOSITORY}/git/refs/tags/${TAG}" -f sha="${GITHUB_SHA}" -F force=true >/dev/null || true
+              gh release edit "$TAG" --title "wxFortress (latest)" --notes "$NOTES" --latest
+              gh release upload "$TAG" release-assets/* --clobber
+            else
+              gh release create "$TAG" release-assets/* \
+                --target "${GITHUB_SHA}" \
+                --title "wxFortress (latest)" \
+                --notes "$NOTES" \
+                --latest
+            fi
+          fi
+
+      - name: Archive releases older than latest 10 (keep Git tags)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          python3 - <<'PY'
+          import json, os, subprocess
+
+          repo = os.environ["GH_REPO"]
+          raw = subprocess.check_output(
+              ["gh", "api", "--paginate", "--slurp", f"repos/{repo}/releases?per_page=100"],
+              text=True,
+          )
+          pages = json.loads(raw) if raw.strip() else []
+          releases = [item for page in pages for item in page]
+          versioned = [r for r in releases if r.get("tag_name") != "latest"]
+          versioned.sort(key=lambda r: r.get("created_at", ""), reverse=True)
+
+          to_archive = versioned[10:]
+          print(f"Versioned releases: {len(versioned)}, archiving (removing release, keeping Git tag): {len(to_archive)}")
+          for r in to_archive:
+              rid = r["id"]
+              tag = r.get("tag_name")
+              subprocess.check_call(["gh", "api", "-X", "DELETE", f"repos/{repo}/releases/{rid}"])
+              print(f"Archived release {tag} (id={rid}); Git tag preserved.")
+          PY
