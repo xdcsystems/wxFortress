@@ -155,6 +155,7 @@ void MainFrame::onBallLost( wxCommandEvent& )
     else
     {
         m_controlPanel->reset();
+        m_renderSurface->resetBallSpeed();
         m_renderSurface->loadLevel( m_controlPanel->increaseLevel() );
     }
 }
@@ -162,5 +163,6 @@ void MainFrame::onBallLost( wxCommandEvent& )
 void MainFrame::onReset( wxCommandEvent& )
 {
     m_controlPanel->reset();
+    m_renderSurface->resetBallSpeed();
     m_renderSurface->loadLevel( m_controlPanel->increaseLevel() );
 }

@@ -49,6 +49,7 @@ ShapesManager::ShapesManager( wxWindow* parent, const rendererPtr& spriteRendere
     , m_eventBallLost( wxEVT_BALL_LOST )
     , m_renderer( spriteRenderer )
 {
+    m_currentBallSpeed = kInitialBallSpeedPxPerSec;
     m_ball = std::make_shared<Ball>();
     m_board = std::make_shared<Board>();
     m_bricks = std::make_shared<Bricks>();
@@ -70,6 +71,11 @@ void ShapesManager::loadLevel( unsigned short level ) const
 {
     // let's throw some bricks
     m_bricks->loadLevel( level );
+}
+
+void ShapesManager::resetBallSpeed()
+{
+    m_currentBallSpeed = kInitialBallSpeedPxPerSec;
 }
 
 Rect ShapesManager::updateBallPosition( const Rect& boardBounds )
@@ -125,10 +131,11 @@ void ShapesManager::initBallVelocity()
     } while ( angleDeg > static_cast<int>( END_RIGHT_ANGLE ) &&
               angleDeg < static_cast<int>( BEGIN_LEFT_ANGLE ) ); // [30..70] or [110..150]
 
+    const float launchSpeed = std::clamp( m_currentBallSpeed, m_arenaCfg.minSpeed, m_arenaCfg.maxSpeed );
     const float rad = glm::radians( static_cast<float>( angleDeg ) );
     m_ballState.vel = {
-        kInitialBallSpeedPxPerSec * std::cos( rad ),
-        kInitialBallSpeedPxPerSec * std::sin( rad )
+        launchSpeed * std::cos( rad ),
+        launchSpeed * std::sin( rad )
     };
     m_ball->m_velocity = { m_ballState.vel.x, m_ballState.vel.y };
 }
@@ -140,6 +147,7 @@ void ShapesManager::run( bool bNewRound )
     if ( bNewRound )
     {
         m_isRoundCompleted = false;
+        m_robotDryBounces = 0;
         const auto c = m_ball->center();
         m_ballState.center = { c.x, c.y };
         m_ballState.radius = m_ball->radius();
@@ -151,6 +159,7 @@ void ShapesManager::stop()
 {
     m_state = State::STOPPED;
     m_isRoundCompleted = false;
+    m_robotDryBounces = 0;
     m_hasMouseTarget = false;
     m_paddleState.speed = 0.0f;
     m_ballState.vel = { 0.0f, 0.0f };
@@ -192,10 +201,13 @@ void ShapesManager::updatePaddleInput( float dtSec )
 
     if ( isRunning() && m_isRobot && moveDir == 0 )
     {
-        m_paddleState.box.x = std::clamp(
-            m_ballState.center.x - 0.5f * m_paddleState.box.w,
-            0.0f,
-            std::max( 0.0f, m_arenaCfg.width - m_paddleState.box.w ) );
+        Physics::updateRobotPaddle(
+            m_paddleState,
+            m_ballState,
+            m_physBricks,
+            dtSec,
+            m_arenaCfg,
+            m_robotDryBounces );
     }
 
     m_board->moveTo( m_paddleState.box.x, m_paddleState.box.y );
@@ -216,23 +228,27 @@ void ShapesManager::update( double deltaTimeSec )
 
     const float dtSec = std::clamp( static_cast<float>( deltaTimeSec ), 0.0f, 0.05f );
 
+    const auto& brickList = m_bricks->items();
+    if ( isRunning() && !m_isRoundCompleted )
+    {
+        m_physBricks.clear();
+        m_physBricks.reserve( brickList.size() );
+        for ( const auto& brick : brickList )
+        {
+            const auto b = brick->bounds();
+            m_physBricks.push_back( Physics::BrickItem {
+                Physics::Aabb { b.m_x, b.m_y, b.m_width, b.m_height },
+                brick->isAlive()
+            } );
+        }
+    }
+
     updatePaddleInput( dtSec );
 
     if ( isRunning() )
     {
         if ( !m_isRoundCompleted )
         {
-            const auto& brickList = m_bricks->items();
-            m_physBricks.clear();
-            m_physBricks.reserve( brickList.size() );
-            for ( const auto& brick : brickList )
-            {
-                const auto b = brick->bounds();
-                m_physBricks.push_back( Physics::BrickItem {
-                    Physics::Aabb { b.m_x, b.m_y, b.m_width, b.m_height },
-                    brick->isAlive()
-                } );
-            }
 
             m_ballState.radius = m_ball->radius();
             const Physics::StepEvents ev = Physics::stepBall(
@@ -250,10 +266,18 @@ void ShapesManager::update( double deltaTimeSec )
                 m_eventHandler->AddPendingEvent( m_eventPong );
 
             if ( ev.hitPaddle )
+            {
+                ++m_robotDryBounces;
                 m_eventHandler->AddPendingEvent( m_eventPing );
+            }
 
             if ( !ev.hitBricks.empty() )
             {
+                m_robotDryBounces = 0;
+                m_currentBallSpeed = std::clamp(
+                    Physics::length( m_ballState.vel ),
+                    m_arenaCfg.minSpeed,
+                    m_arenaCfg.maxSpeed );
                 for ( const std::size_t idx : ev.hitBricks )
                 {
                     if ( idx < brickList.size() )

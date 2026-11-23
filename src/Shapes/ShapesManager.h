@@ -48,6 +48,7 @@ namespace Shapes
 
             void resize( const wxSize& size, const glm::mat4& projection );
             void loadLevel( unsigned short level ) const;
+            void resetBallSpeed();
 
         protected:
             // Helper functions
@@ -61,6 +62,8 @@ namespace Shapes
             State m_state { State::STOPPED };
 
             bool m_isRobot { false };
+            unsigned int m_robotDryBounces { 0 };
+            float m_currentBallSpeed { 0.0f };
             bool m_isRoundCompleted { false };
             bool m_hasMouseTarget { false };
             float m_mouseTargetX { 0.0f };

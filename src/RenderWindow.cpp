@@ -158,6 +158,12 @@ void RenderWindow::loadLevel( unsigned short level )
     }
 }
 
+void RenderWindow::resetBallSpeed()
+{
+    if ( m_shapesManager )
+        m_shapesManager->resetBallSpeed();
+}
+
 void RenderWindow::start()
 {
     m_state = State::NEWROUND;

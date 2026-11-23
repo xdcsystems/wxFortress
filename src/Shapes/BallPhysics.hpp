@@ -83,7 +83,7 @@ namespace Shapes::Physics
         float height { 600.0f };
         float minSpeed { 60.0f };
         float maxSpeed { 1200.0f };
-        float speedStepOnBrick { 8.0f };  // added to |vel| per brick hit (px/s)
+        float speedStepOnBrick { 1.25f }; // added to |vel| per brick hit (px/s)
         float maxPaddleBounceDeg { 60.0f }; // angle from +Y axis -> [30..150 deg] from +X
         float minAbsSinAngle { 0.1736f }; // ~10 deg minimum vertical slope to prevent horizontal lock
         float paddleAccel { 2200.0f };    // px/s^2
@@ -525,4 +525,171 @@ namespace Shapes::Physics
         paddle.speed = 0.0f;
     }
 
+
+    // Predicts exact horizontal landing coordinate X when the ball descends to targetY,
+    // analytically folding left/right wall bounces in O(1).
+    inline float predictBallLandingX( const BallState& ball, float targetY, const ArenaConfig& cfg )
+    {
+        const float minX = ball.radius;
+        const float maxX = std::max( minX, cfg.width - ball.radius );
+        const float span = maxX - minX;
+        if ( span <= detail::kEps || ball.vel.y >= -detail::kEps || ball.center.y <= targetY )
+            return std::clamp( ball.center.x, minX, maxX );
+
+        const float t = ( ball.center.y - targetY ) / ( -ball.vel.y );
+        const float rawX = ball.center.x + ball.vel.x * t;
+        float rel = std::fmod( rawX - minX, 2.0f * span );
+        if ( rel < 0.0f )
+            rel += 2.0f * span;
+
+        return ( rel <= span ) ? ( minX + rel ) : ( maxX - ( rel - span ) );
+    }
+
+    // Computes desired paddle center X for the autonomous robot.
+    // Uses inverse paddle bounce geometry (theta = u * maxPaddleBounceDeg) to aim
+    // at alive bricks directly or via left/right wall bank shots, preventing vertical loops.
+    inline float computeRobotTargetX(
+        const BallState& ball,
+        const Aabb& paddle,
+        const std::vector<BrickItem>& bricks,
+        const ArenaConfig& cfg,
+        unsigned int dryBounces = 0 )
+    {
+        const float halfW = std::max( 0.5f * paddle.w, 1.0f );
+        const float minCenter = halfW;
+        const float maxCenter = std::max( minCenter, cfg.width - halfW );
+
+        // Compute alive brick centroid for upward pre-positioning & tie-breaking.
+        float brickSumX = 0.0f;
+        int aliveCount = 0;
+        for ( const auto& b : bricks )
+        {
+            if ( b.alive )
+            {
+                brickSumX += b.box.center().x;
+                ++aliveCount;
+            }
+        }
+        const float bricksMeanX = ( aliveCount > 0 ) ? ( brickSumX / static_cast<float>( aliveCount ) ) : ( 0.5f * cfg.width );
+
+        // While ball moves upward, pre-position smoothly between ball X and remaining brick cluster.
+        if ( ball.vel.y >= -detail::kEps )
+        {
+            const float preX = 0.55f * ball.center.x + 0.45f * bricksMeanX;
+            return std::clamp( preX, minCenter, maxCenter );
+        }
+
+        const float paddleTopY = paddle.top() + ball.radius;
+        const float landX = predictBallLandingX( ball, paddleTopY, cfg );
+        const float maxRad = std::max( cfg.maxPaddleBounceDeg * ( detail::kPi / 180.0f ), 0.1f );
+        constexpr float kMaxSafeU = 0.80f;
+
+        bool foundTarget = false;
+        float bestScore = std::numeric_limits<float>::max();
+        float bestU = 0.0f;
+
+        auto evalCandidate = [ & ]( float tx, float ty, bool isBank ) {
+            const float dy = ty - paddleTopY;
+            if ( dy <= 1.0f )
+                return;
+            const float dx = tx - landX;
+            const float theta = std::atan2( dx, dy );
+            const float u = theta / maxRad;
+            if ( std::fabs( u ) > kMaxSafeU )
+                return;
+
+            const float dist = std::hypot( dx, dy );
+            float score = dist;
+
+            // Normally prefer direct shots; if stuck in dry bounces, prefer bank shots & wider angles.
+            if ( dryBounces >= 2 )
+            {
+                score += isBank ? -120.0f : 60.0f;
+                if ( std::fabs( u ) < 0.30f )
+                    score += 200.0f;
+            }
+            else
+            {
+                if ( isBank )
+                    score += 140.0f;
+                if ( std::fabs( u ) < 0.08f )
+                    score += 45.0f;
+            }
+
+            if ( score < bestScore )
+            {
+                bestScore = score;
+                bestU = u;
+                foundTarget = true;
+            }
+        };
+
+        const float leftWallX = ball.radius;
+        const float rightWallX = cfg.width - ball.radius;
+
+        for ( const auto& b : bricks )
+        {
+            if ( !b.alive )
+                continue;
+            const Vec2 bc = b.box.center();
+            evalCandidate( bc.x, bc.y, false );
+            evalCandidate( 2.0f * leftWallX - bc.x, bc.y, true );
+            evalCandidate( 2.0f * rightWallX - bc.x, bc.y, true );
+        }
+
+        if ( !foundTarget )
+        {
+            const float side = ( bricksMeanX >= landX ) ? 1.0f : -1.0f;
+            bestU = side * 0.35f;
+        }
+        else if ( dryBounces >= 1 && std::fabs( bestU ) < 0.12f )
+        {
+            // Break any incipient vertical oscillation.
+            const float nudgeSign = ( ( dryBounces % 2 ) == 0 ) ? 1.0f : -1.0f;
+            bestU = nudgeSign * 0.38f;
+        }
+
+        // Clamp desired paddle center so the paddle stays inside walls AND still catches landX.
+        float desiredCenter = std::clamp( landX - bestU * halfW, minCenter, maxCenter );
+        const float maxOffset = kMaxSafeU * halfW;
+        desiredCenter = std::clamp( desiredCenter, landX - maxOffset, landX + maxOffset );
+        return std::clamp( desiredCenter, minCenter, maxCenter );
+    }
+
+    // Moves the robot paddle smoothly toward the computed aiming target, with emergency catch safety.
+    inline void updateRobotPaddle(
+        PaddleState& paddle,
+        const BallState& ball,
+        const std::vector<BrickItem>& bricks,
+        float dtSec,
+        const ArenaConfig& cfg,
+        unsigned int dryBounces = 0 )
+    {
+        if ( dtSec <= 0.0f )
+            return;
+
+        const float halfW = 0.5f * paddle.box.w;
+        const float maxLeft = std::max( 0.0f, cfg.width - paddle.box.w );
+        const float targetCenter = computeRobotTargetX( ball, paddle.box, bricks, cfg, dryBounces );
+        const float targetLeft = std::clamp( targetCenter - halfW, 0.0f, maxLeft );
+
+        const float maxStep = ( cfg.paddleMaxSpeed * 1.6f ) * dtSec;
+        const float diff = targetLeft - paddle.box.x;
+        if ( std::fabs( diff ) <= maxStep )
+            paddle.box.x = targetLeft;
+        else
+            paddle.box.x += ( diff > 0.0f ? maxStep : -maxStep );
+
+        // Emergency catch guarantee right before impact if a late brick ricochet changed landX.
+        const float paddleTopY = paddle.box.top() + ball.radius;
+        if ( ball.vel.y < -detail::kEps && ball.center.y > paddleTopY )
+        {
+            const float tti = ( ball.center.y - paddleTopY ) / ( -ball.vel.y );
+            if ( tti <= 0.08f )
+                paddle.box.x = targetLeft;
+        }
+
+        paddle.box.x = std::clamp( paddle.box.x, 0.0f, maxLeft );
+        paddle.speed = 0.0f;
+    }
 } // namespace Shapes::Physics
