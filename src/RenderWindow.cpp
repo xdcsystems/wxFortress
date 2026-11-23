@@ -164,6 +164,18 @@ void RenderWindow::start()
 
 void RenderWindow::triggerLaunch()
 {
+    if ( m_inLaunchSequence )
+        return;
+
+    if ( m_state == State::RUN )
+    {
+        // Ignore stray key-repeat / queued Space right after the blocking countdown finishes.
+        const auto sinceLaunchMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now() - m_lastLaunchTime ).count();
+        if ( sinceLaunchMs >= 0 && sinceLaunchMs < 350 )
+            return;
+    }
+
     if ( m_state == State::NEWROUND || m_state == State::RUN || m_state == State::PAUSE )
     {
         switchRun();
@@ -180,11 +192,18 @@ void RenderWindow::stop()
 
 void RenderWindow::switchRun()
 {
-    if ( !m_isRunning )
+    if ( !m_isRunning || m_inLaunchSequence )
         return;
 
     if ( m_state == State::NEWROUND )
     {
+        struct ScopedFlag
+        {
+            bool& flag;
+            explicit ScopedFlag( bool& f ) : flag( f ) { flag = true; }
+            ~ScopedFlag() { flag = false; }
+        } launchGuard( m_inLaunchSequence );
+
         wxCommandEvent lounchPressedEvent( wxEVT_LAUNCH_PRESSED );
         ProcessEvent( lounchPressedEvent );
 
@@ -199,9 +218,15 @@ void RenderWindow::switchRun()
             render();
             m_soundManager->playCountdown();
         }
-        m_state = State::NEWROUND;
+
+        if ( !m_isRunning )
+            return;
 
         m_soundManager->playRocket();
+        m_shapesManager->run( true );
+        m_state = State::RUN;
+        m_lastLaunchTime = std::chrono::steady_clock::now();
+        return;
     }
 
     if ( m_shapesManager->isRunning() )
@@ -211,7 +236,7 @@ void RenderWindow::switchRun()
     }
     else
     {
-        m_shapesManager->run( m_state == State::NEWROUND );
+        m_shapesManager->run( false );
         m_state = State::RUN;
     }
 }
@@ -374,6 +399,9 @@ void RenderWindow::onMouseMove( wxMouseEvent &event )
 
 void RenderWindow::onKeyPressed( wxKeyEvent &event )
 {
+    if ( m_inLaunchSequence )
+        return;
+
     switch ( m_state )
     {
         case State::PLAY:

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <memory> 
 #include <wx/glcanvas.h>
 
@@ -92,6 +93,8 @@ class RenderWindow final : public wxGLCanvas
 
         bool m_isInitialized { false };
         bool m_isRunning { false };
+        bool m_inLaunchSequence { false };
+        std::chrono::steady_clock::time_point m_lastLaunchTime {};
         unsigned char m_countDown { 0 };
 
         State m_state { State::PLAY };
