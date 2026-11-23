@@ -114,10 +114,27 @@ jobs:
             libopus-dev libfontconfig-dev libvorbis-dev libvpx-dev libx264-dev libx265-dev libfribidi-dev
 
       - name: Cache vendored FFmpeg Linux build
+        id: cache-ffmpeg
         uses: actions/cache@v4
         with:
           path: external/ffmpeg/linux/.build
-          key: ffmpeg-linux-${{ hashFiles('external/ffmpeg/build_ffmpeg.sh', 'external/ffmpeg/CMakeLists.txt') }}
+          key: ffmpeg-linux-4.3-${{ hashFiles('external/ffmpeg/linux/ffmpeg_4.3.tar.gz') }}
+
+      - name: Build vendored FFmpeg 4.3 (Linux)
+        if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p /tmp/ffmpeg_src external/ffmpeg/linux/.build
+          tar -xzf external/ffmpeg/linux/ffmpeg_4.3.tar.gz -C /tmp/ffmpeg_src
+          FFMPEG_SRC=$(find /tmp/ffmpeg_src -maxdepth 2 -name configure -printf '%h\n' | head -n 1)
+          FFMPEG_PREFIX="$PWD/external/ffmpeg/linux/.build"
+          cd "$FFMPEG_SRC"
+          ./configure \
+            --prefix="$FFMPEG_PREFIX" \
+            --disable-doc --disable-programs --disable-shared --enable-static \
+            --enable-pic --enable-gpl --enable-vaapi --enable-libdrm \
+            --enable-libx264 --enable-libopus --enable-libvorbis
+          make -j"$(nproc)"
+          make install
 
       - name: Configure CMake (Linux vendored submodules)
         run: |

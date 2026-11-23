@@ -49,6 +49,10 @@ find_package(FFmpeg
 # openal-soft
 option(ALSOFT_UTILS    "Build utility programs"             OFF)
 option(ALSOFT_EXAMPLES "Build and install example programs" OFF)
+if( MINGW )
+    # MinGW links via libOpenAL32.dll.a; openal-soft's sed .def/.lib step fails under Ninja
+    set( SED_EXECUTABLE "" CACHE FILEPATH "Disable sed .def/.lib generation on MinGW" FORCE )
+endif()
 
 add_subdirectory_with_folder("openal-soft" openal-soft)
 
