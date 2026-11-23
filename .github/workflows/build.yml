@@ -60,7 +60,7 @@ jobs:
 
       - name: Build wxFortress
         run: |
-          cmake --build ..\wxFortress-build --target wxFortress ut_BallPhysics ut_Fortress -j
+          cmake --build ..\wxFortress-build --target wxFortress ut_BallPhysics ut_Fortress run_tests -j
 
       - name: Stage release bundle
         run: |
@@ -136,7 +136,7 @@ jobs:
 
       - name: Build wxFortress & tests
         run: |
-          cmake --build ../wxFortress-build-linux --target wxFortress ut_BallPhysics ut_Fortress -j
+          cmake --build ../wxFortress-build-linux --target wxFortress ut_BallPhysics ut_Fortress run_tests -j
 
       - name: Stage Linux release bundle
         run: |

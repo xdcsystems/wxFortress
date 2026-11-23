@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.14.7 FATAL_ERROR)
 
-# 1. Analytical BallPhysics GoogleTest suite (no GUI/OpenGL required, runs on every build)
+set( WXFORTRESS_TEST_COMMANDS )
+set( WXFORTRESS_TEST_TARGETS )
+
+# 1. Analytical BallPhysics GoogleTest suite (no GUI/OpenGL required)
 if( TARGET GTest::gtest_main )
     include( GoogleTest )
     add_executable( ut_BallPhysics test_ball_physics.cpp )
@@ -8,12 +11,9 @@ if( TARGET GTest::gtest_main )
     target_include_directories( ut_BallPhysics PRIVATE "${CMAKE_SOURCE_DIR}/src/Shapes" )
     target_link_libraries( ut_BallPhysics PRIVATE GTest::gtest_main )
     gtest_discover_tests( ut_BallPhysics DISCOVERY_MODE PRE_TEST )
-    add_custom_command(
-        TARGET ut_BallPhysics POST_BUILD
-        COMMAND $<TARGET_FILE:ut_BallPhysics>
-        COMMENT "Running ut_BallPhysics GoogleTest suite"
-    )
-    add_dependencies( ${CMAKE_PROJECT_NAME} ut_BallPhysics )
+
+    list( APPEND WXFORTRESS_TEST_TARGETS ut_BallPhysics )
+    list( APPEND WXFORTRESS_TEST_COMMANDS COMMAND $<TARGET_FILE:ut_BallPhysics> )
 endif()
 
 # 2. Full GoogleTest/GoogleMock integration suite (ut_Fortress)
@@ -75,21 +75,25 @@ if( TARGET GTest::gtest AND TARGET GTest::gmock )
     add_dependencies( ${NAME} ${CMAKE_PROJECT_NAME} )
     gtest_discover_tests( ${NAME} DISCOVERY_MODE PRE_TEST )
 
+    list( APPEND WXFORTRESS_TEST_TARGETS ${NAME} )
     if( DEFINED ENV{CI} )
         # Headless CI runners only have software GDI OpenGL 1.1 (no GLSL shaders);
         # run the non-shader integration tests automatically during build.
-        add_custom_command(
-            TARGET ${NAME} POST_BUILD
-            WORKING_DIRECTORY $<TARGET_FILE_DIR:${NAME}>
-            COMMAND $<TARGET_FILE:${NAME}> --gtest_filter=TestFortress.App_Creation:TestFortress.Tools_Creation:TestFortress.Frame_Creation
-            COMMENT "Running ut_Fortress headless integration tests"
-        )
+        list( APPEND WXFORTRESS_TEST_COMMANDS
+            COMMAND $<TARGET_FILE:${NAME}> --gtest_filter=TestFortress.App_Creation:TestFortress.Tools_Creation:TestFortress.Frame_Creation )
     else()
-        add_custom_command(
-            TARGET ${NAME} POST_BUILD
-            WORKING_DIRECTORY $<TARGET_FILE_DIR:${NAME}>
-            COMMAND $<TARGET_FILE:${NAME}>
-            COMMENT "Running ut_Fortress unit tests"
-        )
+        list( APPEND WXFORTRESS_TEST_COMMANDS COMMAND $<TARGET_FILE:${NAME}> )
     endif()
+endif()
+
+# Run ALL GoogleTest suites automatically on every default build
+if( WXFORTRESS_TEST_TARGETS )
+    add_custom_target(
+        run_tests ALL
+        ${WXFORTRESS_TEST_COMMANDS}
+        DEPENDS ${WXFORTRESS_TEST_TARGETS}
+        WORKING_DIRECTORY $<TARGET_FILE_DIR:${CMAKE_PROJECT_NAME}>
+        COMMENT "Running ALL GoogleTest suites (ut_BallPhysics + ut_Fortress)"
+        USES_TERMINAL
+    )
 endif()
