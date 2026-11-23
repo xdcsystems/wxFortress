@@ -19,7 +19,6 @@ if( TARGET GTest::gtest AND TARGET GTest::gmock )
     set( NAME ut_Fortress )
 
     file( GLOB_RECURSE APP_SOURCES "${CMAKE_SOURCE_DIR}/src/*.cpp" )
-    list( FILTER APP_SOURCES EXCLUDE REGEX ".*/main\.cpp$" )
 
     add_executable(
         ${NAME}
@@ -30,6 +29,7 @@ if( TARGET GTest::gtest AND TARGET GTest::gmock )
     )
 
     target_compile_features( ${NAME} PRIVATE cxx_std_17 )
+    target_compile_definitions( ${NAME} PRIVATE WXFORTRESS_TESTING )
 
     if( MSVC )
         target_compile_definitions( ${NAME} PRIVATE $<$<CONFIG:Debug>:_CONSOLE> )
