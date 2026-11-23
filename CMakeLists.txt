@@ -101,8 +101,16 @@ endif()
 
 target_compile_features( ${PROJECT_NAME} PRIVATE cxx_std_17 )
 
+if( MINGW )
+    add_compile_options( $<$<COMPILE_LANGUAGE:CXX>:SHELL:-include cstdint> )
+endif()
+
 # add external libs
 add_subdirectory( external )
+
+if( MINGW AND TARGET libglew_shared )
+    target_link_options( libglew_shared PRIVATE -Wl,--allow-multiple-definition )
+endif()
 
 # add tests
 #add_subdirectory_with_folder("tests" tests )
@@ -143,15 +151,23 @@ if( WIN32 )
     target_link_libraries(
 	    ${PROJECT_NAME}
         libglew_shared
-	    dwmapi.lib
+	    dwmapi
     )
 endif()
 
-if( WIN32 )
+if( MSVC )
     # it required for build with ffmpeg
-    target_link_options(${CMAKE_PROJECT_NAME} PUBLIC "$<$<C_COMPILER_ID:MSVC>:-SAFESEH:NO>")
+    target_link_options(${CMAKE_PROJECT_NAME} PUBLIC -SAFESEH:NO)
     SET (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SAFESEH:NO")
     SET (CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} /SAFESEH:NO")
+endif()
+
+if( WIN32 )
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_FILE:libglew_shared>
+            $<TARGET_FILE_DIR:${PROJECT_NAME}>
+    )
     
     # copy ffmpeg dll's
     # list of required files
@@ -183,12 +199,12 @@ file( GLOB_RECURSE ZIP_FILES
 string( TOUPPER ${CMAKE_BUILD_TYPE} OUTPUTCONFIG )
 
 add_custom_command( TARGET ${PROJECT_NAME} POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E tar cvf ${CMAKE_BINARY_DIR}/.bin/${OUTPUTCONFIG}/${PROJECT_NAME}.dat --format=zip ${ZIP_FILES}
+    COMMAND ${CMAKE_COMMAND} -E tar cvf $<TARGET_FILE_DIR:${PROJECT_NAME}>/${PROJECT_NAME}.dat --format=zip ${ZIP_FILES}
     WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
 )
 
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
     ${PROJECT_SOURCE_DIR}/resources/video/Intro.mp4
-    ${CMAKE_BINARY_DIR}/.bin/${OUTPUTCONFIG}/${PROJECT_NAME}.vid
+    $<TARGET_FILE_DIR:${PROJECT_NAME}>/${PROJECT_NAME}.vid
 )

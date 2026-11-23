@@ -8,15 +8,103 @@
 #include "Chronons.h"
 #include "Video.h"
 
+#if defined( _WIN32 )
+    #ifndef NOMINMAX
+        #define NOMINMAX
+    #endif
+#endif
+
 extern "C" {
     #include <libavutil/pixdesc.h>
     #include <libavutil/dict.h>
+#if defined( _WIN32 )
+    #include <libavutil/hwcontext_dxva2.h>
+#endif
 }
 
 namespace {
+#if defined( _WIN32 )
+    // PCI device ID families for legacy ATI/AMD UVD and UVD+ (H.264 DPB limited to Level 4.1).
+    bool isLegacyAmdUvd( DWORD deviceId )
+    {
+        static constexpr DWORD kUvdFamilies[] = {
+            0x9400, // R600
+            0x9440, // R700 / RV770
+            0x9450, // RV770
+            0x9460, // RV770 / RV790
+            0x94C0, // RV610
+            0x9500, // RV670
+            0x9510, // RV670 / R680
+            0x9580, // RV630
+            0x9590, // RV635
+            0x95C0, // RV620 (HD 3400 series)
+            0x9610, // RS780
+            0x9710, // RS880
+        };
+        const DWORD family = deviceId & 0xFFF0u;
+        for ( DWORD id : kUvdFamilies )
+        {
+            if ( id == family )
+                return true;
+        }
+        return false;
+    }
+
+    bool detectLegacyAmdUvdFromDxva2( AVBufferRef* hwDeviceCtx )
+    {
+        if ( !hwDeviceCtx || !hwDeviceCtx->data )
+            return false;
+
+        const auto* devCtx = reinterpret_cast<const AVHWDeviceContext*>( hwDeviceCtx->data );
+        const auto* dxva2Ctx = static_cast<const AVDXVA2DeviceContext*>( devCtx->hwctx );
+        if ( !dxva2Ctx || !dxva2Ctx->devmgr )
+            return false;
+
+        HANDLE hDevice = nullptr;
+        if ( FAILED( dxva2Ctx->devmgr->OpenDeviceHandle( &hDevice ) ) )
+            return false;
+
+        bool isUvd = false;
+        IDirect3DDevice9* pDevice = nullptr;
+        if ( SUCCEEDED( dxva2Ctx->devmgr->LockDevice( hDevice, &pDevice, TRUE ) ) )
+        {
+            IDirect3D9* pD3D = nullptr;
+            D3DDEVICE_CREATION_PARAMETERS params {};
+            if ( pDevice &&
+                 SUCCEEDED( pDevice->GetDirect3D( &pD3D ) ) &&
+                 SUCCEEDED( pDevice->GetCreationParameters( &params ) ) )
+            {
+                D3DADAPTER_IDENTIFIER9 ident {};
+                if ( SUCCEEDED( pD3D->GetAdapterIdentifier( params.AdapterOrdinal, 0, &ident ) ) )
+                {
+                    if ( ident.VendorId == 0x1002u && isLegacyAmdUvd( ident.DeviceId ) )
+                        isUvd = true;
+                }
+            }
+            if ( pD3D )
+                pD3D->Release();
+            if ( pDevice )
+                pDevice->Release();
+            dxva2Ctx->devmgr->UnlockDevice( hDevice, FALSE );
+        }
+        dxva2Ctx->devmgr->CloseDeviceHandle( hDevice );
+        return isUvd;
+    }
+#endif
+
+    int maxDpb41RefFrames( int width, int height )
+    {
+        const int widthMbs = ( width + 15 ) / 16;
+        const int heightMbs = ( height + 15 ) / 16;
+        if ( widthMbs <= 0 || heightMbs <= 0 )
+            return 4;
+        return ( std::min )( 11, 32768 / ( widthMbs * heightMbs ) );
+    }
+
     int InitDecoderHW( AVCodecContext* ctx, const enum AVHWDeviceType type )
     {
         auto d = reinterpret_cast<Movie*>(ctx->opaque);
+        d->m_isLegacyAmdUvd = false;
         AVDictionary *dict = nullptr;
         
         if (type == AV_HWDEVICE_TYPE_VAAPI)
@@ -30,9 +118,25 @@ namespace {
             return err;
         }
 
+#if defined( _WIN32 )
+        if ( type == AV_HWDEVICE_TYPE_DXVA2 )
+        {
+            d->m_isLegacyAmdUvd = detectLegacyAmdUvdFromDxva2( d->m_hwDeviceCtx );
+            if ( d->m_isLegacyAmdUvd && ctx->codec_id == AV_CODEC_ID_H264 && ctx->level > 41 )
+            {
+                std::cerr << "Legacy ATI/AMD UVD/UVD+ DXVA2 does not support H.264 level "
+                          << ctx->level << " (> 4.1); falling back to software decoder" << std::endl;
+                av_buffer_unref( &d->m_hwDeviceCtx );
+                av_dict_free( &dict );
+                return AVERROR( ENOTSUP );
+            }
+        }
+#endif
+
         ctx->hw_device_ctx = av_buffer_ref( d->m_hwDeviceCtx );
         if ( !ctx->hw_device_ctx )
         {
+            av_buffer_unref( &d->m_hwDeviceCtx );
             av_dict_free(&dict);
             err = AVERROR( ENOMEM );
             return err;
@@ -109,13 +213,32 @@ namespace {
         AVPixelFormat pf = !softwareFormats.empty() ? softwareFormats.front() : AV_PIX_FMT_NONE;
         const char *decStr = "software";
         
-        const auto itor = std::find_if(hardwareFormats.cbegin(), hardwareFormats.cend(), [&](const auto& format){
-            return format == d->m_hwPixFormat;
-        });
-        if (itor != hardwareFormats.cend())
+        bool allowHw = true;
+        if ( d->m_isLegacyAmdUvd && c->codec_id == AV_CODEC_ID_H264 )
         {
-            pf = *itor;
-            decStr = "hardware";
+            const int w = ( c->coded_width > 0 ) ? c->coded_width : c->width;
+            const int h = ( c->coded_height > 0 ) ? c->coded_height : c->height;
+            const int maxRefs = maxDpb41RefFrames( w, h );
+            if ( ( c->level > 41 ) || ( c->refs > maxRefs ) )
+            {
+                std::cerr << "Legacy ATI/AMD UVD/UVD+ DXVA2 rejected H.264 stream (level="
+                          << c->level << ", refs=" << c->refs << ", maxRefs=" << maxRefs
+                          << "); falling back to software" << std::endl;
+                d->m_hwPixFormat = AV_PIX_FMT_NONE;
+                allowHw = false;
+            }
+        }
+
+        if ( allowHw )
+        {
+            const auto itor = std::find_if(hardwareFormats.cbegin(), hardwareFormats.cend(), [&](const auto& format){
+                return format == d->m_hwPixFormat;
+            });
+            if (itor != hardwareFormats.cend())
+            {
+                pf = *itor;
+                decStr = "hardware";
+            }
         }
         
         if (auto dsc = av_pix_fmt_desc_get(pf); dsc)
@@ -151,11 +274,20 @@ int Movie::open( std::string &&filename )
 
 void Movie::close()
 {
-    m_quit = true;
+    {
+        std::lock_guard<std::mutex> lock { m_video.m_pictQMutex };
+        m_quit.store( true, std::memory_order_release );
+    }
     m_video.m_pictQCond.notify_one();
     if ( m_parseThread.joinable() )
     {
         m_parseThread.join();
+    }
+    m_video.m_codecCtx.reset();
+    m_audio.m_codecCtx.reset();
+    if ( m_hwDeviceCtx )
+    {
+        av_buffer_unref( &m_hwDeviceCtx );
     }
 }
 
@@ -191,7 +323,7 @@ int Movie::streamComponentOpen( unsigned int streamIndex )
         return AVERROR( EINVAL );
     }
     
-    if ( false && codecpar->codec_type == AVMEDIA_TYPE_VIDEO && codecpar->codec_id == AV_CODEC_ID_H264 )
+    if ( codecpar->codec_type == AVMEDIA_TYPE_VIDEO && codecpar->codec_id == AV_CODEC_ID_H264 )
     {
         for (int i = 0;; ++i) 
         {
@@ -277,6 +409,7 @@ int Movie::streamComponentOpen( unsigned int streamIndex )
     if ( avctx->hw_device_ctx )
     {
         avctx->thread_count = 1;
+        avctx->thread_type = 0;
     }
     else
     {

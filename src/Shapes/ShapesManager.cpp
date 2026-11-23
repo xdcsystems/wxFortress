@@ -203,12 +203,12 @@ void ShapesManager::update( double deltaTimeSec )
         if ( !m_isRoundCompleted )
         {
             const auto& brickList = m_bricks->items();
-            std::vector<Physics::BrickItem> physBricks;
-            physBricks.reserve( brickList.size() );
+            m_physBricks.clear();
+            m_physBricks.reserve( brickList.size() );
             for ( const auto& brick : brickList )
             {
                 const auto b = brick->bounds();
-                physBricks.push_back( Physics::BrickItem {
+                m_physBricks.push_back( Physics::BrickItem {
                     Physics::Aabb { b.m_x, b.m_y, b.m_width, b.m_height },
                     brick->isAlive()
                 } );
@@ -218,7 +218,7 @@ void ShapesManager::update( double deltaTimeSec )
             const Physics::StepEvents ev = Physics::stepBall(
                 m_ballState,
                 m_paddleState.box,
-                physBricks,
+                m_physBricks,
                 dtSec,
                 m_arenaCfg );
 

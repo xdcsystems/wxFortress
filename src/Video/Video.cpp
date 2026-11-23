@@ -64,8 +64,10 @@ int Video::start()
         {
             av_frame_unref( vp->frame.get() );
             // retrieve data from GPU to CPU
-            if ( av_hwframe_transfer_data( vp->frame.get(), frame.get(), 0 ) < 0 )
+            const int xferRet = av_hwframe_transfer_data( vp->frame.get(), frame.get(), 0 );
+            if ( xferRet < 0 )
             {
+                std::cerr << "Failed to transfer HW video frame to CPU: " << xferRet << std::endl;
                 av_frame_unref( frame.get() );
                 return -1;
             }

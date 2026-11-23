@@ -1,4 +1,4 @@
-name: Build wxFortress (Windows MinGW32)
+name: Build wxFortress (Windows WinLibs i686)
 
 on:
   push:
@@ -7,12 +7,16 @@ on:
     branches: [ master ]
   workflow_dispatch:
 
+env:
+  WINLIBS_TAG: 16.2.0posix-23.1.3-14.0.0-ucrt-r3
+  WINLIBS_ZIP: winlibs-i686-posix-dwarf-gcc-16.2.0-mingw-w64ucrt-14.0.0-r3.zip
+
 jobs:
   build-win32:
     runs-on: windows-latest
     defaults:
       run:
-        shell: msys2 {0}
+        shell: pwsh
 
     steps:
       - name: Checkout repository (with submodules)
@@ -20,48 +24,67 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Setup MSYS2 (MINGW32 / i686)
-        uses: msys2/setup-msys2@v2
+      - name: Cache WinLibs i686 toolchain
+        id: cache-winlibs
+        uses: actions/cache@v4
         with:
-          msystem: MINGW32
-          update: true
-          install: >-
-            mingw-w64-i686-gcc
-            mingw-w64-i686-cmake
-            mingw-w64-i686-ninja
-            mingw-w64-i686-ccache
+          path: C:\winlibs\mingw32
+          key: winlibs-i686-${{ env.WINLIBS_TAG }}
 
-      - name: Setup ccache
-        uses: hendrikmuhs/ccache-action@v1.2
-        with:
-          key: wxfortress-mingw32
-          max-size: 1G
-
-      - name: Run BallPhysics unit tests (if present)
+      - name: Download & extract WinLibs i686
+        if: steps.cache-winlibs.outputs.cache-hit != 'true'
         run: |
-          if [ -f tests/test_ball_physics.cpp ]; then
-            g++ -std=c++17 -O2 -Wall -Wextra -Werror -Isrc/Shapes tests/test_ball_physics.cpp -o /tmp/test_ball_physics.exe
-            /tmp/test_ball_physics.exe
-          fi
+          New-Item -ItemType Directory -Force -Path C:\winlibs | Out-Null
+          $url = "https://github.com/brechtsanders/winlibs_mingw/releases/download/$env:WINLIBS_TAG/$env:WINLIBS_ZIP"
+          curl.exe -L --fail --retry 3 -o C:\winlibs\winlibs.zip $url
+          7z x C:\winlibs\winlibs.zip -oC:\winlibs -y | Out-Null
+          Remove-Item C:\winlibs\winlibs.zip -Force
 
-      - name: Configure CMake
+      - name: Add WinLibs i686 to PATH
         run: |
-          cmake -S . -B ../wxFortress-build -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
-            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-            -DCMAKE_CXX_FLAGS="-include cstdint"
+          "C:\winlibs\mingw32\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Verify toolchain
+        run: |
+          g++ --version
+          cmake --version
+          ninja --version
+
+      - name: Run BallPhysics unit tests
+        run: |
+          if (Test-Path tests\test_ball_physics.cpp) {
+            g++ -std=c++17 -O2 -Wall -Wextra -Werror -Isrc\Shapes tests\test_ball_physics.cpp -o test_ball_physics.exe
+            .\test_ball_physics.exe
+            Remove-Item test_ball_physics.exe -Force
+          }
+
+      - name: Configure CMake (Ninja + WinLibs i686)
+        run: |
+          cmake -S . -B ..\wxFortress-build -G Ninja `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_C_COMPILER=C:/winlibs/mingw32/bin/gcc.exe `
+            -DCMAKE_CXX_COMPILER=C:/winlibs/mingw32/bin/g++.exe
 
       - name: Build wxFortress
         run: |
-          cmake --build ../wxFortress-build --target wxFortress -j
+          cmake --build ..\wxFortress-build --target wxFortress -j
 
       - name: Stage release bundle
         run: |
-          mkdir -p dist
-          find ../wxFortress-build .bin -maxdepth 3 \( -name "wxFortress.exe" -o -name "*.dll" \) -exec cp -n {} dist/ \; 2>/dev/null || true
-          cp -r resources dist/ 2>/dev/null || true
-          ls -la dist
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Get-ChildItem ..\wxFortress-build\.bin -File | Copy-Item -Destination dist\ -Force
+          Get-ChildItem ..\wxFortress-build -Recurse -File -Filter "*.dll" | ForEach-Object {
+            if (-not (Test-Path (Join-Path dist $_.Name))) {
+              Copy-Item $_.FullName dist\ -Force
+            }
+          }
+          foreach ($rtDll in @("libgcc_s_dw2-1.dll", "libstdc++-6.dll", "libwinpthread-1.dll")) {
+            $src = Join-Path "C:\winlibs\mingw32\bin" $rtDll
+            if (Test-Path $src) {
+              Copy-Item $src dist\ -Force
+            }
+          }
+          Get-ChildItem dist | Format-Table Name, Length
 
       - name: Upload Windows x86 artifact
         uses: actions/upload-artifact@v4
