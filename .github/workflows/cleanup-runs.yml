@@ -1,0 +1,54 @@
+name: Cleanup old workflow runs
+
+on:
+  workflow_run:
+    workflows: [ "Build wxFortress" ]
+    types: [ completed ]
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete old completed Build wxFortress runs (keep latest 5)
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const workflows = await github.paginate(github.rest.actions.listRepoWorkflows, { owner, repo });
+            const buildWf = workflows.find(w => w.name === 'Build wxFortress');
+            if (!buildWf) {
+              console.log('Build wxFortress workflow not found');
+              return;
+            }
+
+            const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
+              owner,
+              repo,
+              workflow_id: buildWf.id,
+              status: 'completed',
+              per_page: 100
+            });
+
+            // Always preserve the latest 5 completed Build wxFortress runs.
+            const sorted = runs.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            const toDelete = sorted.slice(5);
+            console.log(`Found ${sorted.length} completed Build wxFortress runs; deleting ${toDelete.length}.`);
+
+            for (const run of toDelete) {
+              try {
+                await github.rest.actions.deleteWorkflowRun({
+                  owner,
+                  repo,
+                  run_id: run.id
+                });
+                console.log(`Deleted run ${run.id} (${run.head_branch} @ ${run.head_sha.slice(0, 7)})`);
+              } catch (err) {
+                console.log(`Skip run ${run.id}: ${err.message}`);
+              }
+            }
