@@ -7,6 +7,10 @@ on:
     branches: [ master ]
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
+
 env:
   WINLIBS_TAG: 16.2.0posix-23.1.3-14.0.0-ucrt-r3
   WINLIBS_ZIP: winlibs-i686-posix-dwarf-gcc-16.2.0-mingw-w64ucrt-14.0.0-r3.zip
@@ -143,11 +147,77 @@ jobs:
           mkdir -p dist-linux
           find ../wxFortress-build-linux/.bin -type f -exec cp -f {} dist-linux/ \;
           find ../wxFortress-build-linux/.lib -maxdepth 3 \( -name '*.so' -o -name '*.so.*' \) -exec cp -a {} dist-linux/ \;
+          rm -f dist-linux/libgtest*.so* dist-linux/libgmock*.so*
           ls -la dist-linux
+
+      - name: Build & verify Debian package (.deb)
+        run: |
+          PKG_VERSION="1.0.0-${{ github.run_number }}"
+          PKG_ARCH="$(dpkg --print-architecture)"
+          PKG_DIR="/tmp/wxfortress_${PKG_VERSION}_${PKG_ARCH}"
+          rm -rf "$PKG_DIR"
+          mkdir -p "$PKG_DIR/DEBIAN" "$PKG_DIR/opt/wxfortress" "$PKG_DIR/usr/bin" "$PKG_DIR/usr/share/applications" "$PKG_DIR/usr/share/pixmaps"
+
+          cp -a dist-linux/. "$PKG_DIR/opt/wxfortress/"
+          chmod 0755 "$PKG_DIR/opt/wxfortress/wxFortress"
+          cp -f resources/sample.xpm "$PKG_DIR/usr/share/pixmaps/wxfortress.xpm"
+
+          export PKG_DIR PKG_VERSION PKG_ARCH
+          export INSTALLED_KB=$(du -sk "$PKG_DIR/opt" "$PKG_DIR/usr" | awk '{sum+=$1} END{print sum}')
+          python3 - <<'PY'
+          import os, textwrap
+          pkg_dir = os.environ["PKG_DIR"]
+          pkg_ver = os.environ["PKG_VERSION"]
+          pkg_arch = os.environ["PKG_ARCH"]
+          kb = os.environ["INSTALLED_KB"]
+
+          with open(f"{pkg_dir}/usr/bin/wxfortress", "w", newline="\n") as f:
+              f.write("#!/bin/sh\ncd /opt/wxfortress || exit 1\nexec ./wxFortress \"$@\"\n")
+
+          with open(f"{pkg_dir}/usr/share/applications/wxfortress.desktop", "w", newline="\n") as f:
+              f.write(textwrap.dedent("""\
+                  [Desktop Entry]
+                  Type=Application
+                  Name=wxFortress
+                  Comment=Arkanoid-style OpenGL game
+                  Exec=/usr/bin/wxfortress
+                  Icon=wxfortress
+                  Terminal=false
+                  Categories=Game;ArcadeGame;
+                  """))
+
+          with open(f"{pkg_dir}/DEBIAN/control", "w", newline="\n") as f:
+              f.write(textwrap.dedent(f"""\
+                  Package: wxfortress
+                  Version: {pkg_ver}
+                  Section: games
+                  Priority: optional
+                  Architecture: {pkg_arch}
+                  Maintainer: xdcsystems <noreply@github.com>
+                  Installed-Size: {kb}
+                  Depends: libc6, libstdc++6, libgtk-3-0, libgl1, libx11-6, libasound2 | libasound2t64, libpulse0, libva2, libva-drm2, libva-x11-2, libdrm2, zlib1g, libbz2-1.0, liblzma5
+                  Description: Lightweight Arkanoid-style desktop game (OpenGL, wxWidgets, OpenAL, FFmpeg)
+                   Cross-platform Arkanoid-style game engineered for low-power and legacy hardware.
+                  """))
+          PY
+          chmod 0755 "$PKG_DIR/usr/bin/wxfortress"
+          chmod 0644 "$PKG_DIR/usr/share/applications/wxfortress.desktop"
+
+          mkdir -p dist-deb
+          DEB_FILE="dist-deb/wxfortress_${PKG_VERSION}_${PKG_ARCH}.deb"
+          dpkg-deb --build --root-owner-group "$PKG_DIR" "$DEB_FILE"
+          dpkg-deb --info "$DEB_FILE"
+          dpkg-deb --contents "$DEB_FILE" | head -n 30
+          sudo apt-get install -y "./$DEB_FILE"
+          test -x /usr/bin/wxfortress
+          ldd /opt/wxfortress/wxFortress | grep "not found" && exit 1 || true
+          sudo apt-get remove -y wxfortress
 
       - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
         with:
           name: wxFortress-linux
-          path: dist-linux/
+          path: |
+            dist-linux/
+            dist-deb/*.deb
           retention-days: 14
