@@ -62,6 +62,7 @@ jobs:
         run: |
           cmake -S . -B ..\wxFortress-build -G Ninja `
             -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5 `
             -DCMAKE_C_COMPILER=C:/winlibs/mingw32/bin/gcc.exe `
             -DCMAKE_CXX_COMPILER=C:/winlibs/mingw32/bin/g++.exe
 

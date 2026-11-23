@@ -274,9 +274,12 @@ void RenderWindow::render()
 
             SwapBuffers();
         }
-
 #if defined( _WIN32 )
-        DwmFlush();
+        else
+        {
+            // Sleep until next VBlank when no new video frame was presented
+            DwmFlush();
+        }
 #endif
 
         return;
@@ -312,10 +315,6 @@ void RenderWindow::render()
     }
 
     SwapBuffers();
-
-#if defined( _WIN32 )
-    DwmFlush();
-#endif
 }
 
 void RenderWindow::onSize( wxSizeEvent &event )

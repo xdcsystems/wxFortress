@@ -6,7 +6,7 @@ set( CMAKE_MODULE_PATH
 )
 set( NAME wxFortress )
 
-if( WIN32 )
+if( CMAKE_GENERATOR MATCHES "^Visual Studio" )
     set( CMAKE_GENERATOR_PLATFORM Win32 )
 endif()
 
