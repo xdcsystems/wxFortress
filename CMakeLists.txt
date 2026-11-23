@@ -113,6 +113,16 @@ if( MINGW AND TARGET libglew_shared )
     target_link_options( libglew_shared PRIVATE -Wl,--allow-multiple-definition )
 endif()
 
+if( UNIX )
+    set( WXFORTRESS_LINUX_EXTRA_LIBS dl pthread m )
+    foreach( _fflib va va-drm va-x11 vdpau drm z bz2 lzma X11 )
+        find_library( _fflib_path_${_fflib} NAMES ${_fflib} )
+        if( _fflib_path_${_fflib} )
+            list( APPEND WXFORTRESS_LINUX_EXTRA_LIBS ${_fflib_path_${_fflib}} )
+        endif()
+    endforeach()
+endif()
+
 # add tests
 add_subdirectory_with_folder("tests" tests )
 
@@ -149,7 +159,7 @@ if( UNIX )
     else()
         target_link_libraries( ${PROJECT_NAME} GLEW )
     endif()
-    target_link_libraries( ${PROJECT_NAME} va va-drm va-x11 drm dl pthread m )
+    target_link_libraries( ${PROJECT_NAME} ${WXFORTRESS_LINUX_EXTRA_LIBS} )
 endif()
 
 if( WIN32 )

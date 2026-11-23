@@ -76,7 +76,7 @@ if( TARGET GTest::gtest AND TARGET GTest::gmock )
         else()
             target_link_libraries( ${NAME} PRIVATE GLEW )
         endif()
-        target_link_libraries( ${NAME} PRIVATE va va-drm va-x11 drm dl pthread m )
+        target_link_libraries( ${NAME} PRIVATE ${WXFORTRESS_LINUX_EXTRA_LIBS} )
     endif()
 
     add_dependencies( ${NAME} ${CMAKE_PROJECT_NAME} )
