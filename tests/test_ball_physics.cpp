@@ -277,3 +277,18 @@ TEST_F( BallPhysicsTest, RobotClearsMultiRowLevelWithoutStall )
     EXPECT_FALSE( ballLost );
     EXPECT_EQ( remaining, 0 );
 }
+
+TEST_F( BallPhysicsTest, BrickHitSpeedIncrement125PxPerSec )
+{
+    EXPECT_FLOAT_EQ( cfg.speedStepOnBrick, 1.25f );
+
+    std::vector<BrickItem> bricks {
+        { Aabb { 200.0f, 300.0f, 50.0f, 20.0f }, true },
+        { Aabb { 250.0f, 300.0f, 50.0f, 20.0f }, true },
+    };
+    BallState ball { { 250.0f, 285.0f }, 8.0f, { 0.0f, 187.5f } };
+    const float spdBefore = length( ball.vel );
+    const auto ev = stepBall( ball, paddle, bricks, 0.1f, cfg );
+    EXPECT_EQ( ev.hitBricks.size(), 2u );
+    EXPECT_NEAR( length( ball.vel ), spdBefore + 2.0f * 1.25f, 1e-3f );
+}

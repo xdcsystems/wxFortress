@@ -51,6 +51,7 @@ class RenderWindow final : public wxGLCanvas
         void init();
         void playIntro();
         void loadLevel( unsigned short level );
+        void resetBallSpeed();
         void start();
         void stop();
         void triggerLaunch();

@@ -83,7 +83,7 @@ namespace Shapes::Physics
         float height { 600.0f };
         float minSpeed { 60.0f };
         float maxSpeed { 1200.0f };
-        float speedStepOnBrick { 8.0f };  // added to |vel| per brick hit (px/s)
+        float speedStepOnBrick { 1.25f }; // added to |vel| per brick hit (px/s)
         float maxPaddleBounceDeg { 60.0f }; // angle from +Y axis -> [30..150 deg] from +X
         float minAbsSinAngle { 0.1736f }; // ~10 deg minimum vertical slope to prevent horizontal lock
         float paddleAccel { 2200.0f };    // px/s^2

@@ -49,6 +49,7 @@ ShapesManager::ShapesManager( wxWindow* parent, const rendererPtr& spriteRendere
     , m_eventBallLost( wxEVT_BALL_LOST )
     , m_renderer( spriteRenderer )
 {
+    m_currentBallSpeed = kInitialBallSpeedPxPerSec;
     m_ball = std::make_shared<Ball>();
     m_board = std::make_shared<Board>();
     m_bricks = std::make_shared<Bricks>();
@@ -70,6 +71,11 @@ void ShapesManager::loadLevel( unsigned short level ) const
 {
     // let's throw some bricks
     m_bricks->loadLevel( level );
+}
+
+void ShapesManager::resetBallSpeed()
+{
+    m_currentBallSpeed = kInitialBallSpeedPxPerSec;
 }
 
 Rect ShapesManager::updateBallPosition( const Rect& boardBounds )
@@ -125,10 +131,11 @@ void ShapesManager::initBallVelocity()
     } while ( angleDeg > static_cast<int>( END_RIGHT_ANGLE ) &&
               angleDeg < static_cast<int>( BEGIN_LEFT_ANGLE ) ); // [30..70] or [110..150]
 
+    const float launchSpeed = std::clamp( m_currentBallSpeed, m_arenaCfg.minSpeed, m_arenaCfg.maxSpeed );
     const float rad = glm::radians( static_cast<float>( angleDeg ) );
     m_ballState.vel = {
-        kInitialBallSpeedPxPerSec * std::cos( rad ),
-        kInitialBallSpeedPxPerSec * std::sin( rad )
+        launchSpeed * std::cos( rad ),
+        launchSpeed * std::sin( rad )
     };
     m_ball->m_velocity = { m_ballState.vel.x, m_ballState.vel.y };
 }
@@ -267,6 +274,10 @@ void ShapesManager::update( double deltaTimeSec )
             if ( !ev.hitBricks.empty() )
             {
                 m_robotDryBounces = 0;
+                m_currentBallSpeed = std::clamp(
+                    Physics::length( m_ballState.vel ),
+                    m_arenaCfg.minSpeed,
+                    m_arenaCfg.maxSpeed );
                 for ( const std::size_t idx : ev.hitBricks )
                 {
                     if ( idx < brickList.size() )
