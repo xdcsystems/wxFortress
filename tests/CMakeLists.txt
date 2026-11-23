@@ -1,16 +1,20 @@
 cmake_minimum_required(VERSION 3.14.7 FATAL_ERROR)
 
-# 1. Standalone analytical BallPhysics unit tests (no GUI/OpenGL required, runs on every build)
-add_executable( ut_BallPhysics test_ball_physics.cpp )
-target_compile_features( ut_BallPhysics PRIVATE cxx_std_17 )
-target_include_directories( ut_BallPhysics PRIVATE "${CMAKE_SOURCE_DIR}/src/Shapes" )
-add_test( NAME ut_BallPhysics COMMAND ut_BallPhysics )
-add_custom_command(
-    TARGET ut_BallPhysics POST_BUILD
-    COMMAND $<TARGET_FILE:ut_BallPhysics>
-    COMMENT "Running ut_BallPhysics unit tests"
-)
-add_dependencies( ${CMAKE_PROJECT_NAME} ut_BallPhysics )
+# 1. Analytical BallPhysics GoogleTest suite (no GUI/OpenGL required, runs on every build)
+if( TARGET GTest::gtest_main )
+    include( GoogleTest )
+    add_executable( ut_BallPhysics test_ball_physics.cpp )
+    target_compile_features( ut_BallPhysics PRIVATE cxx_std_17 )
+    target_include_directories( ut_BallPhysics PRIVATE "${CMAKE_SOURCE_DIR}/src/Shapes" )
+    target_link_libraries( ut_BallPhysics PRIVATE GTest::gtest_main )
+    gtest_discover_tests( ut_BallPhysics DISCOVERY_MODE PRE_TEST )
+    add_custom_command(
+        TARGET ut_BallPhysics POST_BUILD
+        COMMAND $<TARGET_FILE:ut_BallPhysics>
+        COMMENT "Running ut_BallPhysics GoogleTest suite"
+    )
+    add_dependencies( ${CMAKE_PROJECT_NAME} ut_BallPhysics )
+endif()
 
 # 2. Full GoogleTest/GoogleMock integration suite (ut_Fortress)
 if( TARGET GTest::gtest AND TARGET GTest::gmock )

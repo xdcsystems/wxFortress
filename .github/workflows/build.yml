@@ -50,14 +50,6 @@ jobs:
           cmake --version
           ninja --version
 
-      - name: Run BallPhysics unit tests
-        run: |
-          if (Test-Path tests\test_ball_physics.cpp) {
-            g++ -std=c++17 -O2 -Wall -Wextra -Werror -Isrc\Shapes tests\test_ball_physics.cpp -o test_ball_physics.exe
-            .\test_ball_physics.exe
-            Remove-Item test_ball_physics.exe -Force
-          }
-
       - name: Configure CMake (Ninja + WinLibs i686)
         run: |
           cmake -S . -B ..\wxFortress-build -G Ninja `
