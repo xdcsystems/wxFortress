@@ -138,12 +138,14 @@ target_link_libraries(
     FFmpeg::FFmpeg
 )
 if( UNIX )
-    string( TOUPPER ${CMAKE_BUILD_TYPE} OUTPUTCONFIG )
-    target_link_directories(${CMAKE_PROJECT_NAME} PUBLIC "${CMAKE_LIBRARY_OUTPUT_DIRECTORY_${OUTPUTCONFIG}}")
-    target_link_libraries(
-        ${PROJECT_NAME}
-        libGLEW${BUILD_POSTFIX}.so.2.2.0
-    )
+    if( TARGET glew )
+        target_link_libraries( ${PROJECT_NAME} glew )
+    elseif( TARGET libglew_shared )
+        target_link_libraries( ${PROJECT_NAME} libglew_shared )
+    else()
+        target_link_libraries( ${PROJECT_NAME} GLEW )
+    endif()
+    target_link_libraries( ${PROJECT_NAME} va va-drm va-x11 drm dl pthread m )
 endif()
 
 if( WIN32 )
