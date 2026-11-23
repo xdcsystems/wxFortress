@@ -398,9 +398,7 @@ void RenderWindow::onKeyPressed( wxKeyEvent &event )
             {
                 case WXK_SPACE:
                 {
-                    switchRun();
-                    m_timer->start();
-                    wxWakeUpIdle();
+                    triggerLaunch();
                 }
                 break;
 

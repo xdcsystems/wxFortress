@@ -31,10 +31,10 @@ A lightweight, cross-platform Arkanoid-style desktop game built with **C++17**, 
 
 ## Controls
 
-| Key | Action |
+| Input | Action |
 | --- | --- |
-| `Left` / `Right` | Move paddle |
-| `Space` | Launch ball / Pause & Resume |
+| `Mouse` / `Left` / `Right` | Move paddle |
+| `LAUNCH` button / `Space` | Launch ball / Pause & Resume |
 | `R` | Skip intro video |
 | `F1` | Show help overlay |
 | `Esc` | Close help overlay / Exit game |

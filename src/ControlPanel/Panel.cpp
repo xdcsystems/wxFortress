@@ -87,7 +87,12 @@ bool Panel::isPointInLaunchButton( const wxPoint& pt ) const
 
 void Panel::onMouseMove( wxMouseEvent &event )
 {
-    SetCursor( isPointInLaunchButton( event.GetPosition() ) ? wxCursor( wxCURSOR_HAND ) : wxNullCursor );
+    const bool hover = isPointInLaunchButton( event.GetPosition() );
+    if ( hover != m_hoverLaunch )
+    {
+        m_hoverLaunch = hover;
+        SetCursor( hover ? wxCursor( wxCURSOR_HAND ) : wxNullCursor );
+    }
     event.Skip();
 }
 

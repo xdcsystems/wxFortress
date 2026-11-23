@@ -40,6 +40,7 @@ namespace ControlPanel
             void onLeftDown( wxMouseEvent& );
             void onMouseMove( wxMouseEvent& );
             bool isPointInLaunchButton( const wxPoint& pt ) const;
+            bool m_hoverLaunch { false };
 
             // Helper functions
             void init();
