@@ -102,7 +102,7 @@ endif()
 target_compile_features( ${PROJECT_NAME} PRIVATE cxx_std_17 )
 
 if( MINGW )
-    add_compile_options( $<$<COMPILE_LANGUAGE:CXX>:SHELL:-include cstdint> )
+    set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -include cstdint" )
 endif()
 
 # add external libs
@@ -166,6 +166,10 @@ if( WIN32 )
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             $<TARGET_FILE:libglew_shared>
+            $<TARGET_FILE:OpenAL::OpenAL>
+            $<TARGET_FILE:wx::base>
+            $<TARGET_FILE:wx::core>
+            $<TARGET_FILE:wx::gl>
             $<TARGET_FILE_DIR:${PROJECT_NAME}>
     )
     
