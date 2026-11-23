@@ -20,6 +20,7 @@ namespace Shapes
 
             void loadLevel( unsigned short level = 1 );
             void checkContact( const std::function<bool( brickPtr )>& checkIntersects ) const;
+            const std::vector<brickPtr>& items() const { return m_bricks; }
             bool empty() const {
                 return std::find_if( m_bricks.begin(), m_bricks.end(), []( const brickPtr &brick ) { 
                     return brick->isAlive(); } ) == m_bricks.end();

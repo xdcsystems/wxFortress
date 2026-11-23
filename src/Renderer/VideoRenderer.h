@@ -17,8 +17,8 @@ class VideoRenderer
         bool ok();
         void setViewport( int x, int y, int width, int height );
         
-        void draw( int width, int height, uint8_t **data );
-        void drawNV12( int width, int height, uint8_t** data );
+        void draw( int width, int height, uint8_t** data, const int* linesize );
+        void drawNV12( int width, int height, uint8_t** data, const int* linesize );
 
         int viewWidth() const { return m_viewWidth; };
         int viewHeight() const { return m_viewHeight; };

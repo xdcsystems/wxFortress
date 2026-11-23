@@ -97,6 +97,6 @@ class TestFortress : public ::testing::Test
         }
 
         TestApp* m_testApp;
-        char* m_argv[ 5 ] = { "wxFortress", "arg1", "arg2 with spaces", "arg3", nullptr };
+        char* m_argv[ 5 ] = { const_cast<char*>( "wxFortress" ), const_cast<char*>( "arg1" ), const_cast<char*>( "arg2 with spaces" ), const_cast<char*>( "arg3" ), nullptr };
         int m_argc = sizeof( m_argv ) / sizeof( m_argv[ 0 ] ) - 1;
 };

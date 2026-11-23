@@ -7,8 +7,10 @@
     #include <wx/wx.h>
 #endif
 
-#include <thread>
-#include <future>
+#include <algorithm>
+#include <cmath>
+#include <random>
+#include <vector>
 
 #include <glm/glm.hpp>
 
@@ -32,6 +34,12 @@ DEFINE_LOCAL_EVENT_TYPE( wxEVT_PONG )
 
 using namespace Shapes;
 
+namespace
+{
+    constexpr float kInitialBallSpeedPxPerSec =
+        ( BEGIN_BALL_VELOCITY * 1000.0f ) / static_cast<float>( DEFAULT_DELTATIME ); // 187.5 px/s (3 px / 16 ms)
+}
+
 ShapesManager::ShapesManager( wxWindow* parent, const rendererPtr& spriteRenderer )
     : m_eventHandler( parent->GetEventHandler() )
     , m_eventCurrentScoreInc( wxEVT_CURRENT_SCORE_INCREASED )
@@ -49,20 +57,13 @@ ShapesManager::ShapesManager( wxWindow* parent, const rendererPtr& spriteRendere
     // set render-specific controls
     m_particles = std::make_shared<ParticleGenerator>( 500 );
 
-    // the scale division value 
-    m_scaleDivisionValue = ( END_ANGLE - BEGIN_ANGLE ) / m_board->size().x;
+    m_ballState.radius = m_ball->radius();
 
-    if ( wxTheApp->argc > 1 )
+    if ( wxTheApp && wxTheApp->argc > 1 )
     {
         const std::string param { wxTheApp->argv[ 1 ] };
         m_isRobot = param == "--robot";
     }
-}
-
-ShapesManager::~ShapesManager()
-{
-    m_keepGoing.store( false );
-    resumeWorker();
 }
 
 void ShapesManager::loadLevel( unsigned short level ) const
@@ -71,7 +72,7 @@ void ShapesManager::loadLevel( unsigned short level ) const
     m_bricks->loadLevel( level );
 }
 
-Rect ShapesManager::updateBallPosition( const Rect& boardBounds ) const
+Rect ShapesManager::updateBallPosition( const Rect& boardBounds )
 {
     if ( m_size.x < 1 || m_size.y < 1 )
         return {};
@@ -80,8 +81,13 @@ Rect ShapesManager::updateBallPosition( const Rect& boardBounds ) const
     const auto& ballBounds = m_ball->bounds();
 
     m_ball->moveTo(
-        boardBounds.m_x + ( boardBounds.m_width - ballBounds.m_width ) / 2,
+        boardBounds.m_x + ( boardBounds.m_width - ballBounds.m_width ) / 2.0f,
         boardBounds.m_y + boardBounds.m_height );
+
+    const auto c = m_ball->center();
+    m_ballState.center = { c.x, c.y };
+    m_ballState.radius = m_ball->radius();
+    m_ballState.vel = { 0.0f, 0.0f };
 
     return m_ball->bounds();
 }
@@ -89,43 +95,42 @@ Rect ShapesManager::updateBallPosition( const Rect& boardBounds ) const
 void ShapesManager::resize( const wxSize& size, const glm::mat4& projection )
 {
     m_size = size;
+    m_arenaCfg.width = static_cast<float>( size.x );
+    m_arenaCfg.height = static_cast<float>( size.y );
     m_particles->resize( projection );
 
-    // set board position 
+    // set board position
     auto boardBounds = m_board->bounds();
-    m_board->moveTo( ( m_size.x - boardBounds.m_width ) / 2, 15 );
+    m_board->moveTo( ( m_size.x - boardBounds.m_width ) / 2.0f, 15.0f );
 
     // set ball on board
     boardBounds = m_board->bounds();
-    const auto& ballBounds = updateBallPosition( boardBounds );
+    m_paddleState.box = { boardBounds.m_x, boardBounds.m_y, boardBounds.m_width, boardBounds.m_height };
+    m_paddleState.speed = 0.0f;
 
-    m_ballTopLimit = m_size.y - ballBounds.m_height;
-    m_ballBottomLimit = boardBounds.m_y + boardBounds.m_height;
+    updateBallPosition( boardBounds );
+}
 
-    // calc worker
-    if ( !m_asyncWorker.valid() )
+void ShapesManager::initBallVelocity()
+{
+    static thread_local std::mt19937 rng( std::random_device {}() );
+    std::uniform_int_distribution<int> distAngle(
+        static_cast<int>( BEGIN_ANGLE ),
+        static_cast<int>( END_ANGLE ) ); // [30..150]
+
+    int angleDeg = 90;
+    do
     {
-        m_asyncWorker = std::async( std::launch::async, [ this ]() {
-            while ( m_keepGoing.load() )
-            {
-                try
-                {
-                    update( DEFAULT_DELTATIME );
-                }
-                catch ( const std::exception& e )
-                {
-                    wxMessageBox( e.what(), "Exception Caught", wxOK );
-                }
-                catch ( ... )
-                {
-                    wxMessageBox( "AsyncWorker: unknown exception", "Exception Caught", wxOK );
-                }
-                checkWorkerPaused( true );
-            }
-        } );
-    }
-    else
-        resumeWorker();
+        angleDeg = distAngle( rng );
+    } while ( angleDeg > static_cast<int>( END_RIGHT_ANGLE ) &&
+              angleDeg < static_cast<int>( BEGIN_LEFT_ANGLE ) ); // [30..70] or [110..150]
+
+    const float rad = glm::radians( static_cast<float>( angleDeg ) );
+    m_ballState.vel = {
+        kInitialBallSpeedPxPerSec * std::cos( rad ),
+        kInitialBallSpeedPxPerSec * std::sin( rad )
+    };
+    m_ball->m_velocity = { m_ballState.vel.x, m_ballState.vel.y };
 }
 
 void ShapesManager::run( bool bNewRound )
@@ -134,8 +139,11 @@ void ShapesManager::run( bool bNewRound )
 
     if ( bNewRound )
     {
-        initDirection();
-        calculateDelta();
+        m_isRoundCompleted = false;
+        const auto c = m_ball->center();
+        m_ballState.center = { c.x, c.y };
+        m_ballState.radius = m_ball->radius();
+        initBallVelocity();
     }
 }
 
@@ -143,241 +151,125 @@ void ShapesManager::stop()
 {
     m_state = State::STOPPED;
     m_isRoundCompleted = false;
+    m_paddleState.speed = 0.0f;
+    m_ballState.vel = { 0.0f, 0.0f };
     m_particles->clear();
     m_explosions->clear();
 }
 
-void ShapesManager::calculateDelta()
+void ShapesManager::updatePaddleInput( float dtSec )
 {
-    const auto rab = m_ball->velocity().x;
-    const auto radAngle = glm::radians( m_angle );
-    m_delta.x = rab * cos( radAngle );
-    m_delta.y = rab * sin( radAngle );
-}
+    const auto boardBounds = m_board->bounds();
+    m_paddleState.box = { boardBounds.m_x, boardBounds.m_y, boardBounds.m_width, boardBounds.m_height };
 
-void ShapesManager::changeMoveDirection( ContactPosition contactPosition, TypeContact typeContact )
-{
-    switch ( typeContact )
-    {
-        case TypeContact::BrickContact:
-            m_eventHandler->AddPendingEvent( m_eventCurrentScoreInc );
-            m_isRoundCompleted = m_bricks->empty();
-
-            if ( m_isRoundCompleted )
-                return;
-
-            // took away the power of the brick
-            m_ball->increaseVelocity( INCREASE_VELOCITY_STEP );
-        break;
-
-        case TypeContact::PaddleContact:
-            m_eventHandler->AddPendingEvent( m_eventPing );
-            changeDirection( m_ball->center(), m_board->center() );
-            calculateDelta();
-            return;
-        break;
-
-        case TypeContact::WallContact:
-            m_eventHandler->AddPendingEvent( m_eventPong );
-        break;
-
-        case TypeContact::BallLost:
-            stop();
-            m_eventHandler->AddPendingEvent( m_eventBallLost );
-            return;
-        break;
-    }
-
-    MoveController::changeMoveDirection( contactPosition );
-    calculateDelta();
-}
-
-void ShapesManager::moveBoard( float value ) const
-{
-    auto boardBounds = m_board->bounds();
-    boardBounds.m_x += value;
-
-    if ( value > 0 && !( boardBounds.right() < m_size.x ) ) // move to right
-    {
-        m_board->moveTo( m_size.x - boardBounds.m_width, boardBounds.m_y );
-    }
-    else if ( value < 0 && !( boardBounds.m_x > 0 ) ) // move to left
-    {
-        m_board->moveTo( 0, boardBounds.m_y );
-    }
-    else
-    {
-        m_board->moveTo( boardBounds.m_x, boardBounds.m_y );
-    }
-}
-
-ContactPosition ShapesManager::checkPaddleContact( bool checkOnly )
-{
-    const auto& ballBounds = m_ball->bounds();
-
-    if ( ballBounds.m_y >= m_ballTopLimit )
-    {
-        if ( !checkOnly )
-            changeMoveDirection( ContactPosition::Top );
-        
-        return ContactPosition::Top;
-    }
-    
-    if ( ballBounds.m_y <= m_ballBottomLimit )
-    {
-        const auto& restrictions = m_board->admissibleBounds( ballBounds );
-        const bool isLost = m_ball->intersect( restrictions ) == ContactPosition::Null;
-        const auto typeContact = isLost ? TypeContact::BallLost : TypeContact::PaddleContact;
-
-        if ( !checkOnly )
-            changeMoveDirection( ContactPosition::Bottom, typeContact );
-
-        return ContactPosition::Bottom;
-    }
-    
-    if ( ballBounds.right() >= m_size.x )
-    {
-        if ( !checkOnly )
-            changeMoveDirection( ContactPosition::Right );
-    
-        return ContactPosition::Right;
-    }
-    
-    if ( ballBounds.m_x <= 0 )
-    {
-        if ( !checkOnly )
-            changeMoveDirection( ContactPosition::Left );
-
-        return ContactPosition::Left;
-    }
-
-    return ContactPosition::Null;
-}
-
-void ShapesManager::checkKeysState()
-{
+    int moveDir = 0;
     if ( wxGetKeyState( WXK_LEFT ) )
+        moveDir = -1;
+    else if ( wxGetKeyState( WXK_RIGHT ) )
+        moveDir = +1;
+
+    Physics::updatePaddle( m_paddleState, moveDir, dtSec, m_arenaCfg );
+
+    if ( isRunning() && m_isRobot && moveDir == 0 )
     {
-        m_accelerate += m_board->velocity().x;
-        moveBoard( MoveDirection::Left - m_accelerate );
-        return;
+        m_paddleState.box.x = std::clamp(
+            m_ballState.center.x - 0.5f * m_paddleState.box.w,
+            0.0f,
+            std::max( 0.0f, m_arenaCfg.width - m_paddleState.box.w ) );
     }
 
-    if ( wxGetKeyState( WXK_RIGHT ) )
-    {
-        m_accelerate += m_board->velocity().x;
-        moveBoard( MoveDirection::Right + m_accelerate );
-        return;
-    }
-
-    m_accelerate = 0;
+    m_board->moveTo( m_paddleState.box.x, m_paddleState.box.y );
 }
 
-ContactPosition ShapesManager::checkContact(
-    const glm::vec2 &ballPosition,
-    float beginValue,
-    float endValue,
-    float increment )
+void ShapesManager::update( double deltaTimeSec )
 {
-    TypeContact typeContact = TypeContact::Null;
-    ContactPosition contactPosition = ContactPosition::Null;
-    glm::vec2 prevPosition = ballPosition;
-    const auto rab = m_ball->velocity().x;
-    double k = 0.0;
+    if ( isPaused() || m_size.x < 1 || m_size.y < 1 )
+        return;
 
-    for ( float rac = beginValue; rac <= endValue; rac += increment )
-    {
-        k = rac / rab;
-        prevPosition = m_ball->position();
-        
-        m_ball->moveTo( ballPosition.x + m_delta.x * k, ballPosition.y + m_delta.y * k );
-
-        if ( typeContact == TypeContact::Null || typeContact == TypeContact::BrickContact )
-        {
-            m_bricks->checkContact( [ this, &contactPosition, &increment, &typeContact ]( const brickPtr& brick ) {
-                contactPosition = m_ball->intersect( brick->bounds() );
-                if ( contactPosition == ContactPosition::Null )
-                    return false;
-
-                if ( increment != INCREASE_DEFAULT_STEP )
-                {
-                    brick->kill();
-                    m_explosions->add( brick );
-                }
-
-                typeContact = TypeContact::BrickContact;
-                return true;
-            } );
-        }
-
-        if ( typeContact != TypeContact::BrickContact )
-            contactPosition = checkPaddleContact( increment == INCREASE_DEFAULT_STEP );
-
-        if ( contactPosition != ContactPosition::Null ) // there is a contact, clarify the position of the contact
-        {
-            if ( increment != INCREASE_DEFAULT_STEP )
-            {
-                if ( typeContact == TypeContact::BrickContact )
-                    changeMoveDirection( contactPosition, typeContact );
-                break;
-            }
-
-            if ( typeContact == TypeContact::Null )
-                typeContact = TypeContact::PaddleContact;
-
-            m_ball->moveTo( prevPosition );
-            rac -= increment;
-            increment = INCREASE_VELOCITY_STEP;
-            contactPosition = ContactPosition::Null;
-        }
-    }
-
-    return contactPosition;
-}
-
-void ShapesManager::update( double deltaTime )
-{
     if ( m_isRoundCompleted && m_explosions->empty() )
     {
         stop();
+        updateBallPosition( m_board->bounds() );
         m_eventHandler->AddPendingEvent( m_eventRoundCompleted );
         return;
     }
 
+    const float dtSec = std::clamp( static_cast<float>( deltaTimeSec ), 0.0f, 0.05f );
+
+    updatePaddleInput( dtSec );
+
     if ( isRunning() )
     {
-        const auto& ballPosition = m_ball->position();
-        const auto rab = m_ball->velocity().x;
-        float cc = { .0f };
-        const auto dc = modff( rab, &cc );
-
-        if ( checkContact( ballPosition, 1.f, cc, INCREASE_DEFAULT_STEP ) == ContactPosition::Null && dc > 0 )
-            checkContact( ballPosition, cc, rab, INCREASE_VELOCITY_STEP );
-
-        if ( m_isRobot )
+        if ( !m_isRoundCompleted )
         {
-            const auto& ballBounds = m_ball->bounds();
-            const auto& boardBounds = m_board->bounds();
-            moveBoard( ballBounds.m_x + ( ballBounds.m_width - boardBounds.m_width ) / 2 - boardBounds.m_x );
+            const auto& brickList = m_bricks->items();
+            m_physBricks.clear();
+            m_physBricks.reserve( brickList.size() );
+            for ( const auto& brick : brickList )
+            {
+                const auto b = brick->bounds();
+                m_physBricks.push_back( Physics::BrickItem {
+                    Physics::Aabb { b.m_x, b.m_y, b.m_width, b.m_height },
+                    brick->isAlive()
+                } );
+            }
+
+            m_ballState.radius = m_ball->radius();
+            const Physics::StepEvents ev = Physics::stepBall(
+                m_ballState,
+                m_paddleState.box,
+                m_physBricks,
+                dtSec,
+                m_arenaCfg );
+
+            const float r = m_ballState.radius;
+            m_ball->moveTo( m_ballState.center.x - r, m_ballState.center.y - r );
+            m_ball->m_velocity = { m_ballState.vel.x, m_ballState.vel.y };
+
+            if ( ev.hitWall )
+                m_eventHandler->AddPendingEvent( m_eventPong );
+
+            if ( ev.hitPaddle )
+                m_eventHandler->AddPendingEvent( m_eventPing );
+
+            if ( !ev.hitBricks.empty() )
+            {
+                for ( const std::size_t idx : ev.hitBricks )
+                {
+                    if ( idx < brickList.size() )
+                    {
+                        const auto& brick = brickList[ idx ];
+                        if ( brick->isAlive() )
+                        {
+                            brick->kill();
+                            m_explosions->add( brick );
+                            m_eventHandler->AddPendingEvent( m_eventCurrentScoreInc );
+                        }
+                    }
+                }
+                m_isRoundCompleted = m_bricks->empty();
+            }
+
+            if ( ev.ballLost )
+            {
+                stop();
+                updateBallPosition( m_board->bounds() );
+                m_eventHandler->AddPendingEvent( m_eventBallLost );
+                return;
+            }
         }
 
         // update the position of the particles according to the new position of the ball
-        m_particles->update( deltaTime * 0.001, m_ball, 2, glm::vec2( m_ball->radius() / 2.0f ) );
+        m_particles->update( dtSec, m_ball, 2, glm::vec2( m_ball->radius() / 2.0f ) );
     }
     else if ( isStopped() )
+    {
         updateBallPosition( m_board->bounds() );
-
-    checkKeysState();
+    }
 }
 
 void ShapesManager::renderFrame()
 {
-    if ( pauseWorker() == std::cv_status::timeout )
-    {
-        wxLogDebug( "Can't pause Worker" );
-        return;
-    }
-
     m_renderer->selectShader();
 
     m_board->draw( m_renderer );
@@ -385,17 +277,15 @@ void ShapesManager::renderFrame()
     if ( !m_isRoundCompleted )
     {
         m_bricks->draw( m_renderer );
-        
+
         if ( isRunning() )
         {
             m_particles->draw();
             m_renderer->selectShader();
         }
-        
+
         m_ball->draw( m_renderer );
     }
 
     m_explosions->draw( m_renderer );
-
-    resumeWorker();
 }

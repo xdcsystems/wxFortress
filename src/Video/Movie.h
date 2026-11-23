@@ -31,6 +31,7 @@ class Movie
 
         enum AVPixelFormat m_hwPixFormat { AV_PIX_FMT_NONE };
         AVBufferRef* m_hwDeviceCtx { nullptr };
+        bool m_isLegacyAmdUvd { false };
         std::list<const AVCodecHWConfig*> m_hwDevicesSupported;
 
     private:

@@ -60,16 +60,26 @@ int Video::start()
             continue;
         }
 
-        if ( frame->format == m_movie.m_hwPixFormat )
+        if ( m_movie.m_hwPixFormat != AV_PIX_FMT_NONE && frame->format == m_movie.m_hwPixFormat )
         {
+            av_frame_unref( vp->frame.get() );
             // retrieve data from GPU to CPU
-            if ( av_hwframe_transfer_data( vp->frame.get(), frame.get(), 0 ) < 0 )
+            const int xferRet = av_hwframe_transfer_data( vp->frame.get(), frame.get(), 0 );
+            if ( xferRet < 0 )
+            {
+                std::cerr << "Failed to transfer HW video frame to CPU: " << xferRet << std::endl;
+                av_frame_unref( frame.get() );
                 return -1;
+            }
 
             av_frame_copy_props( vp->frame.get(), frame.get() );
+            av_frame_unref( frame.get() );
         }
         else
+        {
             vp->frame.swap( frame );
+            av_frame_unref( frame.get() );
+        }
 
         AVFrame* decodedFrame = vp->frame.get();
 
@@ -86,23 +96,24 @@ int Video::start()
         frameDelay += decodedFrame->repeat_pict * ( frameDelay * 0.5 );
         currentPts += duration_cast<nanoseconds>( seconds_d64 { frameDelay } );
 
-        // Put the frame in the queue to be loaded into a texture and displayed
-        // by the rendering thread.
-        writeIdx = ( writeIdx + 1 ) % m_pictQ.size();
-        m_pictQWrite.store( writeIdx, std::memory_order_release );
-
-        // Send a packet for next receive.
-        m_packets.sendTo( m_codecCtx.get() );
-
-        if ( writeIdx == m_pictQRead.load( std::memory_order_acquire ) )
+        // Wait for space BEFORE advancing m_pictQWrite so the reader never observes
+        // writeIdx == readIdx while the ring is full and overwrites an in-use frame.
+        const size_t nextWriteIdx = ( writeIdx + 1 ) % m_pictQ.size();
+        if ( nextWriteIdx == m_pictQRead.load( std::memory_order_acquire ) )
         {
-            // Wait until we have space
             std::unique_lock<std::mutex> lock { m_pictQMutex };
-            while ( writeIdx == m_pictQRead.load( std::memory_order_acquire ) && !m_movie.m_quit.load( std::memory_order_relaxed ) )
+            while ( nextWriteIdx == m_pictQRead.load( std::memory_order_acquire ) && !m_movie.m_quit.load( std::memory_order_relaxed ) )
             {
                 m_pictQCond.wait( lock );
             }
         }
+
+        // Put the frame in the queue to be loaded into a texture and displayed
+        // by the rendering thread.
+        m_pictQWrite.store( nextWriteIdx, std::memory_order_release );
+
+        // Send a packet for next receive.
+        m_packets.sendTo( m_codecCtx.get() );
     }
 
     return std::min( ret, 0 );

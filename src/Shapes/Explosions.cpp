@@ -7,6 +7,8 @@
     #include <wx/wx.h>
 #endif
 
+#include <algorithm>
+
 #include "Common/Tools.h"
 #include "Common/Rect.hpp"
 #include "Renderer/Texture.h"
@@ -95,5 +97,11 @@ void Explosions::draw( const rendererPtr &renderer )
             expolosion->kill();
         }
     }
-}
 
+    m_explosions.erase(
+        std::remove_if(
+            m_explosions.begin(),
+            m_explosions.end(),
+            []( const explosionPtr &explosion ) { return !explosion->isActive(); } ),
+        m_explosions.end() );
+}

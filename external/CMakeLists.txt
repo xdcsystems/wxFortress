@@ -20,7 +20,7 @@ elseif( UNIX )
 endif()
 
 # ffmpeg
-if( UNIX )
+if( UNIX AND NOT EXISTS "${PROJECT_SOURCE_DIR}/external/ffmpeg/linux/.build/lib/libavcodec.a" )
 file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/external/ffmpeg)
 
 # Configure external project
@@ -43,12 +43,16 @@ elseif( UNIX )
 endif()
 
 find_package(FFmpeg
-    COMPONENTS AVCODEC AVFORMAT AVUTIL SWRESAMPLE
+    COMPONENTS AVFORMAT AVCODEC SWRESAMPLE AVUTIL
     REQUIRED)
 
 # openal-soft
 option(ALSOFT_UTILS    "Build utility programs"             OFF)
 option(ALSOFT_EXAMPLES "Build and install example programs" OFF)
+if( MINGW )
+    # MinGW links via libOpenAL32.dll.a; openal-soft's sed .def/.lib step fails under Ninja
+    set( SED_EXECUTABLE "" CACHE FILEPATH "Disable sed .def/.lib generation on MinGW" FORCE )
+endif()
 
 add_subdirectory_with_folder("openal-soft" openal-soft)
 
@@ -80,5 +84,18 @@ if( WIN32 )
     set( gtest_force_shared_crt ON CACHE BOOL "Always use msvcrt.dll" FORCE)
 endif()
 
-#enable_testing()
-#add_subdirectory_with_folder("googletest" googletest)
+enable_testing()
+if( NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/googletest/CMakeLists.txt" )
+    find_package( Git QUIET )
+    if( GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git" )
+        message( STATUS "Initializing external/googletest submodule automatically..." )
+        execute_process(
+            COMMAND ${GIT_EXECUTABLE} submodule update --init -- external/googletest
+            WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
+        )
+    endif()
+endif()
+if( EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/googletest/CMakeLists.txt" )
+    set( INSTALL_GTEST OFF CACHE BOOL "" FORCE )
+    add_subdirectory_with_folder("googletest" googletest)
+endif()

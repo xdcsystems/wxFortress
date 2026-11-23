@@ -1,0 +1,153 @@
+name: Build wxFortress
+
+on:
+  push:
+    branches: [ master, "feat/**", "fix/**" ]
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+
+env:
+  WINLIBS_TAG: 16.2.0posix-23.1.3-14.0.0-ucrt-r3
+  WINLIBS_ZIP: winlibs-i686-posix-dwarf-gcc-16.2.0-mingw-w64ucrt-14.0.0-r3.zip
+
+jobs:
+  build-win32:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+      - name: Checkout repository (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Cache WinLibs i686 toolchain
+        id: cache-winlibs
+        uses: actions/cache@v4
+        with:
+          path: C:\winlibs\mingw32
+          key: winlibs-i686-${{ env.WINLIBS_TAG }}
+
+      - name: Download & extract WinLibs i686
+        if: steps.cache-winlibs.outputs.cache-hit != 'true'
+        run: |
+          New-Item -ItemType Directory -Force -Path C:\winlibs | Out-Null
+          $url = "https://github.com/brechtsanders/winlibs_mingw/releases/download/$env:WINLIBS_TAG/$env:WINLIBS_ZIP"
+          curl.exe -L --fail --retry 3 -o C:\winlibs\winlibs.zip $url
+          7z x C:\winlibs\winlibs.zip -oC:\winlibs -y | Out-Null
+          Remove-Item C:\winlibs\winlibs.zip -Force
+
+      - name: Add WinLibs i686 to PATH
+        run: |
+          "C:\winlibs\mingw32\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Verify toolchain
+        run: |
+          g++ --version
+          cmake --version
+          ninja --version
+
+      - name: Configure CMake (Ninja + WinLibs i686)
+        run: |
+          cmake -S . -B ..\wxFortress-build -G Ninja `
+            -DCMAKE_BUILD_TYPE=Release `
+            "-DCMAKE_POLICY_VERSION_MINIMUM=3.5" `
+            -DCMAKE_C_COMPILER=C:/winlibs/mingw32/bin/gcc.exe `
+            -DCMAKE_CXX_COMPILER=C:/winlibs/mingw32/bin/g++.exe
+
+      - name: Build wxFortress
+        run: |
+          cmake --build ..\wxFortress-build --target wxFortress ut_BallPhysics ut_Fortress run_tests -j
+
+      - name: Stage release bundle
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Get-ChildItem ..\wxFortress-build\.bin -File | Copy-Item -Destination dist\ -Force
+          Get-ChildItem ..\wxFortress-build -Recurse -File -Filter "*.dll" | ForEach-Object {
+            if (-not (Test-Path (Join-Path dist $_.Name))) {
+              Copy-Item $_.FullName dist\ -Force
+            }
+          }
+          foreach ($rtDll in @("libgcc_s_dw2-1.dll", "libstdc++-6.dll", "libwinpthread-1.dll")) {
+            $src = Join-Path "C:\winlibs\mingw32\bin" $rtDll
+            if (Test-Path $src) {
+              Copy-Item $src dist\ -Force
+            }
+          }
+          Get-ChildItem dist | Format-Table Name, Length
+
+      - name: Upload Windows x86 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wxFortress-win32
+          path: dist/
+          retention-days: 14
+
+  build-linux:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Linux build dependencies (for vendored submodules)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake ninja-build pkg-config nasm yasm xvfb \
+            libgtk-3-dev libgl-dev libglu1-mesa-dev libx11-dev libxext-dev libxi-dev libxrandr-dev libxxf86vm-dev \
+            libasound2-dev libpulse-dev libva-dev libvdpau-dev libdrm-dev \
+            libgnutls28-dev libaom-dev libass-dev libfreetype-dev libmp3lame-dev \
+            libopus-dev libfontconfig-dev libvorbis-dev libvpx-dev libx264-dev libx265-dev libfribidi-dev
+
+      - name: Cache vendored FFmpeg Linux build
+        id: cache-ffmpeg
+        uses: actions/cache@v4
+        with:
+          path: external/ffmpeg/linux/.build
+          key: ffmpeg-linux-4.3-dec-${{ hashFiles('external/ffmpeg/linux/ffmpeg_4.3.tar.gz') }}
+
+      - name: Build vendored FFmpeg 4.3 (Linux)
+        if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p /tmp/ffmpeg_src external/ffmpeg/linux/.build
+          tar -xzf external/ffmpeg/linux/ffmpeg_4.3.tar.gz -C /tmp/ffmpeg_src
+          FFMPEG_SRC=$(find /tmp/ffmpeg_src -maxdepth 2 -name configure -printf '%h\n' | head -n 1)
+          FFMPEG_PREFIX="$PWD/external/ffmpeg/linux/.build"
+          cd "$FFMPEG_SRC"
+          ./configure \
+            --prefix="$FFMPEG_PREFIX" \
+            --disable-doc --disable-programs --disable-encoders --disable-muxers \
+            --disable-shared --enable-static --enable-pic --enable-gpl \
+            --enable-vaapi --enable-libdrm
+          make -j"$(nproc)"
+          make install
+
+      - name: Configure CMake (Linux vendored submodules)
+        run: |
+          cmake -S . -B ../wxFortress-build-linux -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+
+      - name: Build wxFortress & tests
+        run: |
+          xvfb-run -a cmake --build ../wxFortress-build-linux --target wxFortress ut_BallPhysics ut_Fortress run_tests -j
+
+      - name: Stage Linux release bundle
+        run: |
+          mkdir -p dist-linux
+          find ../wxFortress-build-linux/.bin -type f -exec cp -f {} dist-linux/ \;
+          find ../wxFortress-build-linux/.lib -maxdepth 3 \( -name '*.so' -o -name '*.so.*' \) -exec cp -a {} dist-linux/ \;
+          ls -la dist-linux
+
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wxFortress-linux
+          path: dist-linux/
+          retention-days: 14

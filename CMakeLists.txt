@@ -6,7 +6,7 @@ set( CMAKE_MODULE_PATH
 )
 set( NAME wxFortress )
 
-if( WIN32 )
+if( CMAKE_GENERATOR MATCHES "^Visual Studio" )
     set( CMAKE_GENERATOR_PLATFORM Win32 )
 endif()
 
@@ -101,11 +101,35 @@ endif()
 
 target_compile_features( ${PROJECT_NAME} PRIVATE cxx_std_17 )
 
+if( CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND NOT CMAKE_CXX_FLAGS MATCHES "-include cstdint" )
+    set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -include cstdint" )
+endif()
+
 # add external libs
 add_subdirectory( external )
 
+if( MINGW AND TARGET libglew_shared )
+    target_link_libraries( libglew_shared PRIVATE msvcrt )
+    target_link_options( libglew_shared PRIVATE -Wl,--allow-multiple-definition )
+endif()
+
+if( UNIX )
+    set( WXFORTRESS_LINUX_EXTRA_LIBS dl pthread m )
+    foreach( _fflib va va-drm va-x11 vdpau drm z bz2 lzma X11 )
+        find_library( _fflib_path_${_fflib} NAMES ${_fflib} )
+        if( _fflib_path_${_fflib} )
+            list( APPEND WXFORTRESS_LINUX_EXTRA_LIBS ${_fflib_path_${_fflib}} )
+        endif()
+    endforeach()
+    if( TARGET FFmpeg )
+        # Attach static FFmpeg's transitive system libs directly to the FFmpeg target
+        # so CMake's link-order solver always places them AFTER libavformat.a / libavcodec.a.
+        target_link_libraries( FFmpeg INTERFACE ${WXFORTRESS_LINUX_EXTRA_LIBS} )
+    endif()
+endif()
+
 # add tests
-#add_subdirectory_with_folder("tests" tests )
+add_subdirectory_with_folder("tests" tests )
 
 # GLEW
 set(GLEW_INCLUDE_DIRS "${PROJECT_SOURCE_DIR}/external/glew-cmake/include")
@@ -129,12 +153,18 @@ target_link_libraries(
     FFmpeg::FFmpeg
 )
 if( UNIX )
-    string( TOUPPER ${CMAKE_BUILD_TYPE} OUTPUTCONFIG )
-    target_link_directories(${CMAKE_PROJECT_NAME} PUBLIC "${CMAKE_LIBRARY_OUTPUT_DIRECTORY_${OUTPUTCONFIG}}")
-    target_link_libraries(
-        ${PROJECT_NAME}
-        libGLEW${BUILD_POSTFIX}.so.2.2.0
+    set_target_properties( ${PROJECT_NAME} PROPERTIES
+        BUILD_RPATH "$ORIGIN"
+        INSTALL_RPATH "$ORIGIN"
     )
+    if( TARGET glew )
+        target_link_libraries( ${PROJECT_NAME} glew )
+    elseif( TARGET libglew_shared )
+        target_link_libraries( ${PROJECT_NAME} libglew_shared )
+    else()
+        target_link_libraries( ${PROJECT_NAME} GLEW )
+    endif()
+    target_link_libraries( ${PROJECT_NAME} ${WXFORTRESS_LINUX_EXTRA_LIBS} )
 endif()
 
 if( WIN32 )
@@ -143,15 +173,27 @@ if( WIN32 )
     target_link_libraries(
 	    ${PROJECT_NAME}
         libglew_shared
-	    dwmapi.lib
+	    dwmapi
     )
 endif()
 
-if( WIN32 )
+if( MSVC )
     # it required for build with ffmpeg
-    target_link_options(${CMAKE_PROJECT_NAME} PUBLIC "$<$<C_COMPILER_ID:MSVC>:-SAFESEH:NO>")
+    target_link_options(${CMAKE_PROJECT_NAME} PUBLIC -SAFESEH:NO)
     SET (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SAFESEH:NO")
     SET (CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} /SAFESEH:NO")
+endif()
+
+if( WIN32 )
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_FILE:libglew_shared>
+            $<TARGET_FILE:OpenAL::OpenAL>
+            $<TARGET_FILE:wx::base>
+            $<TARGET_FILE:wx::core>
+            $<TARGET_FILE:wx::gl>
+            $<TARGET_FILE_DIR:${PROJECT_NAME}>
+    )
     
     # copy ffmpeg dll's
     # list of required files
@@ -183,12 +225,12 @@ file( GLOB_RECURSE ZIP_FILES
 string( TOUPPER ${CMAKE_BUILD_TYPE} OUTPUTCONFIG )
 
 add_custom_command( TARGET ${PROJECT_NAME} POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E tar cvf ${CMAKE_BINARY_DIR}/.bin/${OUTPUTCONFIG}/${PROJECT_NAME}.dat --format=zip ${ZIP_FILES}
+    COMMAND ${CMAKE_COMMAND} -E tar cvf $<TARGET_FILE_DIR:${PROJECT_NAME}>/${PROJECT_NAME}.dat --format=zip ${ZIP_FILES}
     WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
 )
 
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
     ${PROJECT_SOURCE_DIR}/resources/video/Intro.mp4
-    ${CMAKE_BINARY_DIR}/.bin/${OUTPUTCONFIG}/${PROJECT_NAME}.vid
+    $<TARGET_FILE_DIR:${PROJECT_NAME}>/${PROJECT_NAME}.vid
 )

@@ -26,7 +26,11 @@
 
 #include "resources/sample.xpm"
 
+#if !defined( WXFORTRESS_TESTING )
 wxIMPLEMENT_APP( App );
+#else
+wxIMPLEMENT_APP_NO_MAIN( App );
+#endif
 
 App::App()
 {

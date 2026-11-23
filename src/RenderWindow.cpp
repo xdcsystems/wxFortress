@@ -11,7 +11,7 @@
 
 #include <GL/glew.h>
 
-#if defined( _MSC_VER )
+#if defined( _WIN32 )
     #include <GL/wglew.h>
     #include <dwmapi.h>
 #endif
@@ -107,8 +107,9 @@ void RenderWindow::initializeGLEW()
 
 void RenderWindow::setupGraphics()
 {
-#if defined( _MSC_VER )
-    wglSwapIntervalEXT( -1 );
+#if defined( _WIN32 )
+    if ( wglSwapIntervalEXT )
+        wglSwapIntervalEXT( 1 );
 #elif defined( _POSIX_VER )
     // NOTE check for GLX_SGI_swap_control extension : http://www.opengl.org/wiki/Swap_Interval#In_Linux_.2F_GLXw
     glXSwapIntervalSGI( -1 );  
@@ -157,6 +158,7 @@ void RenderWindow::start()
 {
     m_state = State::NEWROUND;
     m_isRunning = true;
+    m_timer->start();
 }
 
 void RenderWindow::stop()
@@ -240,8 +242,17 @@ void RenderWindow::onIdle( wxIdleEvent &event )
     m_elapsedTime = m_timer->getElapsedTimeInMilliSec();
     if ( m_elapsedTime >= 16 )
     {
+        const double dtSec = m_elapsedTime * 0.001;
         m_timer->start();
+        if ( m_shapesManager && ( m_state == State::NEWROUND || m_state == State::RUN ) )
+        {
+            m_shapesManager->update( dtSec );
+        }
         render();
+    }
+    else
+    {
+        wxMilliSleep( 1 );
     }
 
     event.RequestMore();
@@ -263,9 +274,12 @@ void RenderWindow::render()
 
             SwapBuffers();
         }
-
-#if defined( _MSC_VER )
-        DwmFlush();
+#if defined( _WIN32 )
+        else
+        {
+            // Sleep until next VBlank when no new video frame was presented
+            DwmFlush();
+        }
 #endif
 
         return;
@@ -301,10 +315,6 @@ void RenderWindow::render()
     }
 
     SwapBuffers();
-
-#if defined( _MSC_VER )
-    DwmFlush();
-#endif
 }
 
 void RenderWindow::onSize( wxSizeEvent &event )
