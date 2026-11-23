@@ -20,7 +20,7 @@ elseif( UNIX )
 endif()
 
 # ffmpeg
-if( UNIX )
+if( UNIX AND NOT EXISTS "${PROJECT_SOURCE_DIR}/external/ffmpeg/linux/.build/lib/libavcodec.a" )
 file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/external/ffmpeg)
 
 # Configure external project
@@ -43,7 +43,7 @@ elseif( UNIX )
 endif()
 
 find_package(FFmpeg
-    COMPONENTS AVCODEC AVFORMAT AVUTIL SWRESAMPLE
+    COMPONENTS AVFORMAT AVCODEC SWRESAMPLE AVUTIL
     REQUIRED)
 
 # openal-soft

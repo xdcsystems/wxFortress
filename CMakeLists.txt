@@ -101,7 +101,7 @@ endif()
 
 target_compile_features( ${PROJECT_NAME} PRIVATE cxx_std_17 )
 
-if( CMAKE_CXX_COMPILER_ID STREQUAL "GNU" )
+if( CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND NOT CMAKE_CXX_FLAGS MATCHES "-include cstdint" )
     set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -include cstdint" )
 endif()
 
@@ -138,6 +138,10 @@ target_link_libraries(
     FFmpeg::FFmpeg
 )
 if( UNIX )
+    set_target_properties( ${PROJECT_NAME} PROPERTIES
+        BUILD_RPATH "$ORIGIN"
+        INSTALL_RPATH "$ORIGIN"
+    )
     if( TARGET glew )
         target_link_libraries( ${PROJECT_NAME} glew )
     elseif( TARGET libglew_shared )

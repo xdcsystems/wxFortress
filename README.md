@@ -96,8 +96,9 @@ sudo apt-get install -y --no-install-recommends \
 ```bash
 mkdir -p /tmp/ffmpeg_src external/ffmpeg/linux/.build
 tar -xzf external/ffmpeg/linux/ffmpeg_4.3.tar.gz -C /tmp/ffmpeg_src
+REPO_ROOT="$PWD"
 FFMPEG_SRC=$(find /tmp/ffmpeg_src -maxdepth 2 -name configure -printf '%h\n' | head -n 1)
-(cd "$FFMPEG_SRC" && ./configure --prefix="$PWD/external/ffmpeg/linux/.build" \
+(cd "$FFMPEG_SRC" && ./configure --prefix="$REPO_ROOT/external/ffmpeg/linux/.build" \
   --disable-doc --disable-programs --disable-shared --enable-static \
   --enable-pic --enable-gpl --enable-vaapi --enable-libdrm \
   --enable-libx264 --enable-libopus --enable-libvorbis && make -j"$(nproc)" && make install)

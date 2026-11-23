@@ -289,6 +289,7 @@ void Movie::close()
     {
         av_buffer_unref( &m_hwDeviceCtx );
     }
+    m_hwDevicesSupported.clear();
 }
 
 std::pair<AVFrame *, int64_t> Movie::currentFrame()

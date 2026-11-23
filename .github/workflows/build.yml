@@ -142,6 +142,7 @@ jobs:
         run: |
           mkdir -p dist-linux
           find ../wxFortress-build-linux/.bin -type f -exec cp -f {} dist-linux/ \;
+          find ../wxFortress-build-linux/.lib -maxdepth 3 \( -name '*.so' -o -name '*.so.*' \) -exec cp -a {} dist-linux/ \;
           ls -la dist-linux
 
       - name: Upload Linux artifact

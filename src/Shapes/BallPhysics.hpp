@@ -431,7 +431,8 @@ namespace Shapes::Physics
             }
 
             // Advance to impact point and push cleanly outside the surface.
-            ball.center = ball.center + disp * bestT + bestNormal * ( bestPen + detail::kPushOut );
+            const Vec2 startCenter = ball.center;
+            ball.center = startCenter + disp * bestT + bestNormal * ( bestPen + detail::kPushOut );
             remTime *= ( 1.0f - bestT );
 
             if ( bestKind == HitKind::Paddle )
@@ -466,6 +467,7 @@ namespace Shapes::Physics
             else if ( bestKind == HitKind::Brick )
             {
                 // Collect simultaneous brick hits (e.g. ball hitting the seam between two bricks).
+                const std::size_t hitsBefore = events.hitBricks.size();
                 Vec2 combinedNormal = bestNormal;
                 if ( bestBrickIdx < bricks.size() && bricks[ bestBrickIdx ].alive )
                 {
@@ -477,7 +479,7 @@ namespace Shapes::Physics
                 {
                     if ( !bricks[ i ].alive )
                         continue;
-                    const SweepHit bh = detail::sweepCircleAabb( ball.center - bestNormal * ( bestPen + detail::kPushOut ) - disp * bestT, disp, ball.radius, bricks[ i ].box );
+                    const SweepHit bh = detail::sweepCircleAabb( startCenter, disp, ball.radius, bricks[ i ].box );
                     if ( bh.hit && std::fabs( bh.t - bestT ) <= kSimultaneousTol )
                     {
                         bricks[ i ].alive = false;
@@ -491,9 +493,10 @@ namespace Shapes::Physics
                 if ( vn < 0.0f )
                     ball.vel = ball.vel - reflN * ( 2.0f * vn );
 
+                const std::size_t hitsThisSubstep = events.hitBricks.size() - hitsBefore;
                 ball.vel = detail::scaleSpeed(
                     ball.vel,
-                    cfg.speedStepOnBrick * static_cast<float>( events.hitBricks.size() ),
+                    cfg.speedStepOnBrick * static_cast<float>( hitsThisSubstep ),
                     cfg.minSpeed,
                     cfg.maxSpeed );
                 ball.vel = detail::enforceMinVerticalSlope( ball.vel, cfg.minAbsSinAngle );
