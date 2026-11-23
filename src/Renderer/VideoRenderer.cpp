@@ -113,12 +113,9 @@ bool VideoRenderer::bindBuffers( int width, int height )
         changed = true;
     }
 
-    if ( m_texWidth <= 0 || m_texHeight <= 0 || m_viewWidth <= 0 || m_viewHeight <= 0 )
-        return changed;
-
-    float tr = ( float )m_texWidth / m_texHeight;
-    float vr = ( float )m_viewWidth / m_viewHeight;
-    float r = tr / vr;
+    float tr = ( m_texHeight > 0 ) ? ( float )m_texWidth / m_texHeight : 1.0f;
+    float vr = ( m_viewHeight > 0 && m_viewWidth > 0 ) ? ( float )m_viewWidth / m_viewHeight : tr;
+    float r = ( vr > 0.0f ) ? tr / vr : 1.0f;
     if ( r != m_ratio )
     {
         m_ratio = r;

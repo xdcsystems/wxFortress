@@ -11,7 +11,7 @@
 
 #include <GL/glew.h>
 
-#if defined( _MSC_VER )
+#if defined( _WIN32 )
     #include <GL/wglew.h>
     #include <dwmapi.h>
 #endif
@@ -107,8 +107,9 @@ void RenderWindow::initializeGLEW()
 
 void RenderWindow::setupGraphics()
 {
-#if defined( _MSC_VER )
-    wglSwapIntervalEXT( -1 );
+#if defined( _WIN32 )
+    if ( wglSwapIntervalEXT )
+        wglSwapIntervalEXT( 1 );
 #elif defined( _POSIX_VER )
     // NOTE check for GLX_SGI_swap_control extension : http://www.opengl.org/wiki/Swap_Interval#In_Linux_.2F_GLXw
     glXSwapIntervalSGI( -1 );  
@@ -249,6 +250,10 @@ void RenderWindow::onIdle( wxIdleEvent &event )
         }
         render();
     }
+    else
+    {
+        wxMilliSleep( 1 );
+    }
 
     event.RequestMore();
 }
@@ -270,7 +275,7 @@ void RenderWindow::render()
             SwapBuffers();
         }
 
-#if defined( _MSC_VER )
+#if defined( _WIN32 )
         DwmFlush();
 #endif
 
@@ -308,7 +313,7 @@ void RenderWindow::render()
 
     SwapBuffers();
 
-#if defined( _MSC_VER )
+#if defined( _WIN32 )
     DwmFlush();
 #endif
 }

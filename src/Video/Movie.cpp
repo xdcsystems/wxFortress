@@ -359,7 +359,7 @@ int Movie::start()
             return ret;
         }
 
-        if ( false && codecpar->codec_type == AVMEDIA_TYPE_VIDEO && videoIndex == -1 )
+        if ( codecpar->codec_type == AVMEDIA_TYPE_VIDEO && videoIndex == -1 )
         {
             videoIndex = streamComponentOpen( ret );
         }

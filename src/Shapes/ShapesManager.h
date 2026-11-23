@@ -65,6 +65,7 @@ namespace Shapes
             Physics::ArenaConfig m_arenaCfg {};
             Physics::BallState m_ballState {};
             Physics::PaddleState m_paddleState {};
+            std::vector<Physics::BrickItem> m_physBricks;
 
             wxEvtHandler* m_eventHandler { nullptr };
             wxCommandEvent m_eventCurrentScoreInc;
