@@ -212,3 +212,68 @@ TEST_F( BallPhysicsTest, PaddleMouseNonFiniteIgnored )
     EXPECT_FLOAT_EQ( ps.box.x, prevX );
     EXPECT_FLOAT_EQ( ps.speed, 120.0f );
 }
+
+TEST_F( BallPhysicsTest, RobotAimsOffCenterFromVerticalDrop )
+{
+    // Ball falling strictly vertically (vx == 0), brick off to the right -> robot must offset paddle to aim right.
+    std::vector<BrickItem> bricks { { Aabb { 580.0f, 380.0f, 60.0f, 20.0f }, true } };
+    BallState ball { { 400.0f, 180.0f }, 8.0f, { 0.0f, -300.0f } };
+    PaddleState ps { paddle, 0.0f };
+
+    bool hitPaddle = false;
+    for ( int tick = 0; tick < 80 && !hitPaddle; ++tick )
+    {
+        updateRobotPaddle( ps, ball, bricks, 0.016f, cfg, 0 );
+        const auto ev = stepBall( ball, ps.box, bricks, 0.016f, cfg );
+        if ( ev.hitPaddle )
+            hitPaddle = true;
+    }
+
+    EXPECT_TRUE( hitPaddle );
+    EXPECT_GT( ball.vel.x, 60.0f ); // Steered decisively toward the right brick, NOT vx == 0!
+    EXPECT_GT( ball.vel.y, 0.0f );
+}
+
+TEST_F( BallPhysicsTest, RobotBreaksStalemateWithBankOrAngle )
+{
+    // Ball dropping straight down with no brick directly above -> dryBounces triggers angled shot.
+    std::vector<BrickItem> bricks { { Aabb { 60.0f, 450.0f, 50.0f, 20.0f }, true } };
+    BallState ball { { 400.0f, 200.0f }, 8.0f, { 0.0f, -260.0f } };
+    const float targetCenter = computeRobotTargetX( ball, paddle, bricks, cfg, 3 );
+    EXPECT_GT( std::fabs( targetCenter - 400.0f ), 8.0f );
+}
+
+TEST_F( BallPhysicsTest, RobotClearsMultiRowLevelWithoutStall )
+{
+    std::vector<BrickItem> bricks;
+    for ( int r = 0; r < 3; ++r )
+        for ( int c = 0; c < 6; ++c )
+            bricks.push_back( { Aabb { 110.0f + c * 95.0f, 380.0f + r * 30.0f, 80.0f, 20.0f }, true } );
+
+    BallState ball { { 400.0f, 120.0f }, 8.0f, { 0.0f, -240.0f } }; // Worst-case strictly vertical start!
+    PaddleState ps { paddle, 0.0f };
+    unsigned int dryBounces = 0;
+    bool ballLost = false;
+
+    for ( int tick = 0; tick < 25000; ++tick )
+    {
+        updateRobotPaddle( ps, ball, bricks, 0.016f, cfg, dryBounces );
+        const auto ev = stepBall( ball, ps.box, bricks, 0.016f, cfg );
+        if ( ev.hitPaddle )
+            ++dryBounces;
+        if ( !ev.hitBricks.empty() )
+            dryBounces = 0;
+        if ( ev.ballLost )
+        {
+            ballLost = true;
+            break;
+        }
+        const bool allCleared = std::none_of( bricks.begin(), bricks.end(), []( const BrickItem& b ) { return b.alive; } );
+        if ( allCleared )
+            break;
+    }
+
+    const int remaining = static_cast<int>( std::count_if( bricks.begin(), bricks.end(), []( const BrickItem& b ) { return b.alive; } ) );
+    EXPECT_FALSE( ballLost );
+    EXPECT_EQ( remaining, 0 );
+}

@@ -61,6 +61,7 @@ namespace Shapes
             State m_state { State::STOPPED };
 
             bool m_isRobot { false };
+            unsigned int m_robotDryBounces { 0 };
             bool m_isRoundCompleted { false };
             bool m_hasMouseTarget { false };
             float m_mouseTargetX { 0.0f };

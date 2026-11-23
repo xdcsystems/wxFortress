@@ -640,12 +640,12 @@ void SoundManager::playDestroyBrick()
 
 void SoundManager::playPing()
 {
-    playStereoSource( m_stereoPingSoundBuffer, 0.55f );
+    playStereoSource( m_stereoPongSoundBuffer, 0.2f );
 }
 
 void SoundManager::playPong()
 {
-    playStereoSource( m_stereoPongSoundBuffer, 0.50f );
+    playStereoSource( m_stereoPongSoundBuffer, 0.25f );
 }
 
 void SoundManager::playSiren()
