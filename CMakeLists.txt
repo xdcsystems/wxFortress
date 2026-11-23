@@ -121,6 +121,11 @@ if( UNIX )
             list( APPEND WXFORTRESS_LINUX_EXTRA_LIBS ${_fflib_path_${_fflib}} )
         endif()
     endforeach()
+    if( TARGET FFmpeg )
+        # Attach static FFmpeg's transitive system libs directly to the FFmpeg target
+        # so CMake's link-order solver always places them AFTER libavformat.a / libavcodec.a.
+        target_link_libraries( FFmpeg INTERFACE ${WXFORTRESS_LINUX_EXTRA_LIBS} )
+    endif()
 endif()
 
 # add tests
