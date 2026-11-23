@@ -62,13 +62,13 @@ jobs:
         run: |
           cmake -S . -B ..\wxFortress-build -G Ninja `
             -DCMAKE_BUILD_TYPE=Release `
-            -DCMAKE_POLICY_VERSION_MINIMUM=3.5 `
+            "-DCMAKE_POLICY_VERSION_MINIMUM=3.5" `
             -DCMAKE_C_COMPILER=C:/winlibs/mingw32/bin/gcc.exe `
             -DCMAKE_CXX_COMPILER=C:/winlibs/mingw32/bin/g++.exe
 
       - name: Build wxFortress
         run: |
-          cmake --build ..\wxFortress-build --target wxFortress -j
+          cmake --build ..\wxFortress-build --target wxFortress ut_BallPhysics ut_Fortress -j
 
       - name: Stage release bundle
         run: |

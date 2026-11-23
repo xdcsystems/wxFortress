@@ -113,7 +113,7 @@ if( MINGW AND TARGET libglew_shared )
 endif()
 
 # add tests
-#add_subdirectory_with_folder("tests" tests )
+add_subdirectory_with_folder("tests" tests )
 
 # GLEW
 set(GLEW_INCLUDE_DIRS "${PROJECT_SOURCE_DIR}/external/glew-cmake/include")
