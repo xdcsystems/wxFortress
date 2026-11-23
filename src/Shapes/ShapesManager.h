@@ -43,6 +43,7 @@ namespace Shapes
             bool isStopped() const { return m_state == State::STOPPED; }
 
             void update( double deltaTimeSec );
+            void setPaddleMouseX( float mouseX );
             void renderFrame();
 
             void resize( const wxSize& size, const glm::mat4& projection );
@@ -61,6 +62,8 @@ namespace Shapes
 
             bool m_isRobot { false };
             bool m_isRoundCompleted { false };
+            bool m_hasMouseTarget { false };
+            float m_mouseTargetX { 0.0f };
 
             Physics::ArenaConfig m_arenaCfg {};
             Physics::BallState m_ballState {};

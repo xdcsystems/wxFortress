@@ -52,12 +52,14 @@ class RenderWindow final : public wxGLCanvas
         void loadLevel( unsigned short level );
         void start();
         void stop();
+        void triggerLaunch();
 
     private:
          // Event Handlers
         void onPaint( wxPaintEvent& );
         void onSize( wxSizeEvent& );
         void onKeyPressed( wxKeyEvent& );
+        void onMouseMove( wxMouseEvent& );
         void onWndInitialized( wxCommandEvent& );
         void onScoreIncreased( wxCommandEvent& );
         void onPaddleContact( wxCommandEvent& );

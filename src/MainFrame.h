@@ -41,6 +41,7 @@ class MainFrame final : public wxFrame
         void onClose( wxCloseEvent& );
         void onChildWndInitialized( wxCommandEvent& );
         void onLaunchPressed( wxCommandEvent& );
+        void onLaunchClicked( wxCommandEvent& );
         void onRoundStarted( wxCommandEvent& );
         void onRoundCompleted( wxCommandEvent& );
         void onBallLost( wxCommandEvent& );

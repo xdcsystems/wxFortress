@@ -19,11 +19,15 @@
 #include "Counter.hpp"
 #include "Panel.h"
 
+DEFINE_LOCAL_EVENT_TYPE( wxEVT_LAUNCH_CLICKED )
+
 using namespace ControlPanel;
 
 // clang-format off
 BEGIN_EVENT_TABLE( Panel, wxWindow )
     EVT_PAINT( Panel::onPaint )
+    EVT_LEFT_DOWN( Panel::onLeftDown )
+    EVT_MOTION( Panel::onMouseMove )
 END_EVENT_TABLE()
 // clang-format on
 
@@ -68,6 +72,41 @@ void Panel::activate()
     refreshDisplayValue( m_lives );
     refreshDisplayValue( m_level );
     Update();
+}
+
+bool Panel::isPointInLaunchButton( const wxPoint& pt ) const
+{
+    // Red LAUNCH button on panel.png (208x729): center (104, 600), visual radius ~27px (bezel ~36px)
+    constexpr int kLaunchCenterX = 104;
+    constexpr int kLaunchCenterY = 600;
+    constexpr int kLaunchRadiusSq = 36 * 36;
+    const int dx = pt.x - kLaunchCenterX;
+    const int dy = pt.y - kLaunchCenterY;
+    return ( dx * dx + dy * dy ) <= kLaunchRadiusSq;
+}
+
+void Panel::onMouseMove( wxMouseEvent &event )
+{
+    const bool hover = isPointInLaunchButton( event.GetPosition() );
+    if ( hover != m_hoverLaunch )
+    {
+        m_hoverLaunch = hover;
+        SetCursor( hover ? wxCursor( wxCURSOR_HAND ) : wxNullCursor );
+    }
+    event.Skip();
+}
+
+void Panel::onLeftDown( wxMouseEvent &event )
+{
+    if ( isPointInLaunchButton( event.GetPosition() ) )
+    {
+        if ( auto* parent = GetParent() )
+        {
+            wxCommandEvent launchEvt( wxEVT_LAUNCH_CLICKED );
+            parent->GetEventHandler()->AddPendingEvent( launchEvt );
+        }
+    }
+    event.Skip();
 }
 
 void Panel::onPaint( wxPaintEvent & )

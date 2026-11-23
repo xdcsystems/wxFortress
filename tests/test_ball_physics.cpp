@@ -185,3 +185,30 @@ TEST_F( BallPhysicsTest, EnduranceSimulation100kTicks )
     EXPECT_TRUE( okAll );
     EXPECT_GT( totalBroken, 50 );
 }
+
+TEST_F( BallPhysicsTest, PaddleMouseTrackingCenter )
+{
+    PaddleState ps { paddle, 300.0f };
+    setPaddleTargetX( ps, 250.0f, cfg );
+    EXPECT_NEAR( ps.box.x, 200.0f, 1e-3f );
+    EXPECT_FLOAT_EQ( ps.speed, 0.0f );
+}
+
+TEST_F( BallPhysicsTest, PaddleMouseClampedToWalls )
+{
+    PaddleState ps { paddle, 0.0f };
+    setPaddleTargetX( ps, -50.0f, cfg );
+    EXPECT_FLOAT_EQ( ps.box.x, 0.0f );
+
+    setPaddleTargetX( ps, 9999.0f, cfg );
+    EXPECT_NEAR( ps.box.right(), cfg.width, 1e-3f );
+}
+
+TEST_F( BallPhysicsTest, PaddleMouseNonFiniteIgnored )
+{
+    PaddleState ps { paddle, 120.0f };
+    const float prevX = ps.box.x;
+    setPaddleTargetX( ps, std::numeric_limits<float>::quiet_NaN(), cfg );
+    EXPECT_FLOAT_EQ( ps.box.x, prevX );
+    EXPECT_FLOAT_EQ( ps.speed, 120.0f );
+}
