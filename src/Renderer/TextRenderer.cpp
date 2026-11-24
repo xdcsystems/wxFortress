@@ -61,6 +61,8 @@ void TextRenderer::cleanup()
 {
     GL_CHECK( glDeleteBuffers( 1, &m_vertexBufferID ) );
     GL_CHECK( glDeleteBuffers( 1, &m_UVBufferID ) );
+    for ( auto& entry : s_fontData )
+        entry.second.second.reset();
 }
 
 void TextRenderer::resize( const glm::mat4& projection )
