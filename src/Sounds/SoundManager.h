@@ -6,6 +6,7 @@
 #include <AL/al.h>
 #include <AL/alc.h>
 #include "Common/defs.h"
+#include "MusicGain.hpp"
 
 #if defined( _DEBUG ) && SKIP_AL_CHECKS == 0
 //OpenAL error checking
@@ -57,7 +58,7 @@ class SoundManager final
         void setMusicDucked( bool ducked );
         void duckMusicTemporarily( double durationSec );
         void toggleMusicMute();
-        bool isMusicMuted() const { return m_musicMuted; }
+        bool isMusicMuted() const { return m_musicGain.muted; }
         void updateMusic( double dtSec );
 
     private:
@@ -89,12 +90,7 @@ class SoundManager final
         std::array<ALuint, kMusicTrackCount> m_musicBuffers {};
         ALuint m_helpMusicBuffer { 0 };
         ALuint m_victoryMusicBuffer { 0 };
-        bool m_inHelpMusic { false };
-        bool m_inVictoryMusic { false };
         unsigned short m_currentMusicTrack { 0 };
         bool m_musicPlaying { false };
-        bool m_musicMuted { false };
-        bool m_musicDucked { false };
-        double m_tempDuckRemaining { 0.0 };
-        float m_currentMusicGain { 0.030f };
+        MusicGain::MusicGainState m_musicGain {};
 };

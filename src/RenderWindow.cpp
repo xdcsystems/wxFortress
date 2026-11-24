@@ -7,6 +7,7 @@
     #include <wx/wx.h>
 #endif
 
+#include <algorithm>
 #include <map>
 
 #include <GL/glew.h>
@@ -328,7 +329,9 @@ void RenderWindow::onIdle( wxIdleEvent &event )
     }
     else
     {
-        wxMilliSleep( 1 );
+        const auto remainingMs = static_cast<unsigned long>(
+            std::clamp( 14.0 - m_elapsedTime, 1.0, 8.0 ) );
+        wxMilliSleep( remainingMs );
     }
 
     event.RequestMore();

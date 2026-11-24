@@ -57,9 +57,6 @@ if( WIN32 )
     set_property( GLOBAL PROPERTY USE_FOLDERS ON )
 endif()
 
-# Disable ZERO_CHECK target
-set( CMAKE_SUPPRESS_REGENERATION true )
-
 set( TODO ON CACHE BOOL "Enable compiletime TODO messages" )
 
 set( RESOURCE_INSTALL_DIR "" CACHE PATH "Path to install resources to (leave empty for running uninstalled)" )
@@ -84,8 +81,8 @@ foreach( OUTPUTCONFIG ${CMAKE_CONFIGURATION_TYPES} )
     set( CMAKE_RUNTIME_OUTPUT_DIRECTORY_${OUTPUTCONFIG} ${CMAKE_BINARY_DIR}/.bin/${OUTPUTCONFIG} )
 endforeach( OUTPUTCONFIG CMAKE_CONFIGURATION_TYPES )
 
-file( GLOB_RECURSE SOURCE_HEADERS "src/*.h" "src/*.hpp" )
-file( GLOB_RECURSE SOURCE_FILES "src/*.cpp" )
+file( GLOB_RECURSE SOURCE_HEADERS CONFIGURE_DEPENDS "src/*.h" "src/*.hpp" )
+file( GLOB_RECURSE SOURCE_FILES CONFIGURE_DEPENDS "src/*.cpp" )
 
 if( WIN32 )
     enable_language( RC )
@@ -94,7 +91,7 @@ if( WIN32 )
         "${CMAKE_BINARY_DIR}/generated/wxFortress.rc"
         @ONLY
     )
-    source_group( TREE "src" FILES ${SOURCE_HEADERS} ${SOURCE_FILES} )
+    source_group( TREE "${CMAKE_CURRENT_SOURCE_DIR}/src" FILES ${SOURCE_HEADERS} ${SOURCE_FILES} )
 
     add_executable(
        ${PROJECT_NAME}
@@ -236,7 +233,7 @@ if( WIN32 )
 endif()
 
 # pack resources
-file( GLOB_RECURSE ZIP_FILES
+file( GLOB_RECURSE ZIP_FILES CONFIGURE_DEPENDS
     ${PROJECT_SOURCE_DIR}/resources/images/*
     ${PROJECT_SOURCE_DIR}/resources/shaders/*
     ${PROJECT_SOURCE_DIR}/resources/sounds/*
