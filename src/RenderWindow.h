@@ -4,6 +4,8 @@
 #include <memory> 
 #include <wx/glcanvas.h>
 
+#include "Common/FramePacer.hpp"
+
 
 // Forward declarations
 class Overlay;
@@ -75,9 +77,12 @@ class RenderWindow final : public wxGLCanvas
         // Helper functions
         void resize( const wxSize& size );
         void switchRun();
-        void render();
+        bool render();
         void initializeGLEW();
         void setupGraphics();
+        void ensureContextCurrent();
+        void configureSwapAndPacing();
+        bool waitForVBlank();
 
         // Private data
         std::unique_ptr<wxGLContext> m_context;
@@ -92,9 +97,15 @@ class RenderWindow final : public wxGLCanvas
         std::shared_ptr<Timer> m_timer;
 
         double m_elapsedTime { 0 };
+        FramePacing::State m_framePacer {};
 
         bool m_isInitialized { false };
         bool m_isRunning { false };
+        bool m_useDwmPacing { false };
+#if defined( _WIN32 )
+        int m_prevThreadPriority { 0 };
+        bool m_hasPrevThreadPriority { false };
+#endif
         std::chrono::steady_clock::time_point m_lastLaunchTime {};
         unsigned char m_countDown { 0 };
         unsigned short m_currentLevel { 1 };

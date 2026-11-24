@@ -43,6 +43,7 @@ namespace ControlPanel
             void decreaseValue() { --m_value; }
             T value() const { return m_value; }
             void reset( T newValue = 0 ) { m_value = newValue; }
+            wxRect bounds() const { return { m_position, m_size }; }
 
         private:
             const wxSize m_size { 79, 22 };

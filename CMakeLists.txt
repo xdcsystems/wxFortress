@@ -189,9 +189,10 @@ if( WIN32 )
     # for dwmapi.lib
     target_link_directories(${CMAKE_PROJECT_NAME} PUBLIC "${PROJECT_SOURCE_DIR}/external/directX/x86/")
     target_link_libraries(
-	    ${PROJECT_NAME}
+        ${PROJECT_NAME}
         libglew_shared
-	    dwmapi
+        dwmapi
+        winmm
     )
 endif()
 

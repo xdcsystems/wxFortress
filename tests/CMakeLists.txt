@@ -6,11 +6,12 @@ set( WXFORTRESS_TEST_TARGETS )
 # 1. Analytical BallPhysics GoogleTest suite (no GUI/OpenGL required)
 if( TARGET GTest::gtest_main )
     include( GoogleTest )
-    add_executable( ut_BallPhysics test_ball_physics.cpp test_hardware_audio.cpp )
+    add_executable( ut_BallPhysics test_ball_physics.cpp test_hardware_audio.cpp test_frame_pacer.cpp )
     target_compile_features( ut_BallPhysics PRIVATE cxx_std_17 )
     target_include_directories(
         ut_BallPhysics
         PRIVATE
+        "${CMAKE_SOURCE_DIR}/src/Common"
         "${CMAKE_SOURCE_DIR}/src/Shapes"
         "${CMAKE_SOURCE_DIR}/src/Video"
         "${CMAKE_SOURCE_DIR}/src/Sounds"
@@ -74,7 +75,7 @@ if( TARGET GTest::gtest AND TARGET GTest::gmock )
     )
 
     if( WIN32 )
-        target_link_libraries( ${NAME} PRIVATE libglew_shared dwmapi )
+        target_link_libraries( ${NAME} PRIVATE libglew_shared dwmapi winmm )
     elseif( UNIX )
         if( TARGET glew )
             target_link_libraries( ${NAME} PRIVATE glew )

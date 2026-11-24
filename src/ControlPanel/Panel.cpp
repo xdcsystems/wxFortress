@@ -152,6 +152,12 @@ void Panel::render( wxDC &dc, const bitmapPtr &panel )
 template <typename T>
 void Panel::refreshDisplayValue( counterPtr<T> counter )
 {
+    if ( !m_mdc || !m_numbersDC )
+    {
+        Refresh();
+        return;
+    }
+
     m_mdc->SelectObject( *m_bitmapPanelBuffer );
 
     counter->clear( m_bitmapControlBgBuffer, *m_mdc );
@@ -160,7 +166,7 @@ void Panel::refreshDisplayValue( counterPtr<T> counter )
 
     m_mdc->SelectObject( wxNullBitmap );
 
-    Refresh();
+    RefreshRect( counter->bounds(), false );
 }
 
 void Panel::increaseScore()

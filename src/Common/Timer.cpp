@@ -61,23 +61,31 @@ void Timer::stop()
 ///////////////////////////////////////////////////////////////////////////////
 double Timer::getElapsedTimeInMicroSec()
 {
+    double elapsedMicroSec = 0.0;
+
 #if defined( WIN32 ) || defined( _WIN32 )
     if ( !m_stopped )
     {
         QueryPerformanceCounter( &m_endCount );
     }
 
-    m_startTimeInMicroSec = m_startCount.QuadPart * ( 1000000.0 / m_frequency.QuadPart );
-    m_endTimeInMicroSec = m_endCount.QuadPart * ( 1000000.0 / m_frequency.QuadPart );
+    if ( m_frequency.QuadPart > 0 )
+    {
+        const double deltaTicks = static_cast<double>( m_endCount.QuadPart - m_startCount.QuadPart );
+        elapsedMicroSec = deltaTicks * ( 1000000.0 / static_cast<double>( m_frequency.QuadPart ) );
+    }
 #else
     if ( !m_stopped )
         gettimeofday( &m_endCount, nullptr );
 
-    m_startTimeInMicroSec = ( m_startCount.tv_sec * 1000000.0 ) + m_startCount.tv_usec;
-    m_endTimeInMicroSec = ( m_endCount.tv_sec * 1000000.0 ) + m_endCount.tv_usec;
+    const double deltaSec = static_cast<double>( m_endCount.tv_sec - m_startCount.tv_sec );
+    const double deltaUsec = static_cast<double>( m_endCount.tv_usec - m_startCount.tv_usec );
+    elapsedMicroSec = deltaSec * 1000000.0 + deltaUsec;
 #endif
 
-    return m_endTimeInMicroSec - m_startTimeInMicroSec;
+    m_startTimeInMicroSec = 0.0;
+    m_endTimeInMicroSec = elapsedMicroSec;
+    return elapsedMicroSec;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
