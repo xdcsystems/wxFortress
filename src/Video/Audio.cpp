@@ -186,7 +186,7 @@ int Audio::start()
         }
 
         if ( alGetError() != AL_NO_ERROR )
-            return false;
+            break;
 
         m_srcCond.wait_for( srclck, sleepTime );
     }
@@ -197,6 +197,7 @@ int Audio::start()
     srclck.unlock();
 
 finish:
+    m_packets.abort();
     av_freep( &samples );
     cleanup();
 

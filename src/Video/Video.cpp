@@ -14,6 +14,12 @@ Video::Video( Movie &movie )
 
 int Video::start()
 {
+    struct QueueAbortGuard
+    {
+        decltype( m_packets )& queue;
+        ~QueueAbortGuard() { queue.abort(); }
+    } abortGuard { m_packets };
+
     std::for_each( m_pictQ.begin(), m_pictQ.end(), []( Picture &pic ) {
         pic.frame = AVFramePtr { av_frame_alloc() };
         pic.pts = nanoseconds::min();

@@ -245,6 +245,8 @@ void Movie::close()
         m_quit.store( true, std::memory_order_release );
     }
     m_video.m_pictQCond.notify_one();
+    m_video.m_packets.abort();
+    m_audio.m_packets.abort();
     if ( m_parseThread.joinable() )
     {
         m_parseThread.join();
@@ -476,7 +478,7 @@ int Movie::start()
     }
 
     m_clockBase = get_avtime() + milliseconds( 750 );
-    m_sync = ( audioIndex > 0 ) ? SyncMaster::Audio : SyncMaster::Video;
+    m_sync = ( audioIndex >= 0 ) ? SyncMaster::Audio : SyncMaster::Video;
 
     auto &audioQueue = m_audio.m_packets;
     auto &videoQueue = m_video.m_packets;
@@ -498,17 +500,17 @@ int Movie::start()
 
         if ( packet.stream_index == videoIndex )
         {
-            while ( !m_quit.load( std::memory_order_acquire ) && !videoQueue.put( packet ) )
-            {
-                std::this_thread::sleep_for( milliseconds( 100 ) );
-            }
+            if ( !videoQueue.putBlocking( packet ) )
+                av_packet_unref( &packet );
         }
         else if ( packet.stream_index == audioIndex )
         {
-            while ( !m_quit.load( std::memory_order_acquire ) && !audioQueue.put( packet ) )
-            {
-                std::this_thread::sleep_for( milliseconds( 100 ) );
-            }
+            if ( !audioQueue.putBlocking( packet ) )
+                av_packet_unref( &packet );
+        }
+        else
+        {
+            av_packet_unref( &packet );
         }
     }
 
