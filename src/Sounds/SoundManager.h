@@ -50,6 +50,7 @@ class SoundManager final
         // Background music (OpenAL looping + smooth ducking/mute)
         void playMusic( unsigned short level );
         void playHelpMusic();
+        void playVictoryMusic();
         void stopMusic();
         void setMusicDucked( bool ducked );
         void duckMusicTemporarily( double durationSec );
@@ -84,7 +85,9 @@ class SoundManager final
         ALuint m_musicSource { 0 };
         std::array<ALuint, kMusicTrackCount> m_musicBuffers {};
         ALuint m_helpMusicBuffer { 0 };
+        ALuint m_victoryMusicBuffer { 0 };
         bool m_inHelpMusic { false };
+        bool m_inVictoryMusic { false };
         unsigned short m_currentMusicTrack { 0 };
         bool m_musicPlaying { false };
         bool m_musicMuted { false };
