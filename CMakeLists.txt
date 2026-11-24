@@ -245,10 +245,24 @@ file( GLOB_RECURSE ZIP_FILES
 
 string( TOUPPER ${CMAKE_BUILD_TYPE} OUTPUTCONFIG )
 
-add_custom_command( TARGET ${PROJECT_NAME} POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E tar cvf $<TARGET_FILE_DIR:${PROJECT_NAME}>/${PROJECT_NAME}.dat --format=zip ${ZIP_FILES}
-    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-)
+if( CMAKE_CONFIGURATION_TYPES )
+    add_custom_command( TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E tar cvf $<TARGET_FILE_DIR:${PROJECT_NAME}>/${PROJECT_NAME}.dat --format=zip ${ZIP_FILES}
+        WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+    )
+else()
+    set( RESOURCE_DAT_FILE "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${PROJECT_NAME}.dat" )
+    add_custom_command(
+        OUTPUT "${RESOURCE_DAT_FILE}"
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"
+        COMMAND ${CMAKE_COMMAND} -E tar cvf "${RESOURCE_DAT_FILE}" --format=zip ${ZIP_FILES}
+        DEPENDS ${ZIP_FILES}
+        WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+        COMMENT "Packing ${PROJECT_NAME}.dat resources"
+    )
+    add_custom_target( pack_resources ALL DEPENDS "${RESOURCE_DAT_FILE}" )
+    add_dependencies( ${PROJECT_NAME} pack_resources )
+endif()
 
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
