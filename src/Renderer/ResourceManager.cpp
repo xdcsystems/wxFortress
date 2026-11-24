@@ -13,22 +13,18 @@
 #include <sstream>
 #include <fstream>
 
+#include <wx/mstream.h>
+
 #include "Common/Tools.h"
 #include "Texture.h"
 #include "Shader.h"
 #include "ResourceManager.h"
 
 namespace {
-    std::string gulp( wxInputStream& in )
+    std::string loadResourceText( const std::string& name )
     {
-        std::string ret;
-        if ( in.CanRead() )
-        {
-            const auto streamSize { in.GetSize() };
-            ret.resize( streamSize );
-            in.Read( &ret[0], streamSize );
-        }
-        return ret;
+        const auto bytes = Tools::Instance().loadResourceBytes( name );
+        return std::string( reinterpret_cast<const char*>( bytes.data() ), bytes.size() );
     }
 }
 
@@ -46,7 +42,8 @@ shaderPtr ResourceManager::LoadShader( const std::string& vShaderName, const std
 
 shaderPtr ResourceManager::GetShader( const std::string& name )
 {
-    return s_shaders[ name ];
+    const auto it = s_shaders.find( name );
+    return ( it != s_shaders.end() ) ? it->second : nullptr;
 }
 
 texture2DPtr ResourceManager::LoadTexture( const std::string& name, const std::string& textureName )
@@ -57,7 +54,8 @@ texture2DPtr ResourceManager::LoadTexture( const std::string& name, const std::s
 
 texture2DPtr ResourceManager::GetTexture( const std::string& name )
 {
-    return s_textures[ name ];
+    const auto it = s_textures.find( name );
+    return ( it != s_textures.end() ) ? it->second : nullptr;
 }
 
 void ResourceManager::Clear()
@@ -65,14 +63,18 @@ void ResourceManager::Clear()
     // (properly) delete all shaders
     for ( const auto &iter : s_shaders )
     {
-        GL_CHECK( glDeleteProgram( iter.second->ID ) );
+        if ( iter.second )
+            GL_CHECK( glDeleteProgram( iter.second->ID ) );
     }
+    s_shaders.clear();
 
     // (properly) delete all textures
     for ( const auto &iter : s_textures )
     {
-        GL_CHECK( glDeleteTextures( 1, &iter.second->ID ) );
+        if ( iter.second )
+            GL_CHECK( glDeleteTextures( 1, &iter.second->ID ) );
     }
+    s_textures.clear();
 }
 
 shaderPtr ResourceManager::LoadShader( const std::string& vShaderName, const std::string& fShaderName, const std::string& gShaderName )
@@ -83,13 +85,13 @@ shaderPtr ResourceManager::LoadShader( const std::string& vShaderName, const std
     std::string geometryCode;
     try
     {
-        vertexCode = gulp( Tools::Instance().loadResource( vShaderName ) );
-        fragmentCode = gulp( Tools::Instance().loadResource( fShaderName ) );
+        vertexCode = loadResourceText( vShaderName );
+        fragmentCode = loadResourceText( fShaderName );
 
         // if geometry shader path is present, also load a geometry shader
         if ( !gShaderName.empty() )
         {
-            geometryCode = gulp( Tools::Instance().loadResource( gShaderName ) );
+            geometryCode = loadResourceText( gShaderName );
         }
     }
     catch ( const std::exception& e )
@@ -110,8 +112,10 @@ shaderPtr ResourceManager::LoadShader( const std::string& vShaderName, const std
 texture2DPtr ResourceManager::LoadTexture( const std::string& name )
 {
     // create texture object
+    const auto bytes = Tools::Instance().loadResourceBytes( name );
+    wxMemoryInputStream memStream( bytes.data(), bytes.size() );
     auto texture = std::make_shared<Texture2D>();
-    texture->generate( { Tools::Instance().loadResource( name ), wxBITMAP_TYPE_PNG } );
+    texture->generate( { memStream, wxBITMAP_TYPE_PNG } );
 
     return texture;
 }

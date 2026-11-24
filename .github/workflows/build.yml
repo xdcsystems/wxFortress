@@ -25,14 +25,14 @@ jobs:
 
     steps:
       - name: Checkout repository (with submodules)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
           fetch-depth: 0
 
       - name: Cache WinLibs i686 toolchain
         id: cache-winlibs
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: C:\winlibs\mingw32
           key: winlibs-i686-${{ env.WINLIBS_TAG }}
@@ -86,7 +86,7 @@ jobs:
           Get-ChildItem dist | Format-Table Name, Length
 
       - name: Upload Windows x86 artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: wxFortress-win32
           path: dist/
@@ -97,7 +97,7 @@ jobs:
 
     steps:
       - name: Checkout repository (with submodules)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
           fetch-depth: 0
@@ -114,7 +114,7 @@ jobs:
 
       - name: Cache vendored FFmpeg Linux build
         id: cache-ffmpeg
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: external/ffmpeg/linux/.build
           key: ffmpeg-linux-4.3-dec-${{ hashFiles('external/ffmpeg/linux/ffmpeg_4.3.tar.gz') }}
@@ -222,7 +222,7 @@ jobs:
           sudo apt-get remove -y wxfortress
 
       - name: Upload Linux artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: wxFortress-linux
           path: |
@@ -239,7 +239,7 @@ jobs:
 
     steps:
       - name: Download build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
 

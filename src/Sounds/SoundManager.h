@@ -39,6 +39,8 @@ class SoundManager final
         int init();
         void playSiren();
         void playCountdown();
+        bool isLaunchAudioPlaying() const;
+        void stopLaunchAudio();
         void playRocket() const;
         void playDestroyBrick();
         void playPing();
@@ -63,7 +65,7 @@ class SoundManager final
         int loadOggBuffer( const std::string& name, ALuint* buffer );
         ALuint getFreeStereoSource() const;
         void cleanSources();
-        void playStereoSource( ALuint buffer, float gain = 1.f, bool playAsync = true );
+        ALuint playStereoSource( ALuint buffer, float gain = 1.f );
         void applyMusicGain( float gain );
 
         ALCdevice* m_device { nullptr };
@@ -81,6 +83,7 @@ class SoundManager final
 
         ALuint m_monoSource { 0 };
         ALuint m_stereoSource[ kSfxSourceCount ] {};
+        ALuint m_launchSource { 0 };
 
         ALuint m_musicSource { 0 };
         std::array<ALuint, kMusicTrackCount> m_musicBuffers {};

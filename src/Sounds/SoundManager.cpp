@@ -208,16 +208,7 @@ int SoundManager::loadOggBuffer( const std::string& name, ALuint* buffer )
     std::vector<uint8_t> rawBytes;
     try
     {
-        wxInputStream& stream = Tools::Instance().loadResource( "resources/sounds/" + name );
-        uint8_t chunk[ 16384 ];
-        while ( !stream.Eof() )
-        {
-            stream.Read( chunk, sizeof( chunk ) );
-            const size_t n = stream.LastRead();
-            if ( n == 0 )
-                break;
-            rawBytes.insert( rawBytes.end(), chunk, chunk + n );
-        }
+        rawBytes = Tools::Instance().loadResourceBytes( "resources/sounds/" + name );
     }
     catch ( const std::exception& e )
     {
@@ -463,13 +454,18 @@ void SoundManager::cleanSources()
     }
 }
 
-void SoundManager::playStereoSource( ALuint buffer, float gain, bool playAsync )
+ALuint SoundManager::playStereoSource( ALuint buffer, float gain )
 {
+    if ( buffer == 0 )
+        return 0;
+
     auto source = getFreeStereoSource();
     if ( source == 0 )
     {
         source = m_stereoSource[ 0 ];
     }
+    if ( source == 0 )
+        return 0;
 
     alec( alSourcef( source, AL_PITCH, 1.f ) );
     alec( alSourcef( source, AL_GAIN, gain ) );
@@ -486,16 +482,7 @@ void SoundManager::playStereoSource( ALuint buffer, float gain, bool playAsync )
         alec( alSourceUnqueueBuffers( source, 1, &qbuf ) );
     }
 
-    if ( playAsync )
-        return;
-
-    ALint sourceState( 0 );
-    alec( alGetSourcei( source, AL_SOURCE_STATE, &sourceState ) );
-    while ( sourceState == AL_PLAYING )
-    {
-        alec( alGetSourcei( source, AL_SOURCE_STATE, &sourceState ) );
-        wxYield();
-    }
+    return source;
 }
 
 void SoundManager::applyMusicGain( float gain )
@@ -686,13 +673,32 @@ void SoundManager::playPong()
 void SoundManager::playSiren()
 {
     duckMusicTemporarily( 2.1 );
-    playStereoSource( m_stereoLounchSoundBuffer, 0.5f, false );
+    m_launchSource = playStereoSource( m_stereoLounchSoundBuffer, 0.5f );
 }
 
 void SoundManager::playCountdown()
 {
     duckMusicTemporarily( 1.1 );
-    playStereoSource( m_stereoCountdownSoundBuffer, 0.5f, false );
+    m_launchSource = playStereoSource( m_stereoCountdownSoundBuffer, 0.5f );
+}
+
+bool SoundManager::isLaunchAudioPlaying() const
+{
+    if ( m_launchSource == 0 )
+        return false;
+
+    ALint sourceState( 0 );
+    alec( alGetSourcei( m_launchSource, AL_SOURCE_STATE, &sourceState ) );
+    return sourceState == AL_PLAYING;
+}
+
+void SoundManager::stopLaunchAudio()
+{
+    if ( m_launchSource != 0 )
+    {
+        alec( alSourceStop( m_launchSource ) );
+        m_launchSource = 0;
+    }
 }
 
 void SoundManager::playLevelComplete()
