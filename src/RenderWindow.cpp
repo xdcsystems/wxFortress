@@ -15,6 +15,7 @@
 #if defined( _WIN32 )
     #include <GL/wglew.h>
     #include <dwmapi.h>
+    #include <mmsystem.h>
 #endif
 
 #include <glm/glm.hpp>
@@ -82,8 +83,20 @@ RenderWindow::RenderWindow(
 
     ResourceManager::LoadResources();
 
+    SetBackgroundStyle( wxBG_STYLE_PAINT );
     SetExtraStyle( wxWS_EX_PROCESS_IDLE );
     wxIdleEvent::SetMode( wxIDLE_PROCESS_SPECIFIED );
+
+#if defined( _WIN32 )
+    timeBeginPeriod( 1 );
+    const int prevPriority = GetThreadPriority( GetCurrentThread() );
+    if ( prevPriority != THREAD_PRIORITY_ERROR_RETURN )
+    {
+        m_prevThreadPriority = prevPriority;
+        m_hasPrevThreadPriority = true;
+    }
+    SetThreadPriority( GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL );
+#endif
 
     m_timer = std::make_shared<Timer>( false );
 
@@ -92,8 +105,84 @@ RenderWindow::RenderWindow(
 
 RenderWindow::~RenderWindow()
 {
-    SetCurrent( *m_context );
+    ensureContextCurrent();
     ResourceManager::Clear();
+#if defined( _WIN32 )
+    if ( m_hasPrevThreadPriority )
+    {
+        SetThreadPriority( GetCurrentThread(), m_prevThreadPriority );
+    }
+    timeEndPeriod( 1 );
+#endif
+}
+
+void RenderWindow::ensureContextCurrent()
+{
+    if ( !m_context )
+        return;
+
+#if defined( _WIN32 )
+    if ( wglGetCurrentContext() == m_context->GetGLRC() && wglGetCurrentDC() == GetHDC() )
+        return;
+#endif
+    SetCurrent( *m_context );
+}
+
+void RenderWindow::configureSwapAndPacing()
+{
+#if defined( _WIN32 )
+    BOOL dwmEnabled = FALSE;
+    m_useDwmPacing = SUCCEEDED( DwmIsCompositionEnabled( &dwmEnabled ) ) && dwmEnabled == TRUE;
+    if ( m_useDwmPacing )
+    {
+        DWM_TIMING_INFO ti {};
+        ti.cbSize = sizeof( ti );
+        LARGE_INTEGER freq {};
+        if ( SUCCEEDED( DwmGetCompositionTimingInfo( nullptr, &ti ) ) &&
+             QueryPerformanceFrequency( &freq ) &&
+             ti.qpcRefreshPeriod > 0 && freq.QuadPart > 0 )
+        {
+            FramePacing::setNominalPeriodSec(
+                m_framePacer,
+                static_cast<double>( ti.qpcRefreshPeriod ) / static_cast<double>( freq.QuadPart ) );
+        }
+
+        // Let DwmFlush() own VBlank pacing to avoid ATI WDDM 1.1 SwapBuffers(interval=1) stalls.
+        if ( wglSwapIntervalEXT )
+            wglSwapIntervalEXT( 0 );
+
+        m_framePacer.paceExternally = true;
+    }
+    else if ( wglSwapIntervalEXT )
+    {
+        wglSwapIntervalEXT( 1 );
+    }
+#elif defined( _POSIX_VER )
+    // NOTE check for GLX_SGI_swap_control extension : http://www.opengl.org/wiki/Swap_Interval#In_Linux_.2F_GLXw
+    glXSwapIntervalSGI( -1 );  
+#elif defined( _MACOSX_VER )
+    // aglSetInteger (AGL_SWAP_INTERVAL, 0);
+    wglSwapIntervalEXT( GetContext()->GetWXGLContext() );
+#endif
+}
+
+bool RenderWindow::waitForVBlank()
+{
+#if defined( _WIN32 )
+    if ( m_useDwmPacing )
+    {
+        if ( SUCCEEDED( DwmFlush() ) )
+            return true;
+
+        m_useDwmPacing = false;
+        if ( wglSwapIntervalEXT )
+            wglSwapIntervalEXT( 1 );
+        return false;
+    }
+    return true;
+#else
+    return true;
+#endif
 }
 
 void RenderWindow::initializeGLEW()
@@ -109,16 +198,7 @@ void RenderWindow::initializeGLEW()
 
 void RenderWindow::setupGraphics()
 {
-#if defined( _WIN32 )
-    if ( wglSwapIntervalEXT )
-        wglSwapIntervalEXT( 1 );
-#elif defined( _POSIX_VER )
-    // NOTE check for GLX_SGI_swap_control extension : http://www.opengl.org/wiki/Swap_Interval#In_Linux_.2F_GLXw
-    glXSwapIntervalSGI( -1 );  
-#elif defined( _MACOSX_VER )
-    // aglSetInteger (AGL_SWAP_INTERVAL, 0);
-    wglSwapIntervalEXT( GetContext()->GetWXGLContext() );
-#endif
+    configureSwapAndPacing();
 
     GL_CHECK( glClearColor( 0.0, 0.0, 0.0, 1.0 ) );
     GL_CHECK( glEnable( GL_TEXTURE_2D ) );
@@ -170,6 +250,7 @@ void RenderWindow::start()
     m_state = State::NEWROUND;
     m_isRunning = true;
     m_timer->start();
+    FramePacing::resetFrameTiming( m_framePacer );
     if ( m_soundManager )
         m_soundManager->playMusic( m_currentLevel );
 }
@@ -192,6 +273,7 @@ void RenderWindow::triggerLaunch()
     {
         switchRun();
         m_timer->start();
+        FramePacing::resetFrameTiming( m_framePacer );
         wxWakeUpIdle();
     }
 }
@@ -270,12 +352,30 @@ void RenderWindow::onPaint( wxPaintEvent & )
 
 void RenderWindow::onIdle( wxIdleEvent &event )
 {
-    m_elapsedTime = m_timer->getElapsedTimeInMilliSec();
-    if ( m_elapsedTime >= 16 )
+    if ( m_state == State::PLAY )
     {
-        const double dtSec = m_elapsedTime * 0.001;
+        const bool presented = render();
+        if ( m_useDwmPacing )
+        {
+            if ( !waitForVBlank() )
+                wxMilliSleep( 4 );
+        }
+        else if ( !presented )
+        {
+            wxMilliSleep( 4 );
+        }
+
+        event.RequestMore();
+        return;
+    }
+
+    const double elapsedSec = m_timer->getElapsedTimeInSec();
+    m_elapsedTime = elapsedSec * 1000.0;
+    if ( FramePacing::shouldStep( m_framePacer, elapsedSec ) )
+    {
         m_timer->start();
-        if ( m_soundManager && m_state != State::PLAY )
+        const double dtSec = FramePacing::computeStepDt( m_framePacer, elapsedSec );
+        if ( m_soundManager )
         {
             const bool shouldDuck = ( m_state == State::PAUSE );
             m_soundManager->setMusicDucked( shouldDuck );
@@ -325,46 +425,43 @@ void RenderWindow::onIdle( wxIdleEvent &event )
         {
             m_shapesManager->update( dtSec );
         }
+        const auto presentStart = std::chrono::steady_clock::now();
         render();
+        const bool syncOk = waitForVBlank();
+        const double presentMs = std::chrono::duration<double, std::milli>(
+            std::chrono::steady_clock::now() - presentStart ).count();
+        FramePacing::recordSyncDuration( m_framePacer, syncOk, presentMs );
     }
     else
     {
-        const auto remainingMs = static_cast<unsigned long>(
-            std::clamp( 14.0 - m_elapsedTime, 1.0, 8.0 ) );
-        wxMilliSleep( remainingMs );
+        wxMilliSleep( FramePacing::computeSleepMs( m_framePacer, elapsedSec ) );
     }
 
     event.RequestMore();
 }
 
-void RenderWindow::render()
+bool RenderWindow::render()
 {
     if ( !IsShown() || !m_mediaManager )
-        return;
+        return false;
 
     if ( m_state == State::PLAY )
     {
         if ( m_mediaManager->needRefresh() )
         {
-            SetCurrent( *m_context );
+            ensureContextCurrent();
             GL_CHECK( glClear( GL_COLOR_BUFFER_BIT ) );
 
             m_mediaManager->renderFrame();
 
             SwapBuffers();
+            return true;
         }
-#if defined( _WIN32 )
-        else
-        {
-            // Sleep until next VBlank when no new video frame was presented
-            DwmFlush();
-        }
-#endif
 
-        return;
+        return false;
     }
 
-    SetCurrent( *m_context );
+    ensureContextCurrent();
     GL_CHECK( glClear( GL_COLOR_BUFFER_BIT ) );
 
     switch ( m_state )
@@ -395,6 +492,7 @@ void RenderWindow::render()
     }
 
     SwapBuffers();
+    return true;
 }
 
 void RenderWindow::onSize( wxSizeEvent &event )
@@ -467,6 +565,8 @@ void RenderWindow::onKeyPressed( wxKeyEvent &event )
             if ( event.GetKeyCode() == WXK_ESCAPE )
             {
                 m_state = m_prevState;
+                m_timer->start();
+                FramePacing::resetFrameTiming( m_framePacer );
                 if ( m_soundManager )
                     m_soundManager->playMusic( m_currentLevel );
             }
@@ -490,6 +590,7 @@ void RenderWindow::onKeyPressed( wxKeyEvent &event )
                     {
                         switchRun();
                         m_timer->start();
+                        FramePacing::resetFrameTiming( m_framePacer );
                     }
                     m_prevState = m_state;
 

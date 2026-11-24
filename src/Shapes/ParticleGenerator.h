@@ -65,8 +65,12 @@ namespace Shapes
 
             int m_attrPos { 0 };
             int m_attrIndex { 0 };
+            int m_offsetLoc0 { -1 };
+            int m_colorLoc0 { -1 };
 
             std::vector<Particle> m_particles;
+            std::vector<glm::vec2> m_offsetsBuf;
+            std::vector<glm::vec4> m_colorsBuf;
 
             // render state
             shaderPtr m_shader;

@@ -55,9 +55,12 @@ void SpriteRenderer::drawSprite( unsigned int sourceVBO, const glm::vec2& positi
     glm::mat4 model( 1.0f );
     model = glm::translate( model, { position, 0.0f } );  // first translate (transformations are: scale happens first, then rotation, and then final translation happens; reversed order)
 
-    m_shader->setVector2f( "size", size );
-    m_shader->setMatrix4( "model", model );
-    m_shader->setVector3f( "spriteColor", color );
+    if ( m_locSize >= 0 )
+        GL_CHECK( glUniform2f( m_locSize, size.x, size.y ) );
+    if ( m_locModel >= 0 )
+        GL_CHECK( glUniformMatrix4fv( m_locModel, 1, GL_FALSE, glm::value_ptr( model ) ) );
+    if ( m_locSpriteColor >= 0 )
+        GL_CHECK( glUniform3f( m_locSpriteColor, color.x, color.y, color.z ) );
 
     GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, sourceVBO ) );
     GL_CHECK( glVertexAttribPointer( m_attrVertex, 4, GL_FLOAT, GL_FALSE, 4 * sizeof( float ), ( void* )nullptr ) );
@@ -77,6 +80,9 @@ void SpriteRenderer::initRenderData()
 {
     // configure VBO
     GL_CHECK( m_attrVertex = glGetAttribLocation( m_shader->ID, "vertex" ) );
+    GL_CHECK( m_locSize = glGetUniformLocation( m_shader->ID, "size" ) );
+    GL_CHECK( m_locModel = glGetUniformLocation( m_shader->ID, "model" ) );
+    GL_CHECK( m_locSpriteColor = glGetUniformLocation( m_shader->ID, "spriteColor" ) );
 
     m_VBO = generateBuffer( {
         // pos      // tex

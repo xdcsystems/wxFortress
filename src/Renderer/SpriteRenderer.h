@@ -42,6 +42,9 @@ class SpriteRenderer
         shaderPtr    m_shader;
         unsigned int m_VBO { 0 };
         int m_attrVertex { 0 };
+        int m_locSize { -1 };
+        int m_locModel { -1 };
+        int m_locSpriteColor { -1 };
 };
 
 using rendererPtr = std::shared_ptr<SpriteRenderer>;

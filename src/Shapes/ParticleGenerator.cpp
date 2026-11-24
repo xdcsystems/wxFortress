@@ -8,6 +8,7 @@
 #endif
 
 #include <glm/glm.hpp>
+#include <glm/gtc/type_ptr.hpp>
 #include <GL/glew.h>
 
 #include "Common/Tools.h"
@@ -93,9 +94,11 @@ void ParticleGenerator::draw()
     {
         if ( particle.Life > 0.0f )
         {
-            const std::string instance = { "[" + std::to_string( index ) + "]" };
-            m_shader->setVector2f( ( "offset" + instance ).data(), particle.Position );
-            m_shader->setVector4f( ( "color" + instance ).data(), particle.Color );
+            if ( index >= m_amount )
+                break;
+
+            m_offsetsBuf[ index ] = particle.Position;
+            m_colorsBuf[ index ] = particle.Color;
 
             ++index;
         }
@@ -103,6 +106,11 @@ void ParticleGenerator::draw()
 
     if ( index > 0 )
     {
+        if ( m_offsetLoc0 >= 0 )
+            GL_CHECK( glUniform2fv( m_offsetLoc0, static_cast<GLsizei>( index ), glm::value_ptr( m_offsetsBuf[ 0 ] ) ) );
+        if ( m_colorLoc0 >= 0 )
+            GL_CHECK( glUniform4fv( m_colorLoc0, static_cast<GLsizei>( index ), glm::value_ptr( m_colorsBuf[ 0 ] ) ) );
+
         GL_CHECK( glDrawArrays( GL_TRIANGLES, 0, 6 * index ) );
     }
 
@@ -131,6 +139,11 @@ void ParticleGenerator::init()
 
     GL_CHECK( m_attrPos = glGetAttribLocation( m_shader->ID, "vertex" ) );
     GL_CHECK( m_attrIndex = glGetAttribLocation( m_shader->ID, "index" ) );
+    GL_CHECK( m_offsetLoc0 = glGetUniformLocation( m_shader->ID, "offset[0]" ) );
+    GL_CHECK( m_colorLoc0 = glGetUniformLocation( m_shader->ID, "color[0]" ) );
+
+    m_offsetsBuf.resize( m_amount );
+    m_colorsBuf.resize( m_amount );
 
     // create VBOs
     GL_CHECK( glGenBuffers( 1, &m_VBO ) );   // for vertex buffer
