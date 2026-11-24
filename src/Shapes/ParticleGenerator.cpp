@@ -7,6 +7,8 @@
     #include <wx/wx.h>
 #endif
 
+#include <random>
+
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <GL/glew.h>
@@ -182,10 +184,14 @@ void ParticleGenerator::respawnParticle( Particle& particle, const basePtr &obje
 {
     const auto& position = object->position();
 
-    const float randomX = ( ( rand() % 100 ) - 50 ) / 10.0f + position.x + offset.x;
-    const float randomY = ( ( rand() % 100 ) - 50 ) / 10.0f + position.y + offset.y;
+    static thread_local std::mt19937 rng( std::random_device {}() );
+    static thread_local std::uniform_real_distribution<float> posDist( -5.0f, 5.0f );
+    static thread_local std::uniform_real_distribution<float> colorDist( 0.5f, 1.5f );
 
-    const float rColor = 0.5f + ( ( rand() % 100 ) / 100.0f );
+    const float randomX = posDist( rng ) + position.x + offset.x;
+    const float randomY = posDist( rng ) + position.y + offset.y;
+
+    const float rColor = colorDist( rng );
 
     particle.Position = { randomX, randomY };
     particle.Color = glm::vec4( rColor, rColor, rColor, 1.0f );

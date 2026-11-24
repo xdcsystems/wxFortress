@@ -105,6 +105,9 @@ void ShapesManager::resize( const wxSize& size, const glm::mat4& projection )
     m_arenaCfg.height = static_cast<float>( size.y );
     m_particles->resize( projection );
 
+    if ( m_state == State::RUN || m_state == State::PAUSED )
+        return;
+
     // set board position
     auto boardBounds = m_board->bounds();
     m_board->moveTo( ( m_size.x - boardBounds.m_width ) / 2.0f, 15.0f );

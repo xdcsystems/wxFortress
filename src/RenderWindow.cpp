@@ -149,9 +149,6 @@ void RenderWindow::configureSwapAndPacing()
 #elif defined( _POSIX_VER )
     // NOTE check for GLX_SGI_swap_control extension : http://www.opengl.org/wiki/Swap_Interval#In_Linux_.2F_GLXw
     glXSwapIntervalSGI( -1 );  
-#elif defined( _MACOSX_VER )
-    // aglSetInteger (AGL_SWAP_INTERVAL, 0);
-    wglSwapIntervalEXT( GetContext()->GetWXGLContext() );
 #endif
 }
 
@@ -341,6 +338,17 @@ void RenderWindow::onPaint( wxPaintEvent & )
 
 void RenderWindow::onIdle( wxIdleEvent &event )
 {
+    const auto* topLevel = wxDynamicCast( wxGetTopLevelParent( this ), wxTopLevelWindow );
+    if ( !IsShownOnScreen() || ( topLevel && topLevel->IsIconized() ) )
+    {
+        if ( m_timer )
+            m_timer->start();
+        FramePacing::resetFrameTiming( m_framePacer );
+        wxMilliSleep( 25 );
+        event.RequestMore();
+        return;
+    }
+
     if ( m_state == State::PLAY )
     {
         const bool presented = render();

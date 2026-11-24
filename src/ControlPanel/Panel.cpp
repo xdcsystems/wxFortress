@@ -67,10 +67,14 @@ void Panel::init()
 
 void Panel::activate()
 {
+    const bool wasLaunched = m_isLaunched;
+    m_isLaunched = false;
     refreshDisplayValue( m_hiScore );
     refreshDisplayValue( m_score );
     refreshDisplayValue( m_lives );
     refreshDisplayValue( m_level );
+    if ( wasLaunched )
+        Refresh( false );
     Update();
 }
 
@@ -112,13 +116,14 @@ void Panel::onLeftDown( wxMouseEvent &event )
 void Panel::onPaint( wxPaintEvent & )
 {
     wxPaintDC dc( this );
-    render( dc, m_bitmapPanelBuffer );
+    render( dc, m_isLaunched ? m_bitmapPanelLaunchedBuffer : m_bitmapPanelBuffer );
 }
 
 void Panel::paintLaunched()
 {
-    wxClientDC dc( this );
-    render( dc, m_bitmapPanelLaunchedBuffer );
+    m_isLaunched = true;
+    Refresh( false );
+    Update();
 }
 
 void Panel::render( wxDC &dc, const bitmapPtr &panel )
@@ -204,6 +209,7 @@ unsigned char Panel::decreaseLives()
 
 void Panel::reset()
 {
+    m_isLaunched = false;
     m_lives->reset( INITIAL_LIVES_VALUE );
     m_level->reset();
     m_score->reset();
