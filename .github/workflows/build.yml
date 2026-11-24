@@ -102,6 +102,36 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
+      - name: Static anti-pattern gate (src/)
+        run: |
+          python3 - << 'PY'
+          import re, sys
+          from pathlib import Path
+
+          BANNED = re.compile(
+              r'\b(SetThreadPriority|SetPriorityClass|SetThreadAffinityMask|SetProcessAffinityMask|'
+              r'TerminateThread|SuspendThread|wxYield|wxClientDC)\b|'
+              r'\.detach\s*\(|\bcatch\s*\(\s*\.\.\.\s*\)'
+          )
+          hits = []
+          for p in sorted(Path("src").rglob("*")):
+              if p.suffix not in {".cpp", ".cc", ".c", ".h", ".hpp"}:
+                  continue
+              if "AudioFile" in p.parts:
+                  continue
+              for idx, line in enumerate(p.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+                  s = line.strip()
+                  if s.startswith("//") or s.startswith("*"):
+                      continue
+                  if BANNED.search(line):
+                      hits.append(f"{p}:{idx}: {s}")
+          if hits:
+              print("ANTI-PATTERN GATE FAILED:")
+              print("\n".join(hits))
+              sys.exit(1)
+          print("ANTI-PATTERN GATE PASSED (0 findings)")
+          PY
+
       - name: Install Linux build dependencies (for vendored submodules)
         run: |
           sudo apt-get update
