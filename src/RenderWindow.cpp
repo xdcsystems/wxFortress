@@ -89,13 +89,6 @@ RenderWindow::RenderWindow(
 
 #if defined( _WIN32 )
     timeBeginPeriod( 1 );
-    const int prevPriority = GetThreadPriority( GetCurrentThread() );
-    if ( prevPriority != THREAD_PRIORITY_ERROR_RETURN )
-    {
-        m_prevThreadPriority = prevPriority;
-        m_hasPrevThreadPriority = true;
-    }
-    SetThreadPriority( GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL );
 #endif
 
     m_timer = std::make_shared<Timer>( false );
@@ -108,10 +101,6 @@ RenderWindow::~RenderWindow()
     ensureContextCurrent();
     ResourceManager::Clear();
 #if defined( _WIN32 )
-    if ( m_hasPrevThreadPriority )
-    {
-        SetThreadPriority( GetCurrentThread(), m_prevThreadPriority );
-    }
     timeEndPeriod( 1 );
 #endif
 }

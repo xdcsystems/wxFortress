@@ -102,10 +102,6 @@ class RenderWindow final : public wxGLCanvas
         bool m_isInitialized { false };
         bool m_isRunning { false };
         bool m_useDwmPacing { false };
-#if defined( _WIN32 )
-        int m_prevThreadPriority { 0 };
-        bool m_hasPrevThreadPriority { false };
-#endif
         std::chrono::steady_clock::time_point m_lastLaunchTime {};
         unsigned char m_countDown { 0 };
         unsigned short m_currentLevel { 1 };
