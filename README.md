@@ -133,3 +133,10 @@ You can also invoke tests via CTest:
 ```bash
 ctest --test-dir <build-dir> --output-on-failure
 ```
+
+---
+
+## Audio & Music Credits
+
+- **Level 5 Music (`resources/sounds/music_level_5.ogg`)**: Seamless 66 s loop adapted from [*Destabilized*](https://archive.org/details/punchdeckdestabilized) by **Punch Deck**, licensed under [CC-BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+- **F1 Laboratory Ambience (`resources/sounds/music_lab_help.ogg`)**: 36 s seamless laboratory soundscape built from CC0 recordings ([C-V Assembly Line Manufacturing](https://freesound.org/people/C-V/packs/29686/), [SSE Library Ambience](https://archive.org/details/SSE_Library_AMBIENCE), [SSE Library Sci-Fi](https://archive.org/details/SSE_Library_SCIFI), [Red Library Communications](https://archive.org/details/Red_Library_Communications)).
