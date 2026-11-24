@@ -295,7 +295,7 @@ void RenderWindow::onIdle( wxIdleEvent &event )
         m_timer->start();
         if ( m_soundManager && m_state != State::PLAY )
         {
-            const bool shouldDuck = ( m_state == State::PAUSE || m_state == State::FINISHED );
+            const bool shouldDuck = ( m_state == State::PAUSE );
             m_soundManager->setMusicDucked( shouldDuck );
             m_soundManager->updateMusic( dtSec );
         }
@@ -552,4 +552,6 @@ void RenderWindow::onStageFinished( wxCommandEvent& )
     m_textRenderer->selectFontType( TextRendererFont::OLD );
     m_textRenderer->switchToFinishState( ++s_stage );
     m_state = State::FINISHED;
+    if ( m_soundManager )
+        m_soundManager->playVictoryMusic();
 }

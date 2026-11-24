@@ -34,6 +34,7 @@ namespace
 {
     constexpr float kMusicNormalGain = 0.030f;
     constexpr float kMusicHelpGain = 0.065f;
+    constexpr float kMusicVictoryGain = 0.045f;
     constexpr float kMusicDuckedGain = 0.009f;
     constexpr float kMusicGainSlewPerSec = 0.14f;
 
@@ -138,6 +139,11 @@ SoundManager::~SoundManager()
     {
         alec( alDeleteBuffers( 1, &m_helpMusicBuffer ) );
         m_helpMusicBuffer = 0;
+    }
+    if ( m_victoryMusicBuffer != 0 )
+    {
+        alec( alDeleteBuffers( 1, &m_victoryMusicBuffer ) );
+        m_victoryMusicBuffer = 0;
     }
 
     alec( alDeleteSources( 1, &m_monoSource ) );
@@ -508,7 +514,7 @@ void SoundManager::playMusic( unsigned short level )
         ( ( level > 0 ? level - 1 : 0 ) % kMusicTrackCount ) );
     const unsigned short trackNum = static_cast<unsigned short>( trackIdx + 1 );
 
-    if ( m_musicPlaying && !m_inHelpMusic && m_currentMusicTrack == trackNum )
+    if ( m_musicPlaying && !m_inHelpMusic && !m_inVictoryMusic && m_currentMusicTrack == trackNum )
         return;
 
     // Lazy-decode level music track on first use (keeps startup instant)
@@ -529,6 +535,7 @@ void SoundManager::playMusic( unsigned short level )
 
     m_currentMusicTrack = trackNum;
     m_inHelpMusic = false;
+    m_inVictoryMusic = false;
     m_musicPlaying = true;
 }
 
@@ -554,6 +561,33 @@ void SoundManager::playHelpMusic()
     alec( alSourcePlay( m_musicSource ) );
 
     m_inHelpMusic = true;
+    m_inVictoryMusic = false;
+    m_musicPlaying = true;
+}
+
+void SoundManager::playVictoryMusic()
+{
+    if ( m_musicSource == 0 )
+        return;
+
+    if ( m_musicPlaying && m_inVictoryMusic )
+        return;
+
+    if ( m_victoryMusicBuffer == 0 )
+    {
+        if ( loadOggBuffer( "music_victory.ogg", &m_victoryMusicBuffer ) != 0 )
+            return;
+    }
+
+    alec( alSourceStop( m_musicSource ) );
+    alec( alSourcei( m_musicSource, AL_BUFFER, static_cast<ALint>( m_victoryMusicBuffer ) ) );
+    alec( alSourcei( m_musicSource, AL_LOOPING, AL_TRUE ) );
+
+    applyMusicGain( m_musicMuted ? 0.0f : kMusicVictoryGain );
+    alec( alSourcePlay( m_musicSource ) );
+
+    m_inHelpMusic = false;
+    m_inVictoryMusic = true;
     m_musicPlaying = true;
 }
 
@@ -566,6 +600,7 @@ void SoundManager::stopMusic()
     }
     m_musicPlaying = false;
     m_inHelpMusic = false;
+    m_inVictoryMusic = false;
     m_currentMusicTrack = 0;
 }
 
@@ -593,8 +628,8 @@ void SoundManager::toggleMusicMute()
     }
     else
     {
-        const float baseGain = m_inHelpMusic ? kMusicHelpGain : kMusicNormalGain;
-        const float target = ( !m_inHelpMusic && ( m_musicDucked || m_tempDuckRemaining > 0.0 ) ) ? kMusicDuckedGain : baseGain;
+        const float baseGain = m_inHelpMusic ? kMusicHelpGain : ( m_inVictoryMusic ? kMusicVictoryGain : kMusicNormalGain );
+        const float target = ( !m_inHelpMusic && !m_inVictoryMusic && ( m_musicDucked || m_tempDuckRemaining > 0.0 ) ) ? kMusicDuckedGain : baseGain;
         applyMusicGain( target );
     }
 }
@@ -610,10 +645,10 @@ void SoundManager::updateMusic( double dtSec )
         m_tempDuckRemaining = ( std::max )( 0.0, m_tempDuckRemaining - clampedDt );
     }
 
-    const float baseGain = m_inHelpMusic ? kMusicHelpGain : kMusicNormalGain;
+    const float baseGain = m_inHelpMusic ? kMusicHelpGain : ( m_inVictoryMusic ? kMusicVictoryGain : kMusicNormalGain );
     const float target = m_musicMuted
         ? 0.0f
-        : ( ( !m_inHelpMusic && ( m_musicDucked || m_tempDuckRemaining > 0.0 ) ) ? kMusicDuckedGain : baseGain );
+        : ( ( !m_inHelpMusic && !m_inVictoryMusic && ( m_musicDucked || m_tempDuckRemaining > 0.0 ) ) ? kMusicDuckedGain : baseGain );
 
     const float diff = target - m_currentMusicGain;
     if ( std::abs( diff ) < 1e-4f )
