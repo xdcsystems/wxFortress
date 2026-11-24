@@ -1,12 +1,14 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <memory>
+#include <mutex>
+#include <vector>
 
 #include <GL/glew.h>
 #include "Singleton.hpp"
 
-#include <wx/stdstream.h>
 #include <wx/wfstream.h>
 #include <wx/zipstrm.h>
 
@@ -44,15 +46,14 @@ class Tools final : public Singleton<Tools>
 
         std::string getFullFileName( const std::string &filename ) const;
         void loadResources();
-        wxInputStream& loadResource( const std::string& name ) const;
-        wxStdInputStream loadResourceStd( const std::string& name ) const;
+        std::vector<uint8_t> loadResourceBytes( const std::string& name ) const;
         std::shared_ptr<wxBitmap> loadBitmap( const std::string &name ) const;
         std::vector< std::vector<int> > loadLevel( const std::string &name, unsigned short levelNum ) const;
 
         void bhmLine( std::vector<wxPoint> &trajectory, int x1, int y1, int x2, int y2, const wxSize &limits ) const;
 
     private:
-        ZipEntryPtr m_entry;
+        mutable std::mutex m_zipMutex;
         ZipCatalog m_cat;
         ZipFilePtr m_zipFile;
         ZipStream m_zip;

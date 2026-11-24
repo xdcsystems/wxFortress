@@ -493,16 +493,22 @@ void AudioFile<T>::shouldLogErrorsToConsole( bool logErrors )
 template <class T>
 bool AudioFile<T>::load( std::string path )
 {
-    auto file = Tools::Instance().loadResourceStd( path );
-    if ( !file.good() )
+    std::vector<uint8_t> fileData;
+    try
+    {
+        fileData = Tools::Instance().loadResourceBytes( path );
+    }
+    catch ( const std::exception& )
     {
         reportError( "ERROR: resource doesn't exist or otherwise can't load resource\n" + path );
         return false;
     }
 
-    file.unsetf( std::ios::skipws );
-    std::istream_iterator<uint8_t> begin( file ), end;
-    std::vector<uint8_t> fileData( begin, end );
+    if ( fileData.empty() )
+    {
+        reportError( "ERROR: resource doesn't exist or otherwise can't load resource\n" + path );
+        return false;
+    }
 
     // get audio file format
     audioFileFormat = determineAudioFileFormat( fileData );

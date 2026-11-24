@@ -12,6 +12,9 @@
 #include <wx/wx.h>
 #endif
 
+#include <thread>
+#include <vector>
+
 #include <GL/glew.h>
 #include <wx/glcanvas.h>
 
@@ -42,6 +45,47 @@ TEST_F( TestFortress, App_Creation )
 TEST_F( TestFortress, Tools_Creation )
 {
     EXPECT_NO_THROW( Tools::Instance().loadResources() );
+}
+
+TEST_F( TestFortress, Tools_LoadResourceBytes_ThreadSafe )
+{
+    ASSERT_NO_THROW( Tools::Instance().loadResources() );
+
+    const auto baseline = Tools::Instance().loadResourceBytes( "resources/levels.txt" );
+    ASSERT_FALSE( baseline.empty() );
+
+    constexpr int kThreads = 4;
+    std::vector<std::vector<uint8_t>> results( kThreads );
+    std::vector<std::thread> workers;
+    workers.reserve( kThreads );
+
+    for ( int i = 0; i < kThreads; ++i )
+    {
+        workers.emplace_back( [&, i]()
+        {
+            results[ i ] = Tools::Instance().loadResourceBytes( "resources/levels.txt" );
+        } );
+    }
+    for ( auto& t : workers )
+        t.join();
+
+    for ( int i = 0; i < kThreads; ++i )
+        EXPECT_EQ( results[ i ], baseline );
+
+    EXPECT_THROW( Tools::Instance().loadResourceBytes( "resources/does_not_exist.bin" ), std::out_of_range );
+}
+
+TEST_F( TestFortress, Tools_LoadLevel_AllLevelsAndStageComplete )
+{
+    ASSERT_NO_THROW( Tools::Instance().loadResources() );
+
+    for ( unsigned short lvl = 1; lvl <= 5; ++lvl )
+    {
+        const auto grid = Tools::Instance().loadLevel( "resources/levels.txt", lvl );
+        EXPECT_FALSE( grid.empty() ) << "Level " << lvl << " should not be empty";
+    }
+
+    EXPECT_THROW( Tools::Instance().loadLevel( "resources/levels.txt", 6 ), stage_complete_exception );
 }
 
 TEST_F( TestFortress, Frame_Creation )

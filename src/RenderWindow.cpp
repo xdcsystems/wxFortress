@@ -175,12 +175,12 @@ void RenderWindow::start()
 
 void RenderWindow::triggerLaunch()
 {
-    if ( m_inLaunchSequence )
+    if ( m_state == State::LAUNCHING || m_state == State::COUNTDOWN )
         return;
 
     if ( m_state == State::RUN )
     {
-        // Ignore stray key-repeat / queued Space right after the blocking countdown finishes.
+        // Ignore stray key-repeat / queued Space right after the countdown finishes.
         const auto sinceLaunchMs = std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::steady_clock::now() - m_lastLaunchTime ).count();
         if ( sinceLaunchMs >= 0 && sinceLaunchMs < 350 )
@@ -199,46 +199,27 @@ void RenderWindow::stop()
 {
     m_isRunning = false;
     if ( m_soundManager )
+    {
+        m_soundManager->stopLaunchAudio();
         m_soundManager->stopMusic();
+    }
     Unbind( wxEVT_IDLE, &RenderWindow::onIdle, this );
 }
 
 void RenderWindow::switchRun()
 {
-    if ( !m_isRunning || m_inLaunchSequence )
+    if ( !m_isRunning || m_state == State::LAUNCHING || m_state == State::COUNTDOWN )
         return;
 
     if ( m_state == State::NEWROUND )
     {
-        struct ScopedFlag
-        {
-            bool& flag;
-            explicit ScopedFlag( bool& f ) : flag( f ) { flag = true; }
-            ~ScopedFlag() { flag = false; }
-        } launchGuard( m_inLaunchSequence );
-
         wxCommandEvent lounchPressedEvent( wxEVT_LAUNCH_PRESSED );
         ProcessEvent( lounchPressedEvent );
 
-        m_soundManager->playSiren();
+        if ( m_soundManager )
+            m_soundManager->playSiren();
 
-        wxCommandEvent roundStartedEvent( wxEVT_NEW_ROUND_STARTED );
-        ProcessEvent( roundStartedEvent );
-
-        m_state = State::COUNTDOWN;
-        for ( m_countDown = 3; m_countDown >= 1; --m_countDown )
-        {
-            render();
-            m_soundManager->playCountdown();
-        }
-
-        if ( !m_isRunning )
-            return;
-
-        m_soundManager->playRocket();
-        m_shapesManager->run( true );
-        m_state = State::RUN;
-        m_lastLaunchTime = std::chrono::steady_clock::now();
+        m_state = State::LAUNCHING;
         return;
     }
 
@@ -299,7 +280,47 @@ void RenderWindow::onIdle( wxIdleEvent &event )
             m_soundManager->setMusicDucked( shouldDuck );
             m_soundManager->updateMusic( dtSec );
         }
-        if ( m_shapesManager && ( m_state == State::NEWROUND || m_state == State::RUN ) )
+        if ( m_state == State::LAUNCHING )
+        {
+            if ( !m_soundManager || !m_soundManager->isLaunchAudioPlaying() )
+            {
+                wxCommandEvent roundStartedEvent( wxEVT_NEW_ROUND_STARTED );
+                ProcessEvent( roundStartedEvent );
+
+                m_state = State::COUNTDOWN;
+                m_countDown = 3;
+                if ( m_soundManager )
+                    m_soundManager->playCountdown();
+            }
+        }
+        else if ( m_state == State::COUNTDOWN )
+        {
+            if ( !m_soundManager || !m_soundManager->isLaunchAudioPlaying() )
+            {
+                if ( m_countDown > 1 )
+                {
+                    --m_countDown;
+                    if ( m_soundManager )
+                        m_soundManager->playCountdown();
+                }
+                else
+                {
+                    m_countDown = 0;
+                    if ( m_soundManager )
+                    {
+                        m_soundManager->stopLaunchAudio();
+                        m_soundManager->playRocket();
+                    }
+                    if ( m_shapesManager )
+                        m_shapesManager->run( true );
+                    m_state = State::RUN;
+                    m_lastLaunchTime = std::chrono::steady_clock::now();
+                }
+            }
+        }
+        if ( m_shapesManager &&
+             ( m_state == State::NEWROUND || m_state == State::LAUNCHING ||
+               m_state == State::COUNTDOWN || m_state == State::RUN ) )
         {
             m_shapesManager->update( dtSec );
         }
@@ -346,6 +367,7 @@ void RenderWindow::render()
     switch ( m_state )
     {
         case State::NEWROUND:
+        case State::LAUNCHING:
         case State::RUN:
             m_shapesManager->renderFrame();
         break;
@@ -409,7 +431,9 @@ void RenderWindow::onSize( wxSizeEvent &event )
 
 void RenderWindow::onMouseMove( wxMouseEvent &event )
 {
-    if ( m_shapesManager && ( m_state == State::RUN || m_state == State::NEWROUND ) )
+    if ( m_shapesManager &&
+         ( m_state == State::RUN || m_state == State::NEWROUND ||
+           m_state == State::LAUNCHING || m_state == State::COUNTDOWN ) )
     {
         m_shapesManager->setPaddleMouseX( static_cast<float>( event.GetX() ) );
     }
@@ -418,9 +442,6 @@ void RenderWindow::onMouseMove( wxMouseEvent &event )
 
 void RenderWindow::onKeyPressed( wxKeyEvent &event )
 {
-    if ( m_inLaunchSequence )
-        return;
-
     if ( m_state != State::PLAY && ( event.GetKeyCode() == 'M' || event.GetKeyCode() == 'm' ) )
     {
         if ( m_soundManager )
@@ -482,6 +503,12 @@ void RenderWindow::onKeyPressed( wxKeyEvent &event )
                 break;
             }
         }
+        break;
+
+        case State::LAUNCHING:
+        case State::COUNTDOWN:
+            if ( event.GetKeyCode() == WXK_ESCAPE )
+                m_parent->Close();
         break;
 
         case State::FINISHED:

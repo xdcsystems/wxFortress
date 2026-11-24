@@ -11,6 +11,7 @@
 
 #include <wx/stdpaths.h>
 #include <wx/filename.h>
+#include <wx/mstream.h>
 #include <wx/wfstream.h>
 #include <wx/txtstrm.h>
 #include <wx/tokenzr.h>
@@ -57,35 +58,74 @@ std::string Tools::getFullFileName( const std::string &filename ) const
 
 void Tools::loadResources()
 {
+    std::lock_guard<std::mutex> lock( m_zipMutex );
+
+    // Release existing zip stream before its backing file stream to prevent UAF on reload
+    m_zip.reset();
+    m_zipFile.reset();
+    m_cat.clear();
+
     // open the zip
     m_zipFile = std::make_shared<wxFFileInputStream>( getFullFileName( ( "/" + wxTheApp->GetAppName() + ".dat" ).ToStdString() ) );
     m_zip = std::make_shared<wxZipInputStream>( *m_zipFile );
 
     // load the zip catalog
-    while ( m_entry.reset( m_zip->GetNextEntry() ), m_entry.get() != nullptr )
-        m_cat[ m_entry->GetInternalName() ] = std::move( m_entry );
+    ZipEntryPtr entry;
+    while ( entry.reset( m_zip->GetNextEntry() ), entry.get() != nullptr )
+        m_cat[ entry->GetInternalName() ] = std::move( entry );
 }
 
-wxInputStream& Tools::loadResource( const std::string& name ) const
+std::vector<uint8_t> Tools::loadResourceBytes( const std::string& name ) const
 {
-    // open an entry by name
-    if ( auto it = m_cat.find( wxZipEntry::GetInternalName( name ) ); it != m_cat.end() )
+    std::lock_guard<std::mutex> lock( m_zipMutex );
+
+    if ( !m_zip )
     {
-        m_zip->OpenEntry( *it->second );
-        return *m_zip.get();
+        throw std::runtime_error( "Resource archive is not loaded" );
     }
 
-    throw std::out_of_range( "Can't find resource: " + name );
-}
+    const auto it = m_cat.find( wxZipEntry::GetInternalName( name ) );
+    if ( it == m_cat.end() )
+    {
+        throw std::out_of_range( "Can't find resource: " + name );
+    }
 
-wxStdInputStream Tools::loadResourceStd( const std::string& name ) const
-{
-    return { loadResource( name ) };
+    if ( !m_zip->OpenEntry( *it->second ) )
+    {
+        throw std::runtime_error( "Failed to open resource: " + name );
+    }
+
+    std::vector<uint8_t> data;
+    const wxFileOffset entrySize = it->second->GetSize();
+    if ( entrySize != wxInvalidOffset && entrySize > 0 )
+    {
+        data.reserve( static_cast<size_t>( entrySize ) );
+    }
+
+    uint8_t chunk[ 16384 ];
+    while ( !m_zip->Eof() )
+    {
+        m_zip->Read( chunk, sizeof( chunk ) );
+        const size_t n = m_zip->LastRead();
+        if ( n == 0 )
+            break;
+        data.insert( data.end(), chunk, chunk + n );
+    }
+
+    const wxStreamError err = m_zip->GetLastError();
+    if ( err != wxSTREAM_NO_ERROR && err != wxSTREAM_EOF )
+    {
+        throw std::runtime_error( "Failed to read resource: " + name );
+    }
+
+    return data;
 }
 
 std::shared_ptr<wxBitmap> Tools::loadBitmap( const std::string &name ) const
 {
-    auto bitmap = std::make_shared<wxBitmap>( wxImage { loadResource( name ), wxBITMAP_TYPE_PNG } );
+    const auto bytes = loadResourceBytes( name );
+    wxMemoryInputStream memStream( bytes.data(), bytes.size() );
+    auto bitmap = std::make_shared<wxBitmap>( wxImage { memStream, wxBITMAP_TYPE_PNG } );
     if ( !bitmap || !bitmap->IsOk() )
     {
         throw std::runtime_error( "Error loading resource: " + name );
@@ -96,7 +136,8 @@ std::shared_ptr<wxBitmap> Tools::loadBitmap( const std::string &name ) const
 
 std::vector< std::vector<int> > Tools::loadLevel( const std::string &name, unsigned short levelNum ) const
 {
-    wxInputStream &input( loadResource( name ) );
+    const auto bytes = loadResourceBytes( name );
+    wxMemoryInputStream input( bytes.data(), bytes.size() );
 
     if ( !input.IsOk() )
     {
@@ -106,7 +147,7 @@ std::vector< std::vector<int> > Tools::loadLevel( const std::string &name, unsig
     const wxString label = wxT( "Level " );
     const wxString finishLabel = wxT( "End" );
 
-    wxTextInputStream text( loadResource( name ) );
+    wxTextInputStream text( input );
     wxString leveLabel( label );
     wxString line;
 
