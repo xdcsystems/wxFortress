@@ -64,7 +64,7 @@ jobs:
             -DCMAKE_C_COMPILER=C:/winlibs/mingw32/bin/gcc.exe `
             -DCMAKE_CXX_COMPILER=C:/winlibs/mingw32/bin/g++.exe
 
-      - name: Build wxFortress
+      - name: Build wxFortress & tests
         run: |
           cmake --build ..\wxFortress-build --target wxFortress ut_BallPhysics ut_Fortress run_tests -j
 

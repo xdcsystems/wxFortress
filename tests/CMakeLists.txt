@@ -6,9 +6,15 @@ set( WXFORTRESS_TEST_TARGETS )
 # 1. Analytical BallPhysics GoogleTest suite (no GUI/OpenGL required)
 if( TARGET GTest::gtest_main )
     include( GoogleTest )
-    add_executable( ut_BallPhysics test_ball_physics.cpp )
+    add_executable( ut_BallPhysics test_ball_physics.cpp test_hardware_audio.cpp )
     target_compile_features( ut_BallPhysics PRIVATE cxx_std_17 )
-    target_include_directories( ut_BallPhysics PRIVATE "${CMAKE_SOURCE_DIR}/src/Shapes" )
+    target_include_directories(
+        ut_BallPhysics
+        PRIVATE
+        "${CMAKE_SOURCE_DIR}/src/Shapes"
+        "${CMAKE_SOURCE_DIR}/src/Video"
+        "${CMAKE_SOURCE_DIR}/src/Sounds"
+    )
     target_link_libraries( ut_BallPhysics PRIVATE GTest::gtest_main )
     gtest_discover_tests( ut_BallPhysics DISCOVERY_MODE PRE_TEST )
 
@@ -22,7 +28,7 @@ if( TARGET GTest::gtest AND TARGET GTest::gmock )
 
     set( NAME ut_Fortress )
 
-    file( GLOB_RECURSE APP_SOURCES "${CMAKE_SOURCE_DIR}/src/*.cpp" )
+    file( GLOB_RECURSE APP_SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/*.cpp" )
 
     add_executable(
         ${NAME}
@@ -88,7 +94,7 @@ if( TARGET GTest::gtest AND TARGET GTest::gmock )
         # Headless CI runners only have software GDI OpenGL 1.1 (no GLSL shaders);
         # run the non-shader integration tests automatically during build.
         list( APPEND WXFORTRESS_TEST_COMMANDS
-            COMMAND $<TARGET_FILE:${NAME}> --gtest_filter=TestFortress.App_Creation:TestFortress.Tools_Creation:TestFortress.Frame_Creation )
+            COMMAND $<TARGET_FILE:${NAME}> --gtest_filter=TestFortress.App_Creation:TestFortress.Tools_*:TestFortress.Frame_Creation )
     else()
         list( APPEND WXFORTRESS_TEST_COMMANDS COMMAND $<TARGET_FILE:${NAME}> )
     endif()

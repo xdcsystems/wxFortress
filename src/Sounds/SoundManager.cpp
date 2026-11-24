@@ -32,12 +32,6 @@ extern "C" {
 
 namespace
 {
-    constexpr float kMusicNormalGain = 0.030f;
-    constexpr float kMusicHelpGain = 0.065f;
-    constexpr float kMusicVictoryGain = 0.045f;
-    constexpr float kMusicDuckedGain = 0.009f;
-    constexpr float kMusicGainSlewPerSec = 0.14f;
-
     struct MemBufferReader
     {
         const uint8_t* data { nullptr };
@@ -417,7 +411,7 @@ int SoundManager::init()
         // Dedicated looping background music source
         alec( alGenSources( 1, &m_musicSource ) );
         alec( alSourcef( m_musicSource, AL_PITCH, 1.f ) );
-        alec( alSourcef( m_musicSource, AL_GAIN, kMusicNormalGain ) );
+        alec( alSourcef( m_musicSource, AL_GAIN, m_musicGain.currentGain ) );
         alec( alSourcei( m_musicSource, AL_LOOPING, AL_TRUE ) );
         alec( alSourcei( m_musicSource, AL_SOURCE_RELATIVE, AL_TRUE ) );
         alec( alSource3f( m_musicSource, AL_POSITION, 0.f, 0.f, 0.f ) );
@@ -487,9 +481,9 @@ ALuint SoundManager::playStereoSource( ALuint buffer, float gain )
 
 void SoundManager::applyMusicGain( float gain )
 {
-    m_currentMusicGain = gain;
+    m_musicGain.currentGain = gain;
     if ( m_musicSource != 0 )
-        alec( alSourcef( m_musicSource, AL_GAIN, m_currentMusicGain ) );
+        alec( alSourcef( m_musicSource, AL_GAIN, m_musicGain.currentGain ) );
 }
 
 void SoundManager::playMusic( unsigned short level )
@@ -501,7 +495,7 @@ void SoundManager::playMusic( unsigned short level )
         ( ( level > 0 ? level - 1 : 0 ) % kMusicTrackCount ) );
     const unsigned short trackNum = static_cast<unsigned short>( trackIdx + 1 );
 
-    if ( m_musicPlaying && !m_inHelpMusic && !m_inVictoryMusic && m_currentMusicTrack == trackNum )
+    if ( m_musicPlaying && !m_musicGain.inHelpMusic && !m_musicGain.inVictoryMusic && m_currentMusicTrack == trackNum )
         return;
 
     // Lazy-decode level music track on first use (keeps startup instant)
@@ -516,13 +510,12 @@ void SoundManager::playMusic( unsigned short level )
     alec( alSourcei( m_musicSource, AL_BUFFER, static_cast<ALint>( m_musicBuffers[ trackIdx ] ) ) );
     alec( alSourcei( m_musicSource, AL_LOOPING, AL_TRUE ) );
 
-    const float target = m_musicMuted ? 0.0f : ( ( m_musicDucked || m_tempDuckRemaining > 0.0 ) ? kMusicDuckedGain : kMusicNormalGain );
-    applyMusicGain( target );
+    m_musicGain.inHelpMusic = false;
+    m_musicGain.inVictoryMusic = false;
+    applyMusicGain( MusicGain::computeTargetMusicGain( m_musicGain ) );
     alec( alSourcePlay( m_musicSource ) );
 
     m_currentMusicTrack = trackNum;
-    m_inHelpMusic = false;
-    m_inVictoryMusic = false;
     m_musicPlaying = true;
 }
 
@@ -531,7 +524,7 @@ void SoundManager::playHelpMusic()
     if ( m_musicSource == 0 )
         return;
 
-    if ( m_musicPlaying && m_inHelpMusic )
+    if ( m_musicPlaying && m_musicGain.inHelpMusic )
         return;
 
     if ( m_helpMusicBuffer == 0 )
@@ -544,11 +537,11 @@ void SoundManager::playHelpMusic()
     alec( alSourcei( m_musicSource, AL_BUFFER, static_cast<ALint>( m_helpMusicBuffer ) ) );
     alec( alSourcei( m_musicSource, AL_LOOPING, AL_TRUE ) );
 
-    applyMusicGain( m_musicMuted ? 0.0f : kMusicHelpGain );
+    m_musicGain.inHelpMusic = true;
+    m_musicGain.inVictoryMusic = false;
+    applyMusicGain( MusicGain::computeTargetMusicGain( m_musicGain ) );
     alec( alSourcePlay( m_musicSource ) );
 
-    m_inHelpMusic = true;
-    m_inVictoryMusic = false;
     m_musicPlaying = true;
 }
 
@@ -557,7 +550,7 @@ void SoundManager::playVictoryMusic()
     if ( m_musicSource == 0 )
         return;
 
-    if ( m_musicPlaying && m_inVictoryMusic )
+    if ( m_musicPlaying && m_musicGain.inVictoryMusic )
         return;
 
     if ( m_victoryMusicBuffer == 0 )
@@ -570,11 +563,11 @@ void SoundManager::playVictoryMusic()
     alec( alSourcei( m_musicSource, AL_BUFFER, static_cast<ALint>( m_victoryMusicBuffer ) ) );
     alec( alSourcei( m_musicSource, AL_LOOPING, AL_TRUE ) );
 
-    applyMusicGain( m_musicMuted ? 0.0f : kMusicVictoryGain );
+    m_musicGain.inHelpMusic = false;
+    m_musicGain.inVictoryMusic = true;
+    applyMusicGain( MusicGain::computeTargetMusicGain( m_musicGain ) );
     alec( alSourcePlay( m_musicSource ) );
 
-    m_inHelpMusic = false;
-    m_inVictoryMusic = true;
     m_musicPlaying = true;
 }
 
@@ -586,67 +579,43 @@ void SoundManager::stopMusic()
         alec( alSourcei( m_musicSource, AL_BUFFER, 0 ) );
     }
     m_musicPlaying = false;
-    m_inHelpMusic = false;
-    m_inVictoryMusic = false;
+    m_musicGain.inHelpMusic = false;
+    m_musicGain.inVictoryMusic = false;
     m_currentMusicTrack = 0;
 }
 
 void SoundManager::setMusicDucked( bool ducked )
 {
-    m_musicDucked = ducked;
+    m_musicGain.ducked = ducked;
 }
 
 void SoundManager::duckMusicTemporarily( double durationSec )
 {
-    if ( durationSec > m_tempDuckRemaining )
-        m_tempDuckRemaining = durationSec;
+    if ( durationSec > m_musicGain.tempDuckRemaining )
+        m_musicGain.tempDuckRemaining = durationSec;
 
     // Drop immediately so fanfares/sirens are crisp from the first millisecond
-    if ( !m_musicMuted && m_currentMusicGain > kMusicDuckedGain )
-        applyMusicGain( kMusicDuckedGain );
+    const MusicGain::MusicGainConfig cfg {};
+    if ( !m_musicGain.muted && !m_musicGain.inHelpMusic && !m_musicGain.inVictoryMusic &&
+         m_musicGain.currentGain > cfg.duckedGain )
+    {
+        applyMusicGain( cfg.duckedGain );
+    }
 }
 
 void SoundManager::toggleMusicMute()
 {
-    m_musicMuted = !m_musicMuted;
-    if ( m_musicMuted )
-    {
-        applyMusicGain( 0.0f );
-    }
-    else
-    {
-        const float baseGain = m_inHelpMusic ? kMusicHelpGain : ( m_inVictoryMusic ? kMusicVictoryGain : kMusicNormalGain );
-        const float target = ( !m_inHelpMusic && !m_inVictoryMusic && ( m_musicDucked || m_tempDuckRemaining > 0.0 ) ) ? kMusicDuckedGain : baseGain;
-        applyMusicGain( target );
-    }
+    m_musicGain.muted = !m_musicGain.muted;
+    applyMusicGain( MusicGain::computeTargetMusicGain( m_musicGain ) );
 }
 
 void SoundManager::updateMusic( double dtSec )
 {
-    if ( !m_musicPlaying || m_musicSource == 0 || dtSec <= 0.0 )
+    if ( !m_musicPlaying || m_musicSource == 0 )
         return;
 
-    const double clampedDt = ( std::min )( dtSec, 0.1 );
-    if ( m_tempDuckRemaining > 0.0 )
-    {
-        m_tempDuckRemaining = ( std::max )( 0.0, m_tempDuckRemaining - clampedDt );
-    }
-
-    const float baseGain = m_inHelpMusic ? kMusicHelpGain : ( m_inVictoryMusic ? kMusicVictoryGain : kMusicNormalGain );
-    const float target = m_musicMuted
-        ? 0.0f
-        : ( ( !m_inHelpMusic && !m_inVictoryMusic && ( m_musicDucked || m_tempDuckRemaining > 0.0 ) ) ? kMusicDuckedGain : baseGain );
-
-    const float diff = target - m_currentMusicGain;
-    if ( std::abs( diff ) < 1e-4f )
-        return;
-
-    const float maxStep = kMusicGainSlewPerSec * static_cast<float>( clampedDt );
-    const float nextGain = ( std::abs( diff ) <= maxStep )
-        ? target
-        : ( m_currentMusicGain + ( diff > 0.0f ? maxStep : -maxStep ) );
-
-    applyMusicGain( nextGain );
+    if ( MusicGain::stepMusicGain( m_musicGain, dtSec ) )
+        applyMusicGain( m_musicGain.currentGain );
 }
 
 void SoundManager::playRocket() const
