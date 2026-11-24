@@ -338,8 +338,12 @@ void RenderWindow::onPaint( wxPaintEvent & )
 
 void RenderWindow::onIdle( wxIdleEvent &event )
 {
-    if ( !IsShownOnScreen() )
+    const auto* topLevel = wxDynamicCast( wxGetTopLevelParent( this ), wxTopLevelWindow );
+    if ( !IsShownOnScreen() || ( topLevel && topLevel->IsIconized() ) )
     {
+        if ( m_timer )
+            m_timer->start();
+        FramePacing::resetFrameTiming( m_framePacer );
         wxMilliSleep( 25 );
         event.RequestMore();
         return;
