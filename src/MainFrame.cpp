@@ -16,6 +16,7 @@
 // clang-format off
 BEGIN_EVENT_TABLE( MainFrame, wxFrame )
     EVT_CLOSE( MainFrame::onClose )
+    EVT_ACTIVATE( MainFrame::onActivate )
     EVT_COMMAND( wxID_ANY, wxEVT_CURRENT_SCORE_INCREASED, MainFrame::onScoreIncreased )
     EVT_COMMAND( wxID_ANY, wxEVT_ROUND_COMPLETED, MainFrame::onRoundCompleted )
     EVT_COMMAND( wxID_ANY, wxEVT_VIDEO_PLAY, MainFrame::onVideoStarted )
@@ -60,7 +61,7 @@ void MainFrame::init()
     
     const auto &size = GetSize();
 
-    m_renderSurface = new RenderWindow( this, wxID_ANY, nullptr, wxSize( 800, size.y ) );
+    m_renderSurface = new RenderWindow( this, wxID_ANY, nullptr, wxSize( 800, size.y ), wxBORDER_NONE | wxWANTS_CHARS );
     m_controlPanel = new ControlPanel::Panel( this, wxID_ANY, wxPoint( 800, 0 ), wxSize( size.x - 800, size.y ) );
 
     auto *hSizer = new wxBoxSizer( wxHORIZONTAL );
@@ -116,6 +117,13 @@ void MainFrame::onClose( wxCloseEvent &event )
     event.Skip();
 }
 
+void MainFrame::onActivate( wxActivateEvent &event )
+{
+    if ( event.GetActive() && m_renderSurface && m_renderSurface->IsShownOnScreen() )
+        m_renderSurface->SetFocus();
+    event.Skip();
+}
+
 void MainFrame::onScoreIncreased( wxCommandEvent& )
 {
     m_controlPanel->increaseScore();
@@ -123,6 +131,10 @@ void MainFrame::onScoreIncreased( wxCommandEvent& )
 
 void MainFrame::onChildWndInitialized( wxCommandEvent& )
 {
+    if ( !m_renderSurface )
+        return;
+
+    m_renderSurface->SetFocus();
     m_renderSurface->playIntro();
 }
 

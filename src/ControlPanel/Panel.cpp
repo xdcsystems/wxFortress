@@ -34,6 +34,7 @@ END_EVENT_TABLE()
 Panel::Panel( wxWindow *parent, wxWindowID id, const wxPoint &pos, const wxSize &size, long style, const wxString &name )
   : wxWindow( parent, id, pos, size, style, name )
 {
+    SetCanFocus( false );
     Hide();
     init();
 }

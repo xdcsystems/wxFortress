@@ -579,6 +579,12 @@ void RenderWindow::onMouseMove( wxMouseEvent &event )
 
 void RenderWindow::onKeyPressed( wxKeyEvent &event )
 {
+    if ( event.AltDown() )
+    {
+        event.Skip();
+        return;
+    }
+
     if ( m_state != State::PLAY && ( event.GetKeyCode() == 'M' || event.GetKeyCode() == 'm' ) )
     {
         if ( m_soundManager )
@@ -721,6 +727,8 @@ void RenderWindow::onRoundCompleted( wxCommandEvent &event )
 
 void RenderWindow::onBallLost( wxCommandEvent &event )
 {
+    if ( m_shapesManager )
+        m_shapesManager->stop();
     m_soundManager->playBallLost();
     m_state = State::NEWROUND;
 

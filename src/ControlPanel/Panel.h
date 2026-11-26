@@ -28,6 +28,9 @@ namespace ControlPanel
                 long style = wxBORDER_NONE,
                 const wxString& name = wxASCII_STR( wxPanelNameStr ) );
 
+            bool AcceptsFocus() const override { return false; }
+            bool AcceptsFocusFromKeyboard() const override { return false; }
+
             void paintLaunched();
             void activate();
             void reset();
