@@ -10,7 +10,12 @@ using std::chrono::duration_cast;
 
 Video::Video( Movie &movie )
   : m_movie( movie )
-{}
+{
+    std::for_each( m_pictQ.begin(), m_pictQ.end(), []( Picture &pic ) {
+        pic.frame = AVFramePtr { av_frame_alloc() };
+        pic.pts = nanoseconds::min();
+    } );
+}
 
 int Video::start()
 {
@@ -20,10 +25,11 @@ int Video::start()
         ~QueueAbortGuard() { queue.abort(); }
     } abortGuard { m_packets };
 
-    std::for_each( m_pictQ.begin(), m_pictQ.end(), []( Picture &pic ) {
-        pic.frame = AVFramePtr { av_frame_alloc() };
-        pic.pts = nanoseconds::min();
-    } );
+    for ( const Picture &pic : m_pictQ )
+    {
+        if ( !pic.frame )
+            return AVERROR( ENOMEM );
+    }
 
     // Prefill the codec buffer.
     do
@@ -48,7 +54,7 @@ int Video::start()
     if ( !frame )
         return AVERROR( ENOMEM );
 
-    while ( !m_movie.m_quit.load( std::memory_order_relaxed ) )
+    while ( !m_movie.m_quit.load( std::memory_order_acquire ) )
     {
         size_t writeIdx = m_pictQWrite.load( std::memory_order_relaxed );
         Picture *vp = &m_pictQ[ writeIdx ];
@@ -108,11 +114,14 @@ int Video::start()
         if ( nextWriteIdx == m_pictQRead.load( std::memory_order_acquire ) )
         {
             std::unique_lock<std::mutex> lock { m_pictQMutex };
-            while ( nextWriteIdx == m_pictQRead.load( std::memory_order_acquire ) && !m_movie.m_quit.load( std::memory_order_relaxed ) )
+            while ( nextWriteIdx == m_pictQRead.load( std::memory_order_acquire ) && !m_movie.m_quit.load( std::memory_order_acquire ) )
             {
                 m_pictQCond.wait( lock );
             }
         }
+
+        if ( m_movie.m_quit.load( std::memory_order_acquire ) )
+            break;
 
         // Put the frame in the queue to be loaded into a texture and displayed
         // by the rendering thread.
@@ -146,7 +155,7 @@ std::pair<AVFrame *, int64_t> Video::currentFrame()
         currentIdx = nextIdx;
     }
 
-    if ( m_movie.m_quit.load( std::memory_order_relaxed ) )
+    if ( m_movie.m_quit.load( std::memory_order_acquire ) )
         return { nullptr, 0 };
 
     if ( currentIdx != readIdx )

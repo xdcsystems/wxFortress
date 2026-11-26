@@ -1,5 +1,7 @@
 #pragma once
 
+#include "IntroSkipHold.hpp"
+
 // Forward declarations
 class wxGLCanvas;
 class TextRenderer;
@@ -21,6 +23,9 @@ class MediaManager final
         void reset();
         void playIntro();
         void stop();
+        void onSkipKeyDown();
+        void onSkipKeyUp();
+        void cancelSkipHold();
         bool needRefresh();
         void renderFrame();
 
@@ -45,5 +50,10 @@ class MediaManager final
         wxCommandEvent m_eventMediaPlay;
         wxCommandEvent m_eventMediaFinished;
 
+        bool m_isPlaying { false };
+        bool m_skipOverlayDirty { false };
+        int m_logicalWidth { 0 };
+        double m_lastOverlayRefreshSec { -1.0 };
+        IntroSkipHold::State m_skipHold {};
         std::pair<AVFrame*, int64_t> m_currentFrame { nullptr, 0 };
 };

@@ -42,6 +42,7 @@ class Audio
         PacketQueue<2 * 1024 * 1024> m_packets;
 
         nanoseconds m_currentPts { 0 };
+        nanoseconds m_publishedPts { 0 };
         nanoseconds m_deviceStartTime { nanoseconds::min() };
 
         AVFramePtr m_decodedFrame;

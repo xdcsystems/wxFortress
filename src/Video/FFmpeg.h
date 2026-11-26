@@ -55,6 +55,12 @@ struct AVFrameDeleter
 };
 using AVFramePtr = std::unique_ptr<AVFrame, AVFrameDeleter>;
 
+struct AVPacketDeleter
+{
+        void operator() ( AVPacket *ptr ) { av_packet_free( &ptr ); }
+};
+using AVPacketPtr = std::unique_ptr<AVPacket, AVPacketDeleter>;
+
 struct SwrContextDeleter
 {
         void operator() ( SwrContext *ptr ) { swr_free( &ptr ); }

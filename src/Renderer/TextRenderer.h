@@ -33,6 +33,7 @@ class TextRenderer
         void resize( const glm::mat4& projection );
         void renderFrame();
         void print( const std::string &text, int x, int y, const glm::vec2& size, glm::vec3 color = glm::vec3( 1.0f ) );
+        void drawProgressArc( float cx, float cy, float radius, float thickness, float progress, const glm::vec4& baseColor, const glm::vec4& fillColor );
         void cleanup();
 
         void switchToFinishState( unsigned short stage );
@@ -46,9 +47,11 @@ class TextRenderer
 
         unsigned int m_vertexBufferID { 0 };
         unsigned int m_UVBufferID { 0 };
+        unsigned int m_arcBufferID { 0 };
         unsigned int m_uniformID { 0 };
         unsigned int m_attrVertex { 0 };
         unsigned int m_attrUVs { 0 };
+        int m_attrArcVertex { -1 };
 
         unsigned short m_col { 0 };
         unsigned short m_row { 0 };
@@ -71,6 +74,7 @@ class TextRenderer
         TextRendererFont m_fontType = TextRendererFont::NORMAL;
 
         shaderPtr m_shader;
+        shaderPtr m_arcShader;
 
         inline static std::map<TextRendererFont, std::pair<float, texture2DPtr> > s_fontData {
             { TextRendererFont::NORMAL, { 8.f, nullptr } },

@@ -7,6 +7,8 @@
     #include <wx/wx.h>
 #endif
 
+#include <algorithm>
+#include <chrono>
 #include <condition_variable>
 
 #include <GL/glew.h>
@@ -21,6 +23,14 @@
 
 DEFINE_LOCAL_EVENT_TYPE( wxEVT_VIDEO_PLAY )
 DEFINE_LOCAL_EVENT_TYPE( wxEVT_VIDEO_FINISHED )
+
+namespace
+{
+    double steadyNowSec()
+    {
+        return std::chrono::duration<double>( std::chrono::steady_clock::now().time_since_epoch() ).count();
+    }
+}
 
 MediaManager::MediaManager( wxGLCanvas* canvas, const textRedererPtr& textRenderer )
   : m_textRenderer( textRenderer )
@@ -40,6 +50,12 @@ MediaManager::~MediaManager()
 
 void MediaManager::reset()
 {
+    m_isPlaying = false;
+    m_skipOverlayDirty = false;
+    m_lastOverlayRefreshSec = -1.0;
+    IntroSkipHold::reset( m_skipHold );
+    m_currentFrame = { nullptr, std::numeric_limits<int64_t>::min() };
+    m_duration = -1;
     if ( m_movie )
     {
         m_movie->close();
@@ -56,17 +72,54 @@ void MediaManager::playIntro()
 
 void MediaManager::showSkipMessage()
 {
-    m_textRenderer->print( "Press R key for skip",
-        m_videoRenderer->viewWidth() - 300,
-        31,
-        glm::vec2( 14.f, 16.f ),
+    if ( !m_videoRenderer || !m_textRenderer )
+        return;
+
+    constexpr const char kSkipText[] = "Hold R to skip";
+    constexpr size_t kSkipKeyIndex = 5;
+    static_assert( kSkipText[ kSkipKeyIndex ] == 'R', "kSkipKeyIndex must point to 'R'" );
+
+    constexpr glm::vec2 kCharSize( 14.f, 16.f );
+    constexpr int kTextY = 31;
+    const int logicalW = ( m_logicalWidth > 0 )
+        ? m_logicalWidth
+        : ( m_canvas ? m_canvas->GetClientSize().GetWidth() : m_videoRenderer->viewWidth() );
+    const int textX = std::max( 0, logicalW - 230 );
+
+    m_textRenderer->print( kSkipText,
+        textX,
+        kTextY,
+        kCharSize,
         glm::vec3( .6f, .6f, .6f ) );
+
+    // Font18.png 'R' glyph ink spans x=2..10 (center 6.5) and top-down y=1..11 (GL bottom-up center 9.5)
+    // with max luminance 128/255 (~0.502), so textColor=0.6 renders at ~0.301 on black.
+    const float cx = static_cast<float>( textX ) + static_cast<float>( kSkipKeyIndex ) * kCharSize.x + 6.5f;
+    const float cy = static_cast<float>( kTextY ) + 9.5f;
+    const float progress = m_skipHold.holding ? static_cast<float>( m_skipHold.progress ) : 0.0f;
+    m_textRenderer->drawProgressArc(
+        cx,
+        cy,
+        12.5f,
+        1.2f,
+        progress,
+        glm::vec4( 0.30f, 0.30f, 0.30f, 0.38f ),
+        glm::vec4( 0.30f, 0.30f, 0.30f, 1.0f ) );
 }
 
 void MediaManager::open( std::string filename )
 {
+    if ( !m_movie )
+    {
+        m_movie = std::make_shared<Movie>();
+    }
+    m_currentFrame = { nullptr, std::numeric_limits<int64_t>::min() };
+    m_duration = -1;
+    m_skipOverlayDirty = false;
+    m_lastOverlayRefreshSec = -1.0;
+    IntroSkipHold::reset( m_skipHold );
+    m_isPlaying = true;
     m_movie->open( std::move( filename ) );
-    m_currentFrame.second = std::numeric_limits<int64_t>::min();
 }
 
 void MediaManager::stop()
@@ -74,14 +127,44 @@ void MediaManager::stop()
     close();
 }
 
+void MediaManager::onSkipKeyDown()
+{
+    if ( !m_isPlaying || !m_movie )
+        return;
+
+    if ( IntroSkipHold::onKeyDown( m_skipHold, steadyNowSec() ) )
+    {
+        m_skipOverlayDirty = true;
+    }
+}
+
+void MediaManager::onSkipKeyUp()
+{
+    if ( IntroSkipHold::onKeyUp( m_skipHold ) )
+    {
+        m_skipOverlayDirty = true;
+    }
+}
+
+void MediaManager::cancelSkipHold()
+{
+    onSkipKeyUp();
+}
+
 void MediaManager::close()
 {
+    if ( !m_isPlaying || !m_movie )
+        return;
+
     reset();
     m_eventHandler->AddPendingEvent( m_eventMediaFinished );
 }
 
 void MediaManager::resize( const wxSize& size )
 {
+    if ( size.GetWidth() > 0 )
+        m_logicalWidth = size.GetWidth();
+
     if ( !m_canvas->IsShownOnScreen() || !m_movie )
         return;
 
@@ -99,7 +182,17 @@ void MediaManager::resize( const wxSize& size )
 
 bool MediaManager::needRefresh()
 {
+    if ( !m_isPlaying || !m_movie )
+        return false;
+
     if ( m_movie->isFinished() )
+    {
+        close();
+        return false;
+    }
+
+    const double now = steadyNowSec();
+    if ( IntroSkipHold::update( m_skipHold, now ) )
     {
         close();
         return false;
@@ -110,15 +203,35 @@ bool MediaManager::needRefresh()
         m_duration = m_movie->duration();
     }
 
+    bool refreshed = false;
     const auto [ frame, pts ] = m_movie->currentFrame();
     if ( frame && m_currentFrame.second != pts )
     {
         m_currentFrame.first = frame;
         m_currentFrame.second = pts;
-
-        return true;
+        refreshed = true;
     }
-    return false;
+
+    if ( m_skipOverlayDirty )
+    {
+        m_skipOverlayDirty = false;
+        if ( m_currentFrame.first )
+        {
+            m_lastOverlayRefreshSec = now;
+            refreshed = true;
+        }
+    }
+    else if ( m_skipHold.holding && m_currentFrame.first )
+    {
+        constexpr double kOverlayFrameIntervalSec = 1.0 / 60.0;
+        if ( refreshed || m_lastOverlayRefreshSec < 0.0 || ( now - m_lastOverlayRefreshSec ) >= kOverlayFrameIntervalSec )
+        {
+            m_lastOverlayRefreshSec = now;
+            refreshed = true;
+        }
+    }
+
+    return refreshed;
 }
 
 void MediaManager::renderFrame()
@@ -145,8 +258,10 @@ void MediaManager::renderFrame()
         }
     }
 
-    if ( m_currentFrame.second > s_timerInterval && 
-         m_currentFrame.second < m_duration - s_timerInterval )
+    const bool inHintWindow = ( m_duration > 0 &&
+                                m_currentFrame.second > s_timerInterval &&
+                                m_currentFrame.second < m_duration - s_timerInterval );
+    if ( inHintWindow || m_skipHold.holding )
         showSkipMessage();
 }
 

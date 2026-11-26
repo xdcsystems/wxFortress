@@ -7,6 +7,9 @@
     #include <wx/wx.h>
 #endif
 
+#include <algorithm>
+#include <array>
+#include <cmath>
 #include <vector>
 #include <cstring>
 
@@ -45,9 +48,92 @@ TextRenderer::TextRenderer( wxWindow* parent )
 
     GL_CHECK( glGenBuffers( 1, &m_vertexBufferID ) );
     GL_CHECK( glGenBuffers( 1, &m_UVBufferID ) );
+    GL_CHECK( glGenBuffers( 1, &m_arcBufferID ) );
+    static constexpr std::array<glm::vec2, 4> kUnitQuad {{
+        { -1.0f, -1.0f },
+        {  1.0f, -1.0f },
+        { -1.0f,  1.0f },
+        {  1.0f,  1.0f }
+    }};
+    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, m_arcBufferID ) );
+    GL_CHECK( glBufferData( GL_ARRAY_BUFFER, kUnitQuad.size() * sizeof( glm::vec2 ), kUnitQuad.data(), GL_STATIC_DRAW ) );
+    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, 0 ) );
 
     GL_CHECK( m_attrVertex = glGetAttribLocation( m_shader->ID, "vertex" ) );
     GL_CHECK( m_attrUVs = glGetAttribLocation( m_shader->ID, "vertexUV" ) );
+
+    static constexpr const char* kArcVertexSrc =
+        "#version 110\n"
+        "attribute vec2 vertex;\n"
+        "uniform mat4 projection;\n"
+        "uniform vec2 uCenter;\n"
+        "uniform float uHalfExtent;\n"
+        "varying vec2 vLocalPos;\n"
+        "void main() {\n"
+        "    vLocalPos = vertex * uHalfExtent;\n"
+        "    gl_Position = projection * vec4( uCenter + vLocalPos, 0.0, 1.0 );\n"
+        "}\n";
+    static constexpr const char* kArcFragmentSrc =
+        "#version 110\n"
+        "varying vec2 vLocalPos;\n"
+        "uniform float uRadius;\n"
+        "uniform float uThickness;\n"
+        "uniform float uProgress;\n"
+        "uniform vec4 uBaseColor;\n"
+        "uniform vec4 uFillColor;\n"
+        "void main() {\n"
+        "    const float kPi = 3.14159265;\n"
+        "    const float kTwoPi = 6.2831853;\n"
+        "    float lenSq = dot( vLocalPos, vLocalPos );\n"
+        "    float dist = abs( sqrt( lenSq ) - uRadius );\n"
+        "    float halfThick = max( uThickness * 0.5, 0.1 );\n"
+        "    float radialAA = 0.5;\n"
+        "    float ring = 1.0 - smoothstep( halfThick - radialAA, halfThick + radialAA, dist );\n"
+        "    if ( ring <= 0.001 ) {\n"
+        "        discard;\n"
+        "    }\n"
+        "    float fill = 0.0;\n"
+        "    if ( uProgress >= 1.0 ) {\n"
+        "        fill = 1.0;\n"
+        "    } else if ( uProgress > 0.0 && lenSq > 1e-6 ) {\n"
+        "        float ang = atan( vLocalPos.x, vLocalPos.y );\n"
+        "        if ( ang < 0.0 ) {\n"
+        "            ang += kTwoPi;\n"
+        "        }\n"
+        "        float edge = uProgress * kTwoPi;\n"
+        "        float halfSpan = 0.5 * edge;\n"
+        "        float delta = ang - halfSpan;\n"
+        "        if ( delta > kPi ) {\n"
+        "            delta -= kTwoPi;\n"
+        "        } else if ( delta < -kPi ) {\n"
+        "            delta += kTwoPi;\n"
+        "        }\n"
+        "        float angDist = abs( delta ) - halfSpan;\n"
+        "        float angAA = max( 1.25 / max( uRadius, 1.0 ), 0.001 );\n"
+        "        float rawFill = 1.0 - smoothstep( -0.5 * angAA, 0.5 * angAA, angDist );\n"
+        "        float startRamp = clamp( edge / angAA, 0.0, 1.0 );\n"
+        "        float endRamp = clamp( ( kTwoPi - edge ) / angAA, 0.0, 1.0 );\n"
+        "        fill = mix( 1.0, rawFill * startRamp, endRamp );\n"
+        "    }\n"
+        "    vec4 col = mix( uBaseColor, uFillColor, fill );\n"
+        "    gl_FragColor = vec4( col.rgb, col.a * ring );\n"
+        "}\n";
+    m_arcShader = std::make_shared<Shader>();
+    m_arcShader->compile( kArcVertexSrc, kArcFragmentSrc );
+    if ( m_arcShader->ID != 0 )
+    {
+        GLint linked = GL_FALSE;
+        GL_CHECK( glGetProgramiv( m_arcShader->ID, GL_LINK_STATUS, &linked ) );
+        if ( linked == GL_TRUE )
+        {
+            GL_CHECK( m_attrArcVertex = glGetAttribLocation( m_arcShader->ID, "vertex" ) );
+        }
+        else
+        {
+            GL_CHECK( glDeleteProgram( m_arcShader->ID ) );
+            m_arcShader->ID = 0;
+        }
+    }
 
     m_timer = std::make_shared<Timer>( false );
 }
@@ -59,8 +145,26 @@ TextRenderer::~TextRenderer()
 
 void TextRenderer::cleanup()
 {
-    GL_CHECK( glDeleteBuffers( 1, &m_vertexBufferID ) );
-    GL_CHECK( glDeleteBuffers( 1, &m_UVBufferID ) );
+    if ( m_vertexBufferID != 0 )
+    {
+        GL_CHECK( glDeleteBuffers( 1, &m_vertexBufferID ) );
+        m_vertexBufferID = 0;
+    }
+    if ( m_UVBufferID != 0 )
+    {
+        GL_CHECK( glDeleteBuffers( 1, &m_UVBufferID ) );
+        m_UVBufferID = 0;
+    }
+    if ( m_arcBufferID != 0 )
+    {
+        GL_CHECK( glDeleteBuffers( 1, &m_arcBufferID ) );
+        m_arcBufferID = 0;
+    }
+    if ( m_arcShader && m_arcShader->ID != 0 )
+    {
+        GL_CHECK( glDeleteProgram( m_arcShader->ID ) );
+        m_arcShader->ID = 0;
+    }
     for ( auto& entry : s_fontData )
         entry.second.second.reset();
 }
@@ -68,6 +172,10 @@ void TextRenderer::cleanup()
 void TextRenderer::resize( const glm::mat4& projection )
 {
     m_shader->setMatrix4( "projection", projection, true );
+    if ( m_arcShader && m_arcShader->ID != 0 && m_attrArcVertex >= 0 )
+    {
+        m_arcShader->setMatrix4( "projection", projection, true );
+    }
 }
 
 void TextRenderer::switchToFinishState( unsigned short stage )
@@ -205,6 +313,37 @@ void TextRenderer::print( const std::string& text, int x, int y, const glm::vec2
 
     GL_CHECK( glDisableVertexAttribArray( m_attrVertex ) );
     GL_CHECK( glDisableVertexAttribArray( m_attrUVs ) );
+}
+
+void TextRenderer::drawProgressArc( float cx, float cy, float radius, float thickness, float progress, const glm::vec4& baseColor, const glm::vec4& fillColor )
+{
+    if ( !m_arcShader || m_arcShader->ID == 0 || m_attrArcVertex < 0 || m_arcBufferID == 0 )
+        return;
+
+    if ( !std::isfinite( cx ) || !std::isfinite( cy ) ||
+         !std::isfinite( radius ) || !std::isfinite( thickness ) ||
+         !std::isfinite( progress ) ||
+         radius <= 0.0f || thickness <= 0.0f )
+        return;
+
+    const float clamped = std::clamp( progress, 0.0f, 1.0f );
+    const float halfExtent = radius + thickness * 0.5f + 2.0f;
+
+    m_arcShader->use();
+    m_arcShader->setVector2f( "uCenter", cx, cy );
+    m_arcShader->setFloat( "uHalfExtent", halfExtent );
+    m_arcShader->setFloat( "uRadius", radius );
+    m_arcShader->setFloat( "uThickness", thickness );
+    m_arcShader->setFloat( "uProgress", clamped );
+    m_arcShader->setVector4f( "uBaseColor", baseColor );
+    m_arcShader->setVector4f( "uFillColor", fillColor );
+
+    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, m_arcBufferID ) );
+    GL_CHECK( glVertexAttribPointer( static_cast<GLuint>( m_attrArcVertex ), 2, GL_FLOAT, GL_FALSE, 0, nullptr ) );
+    GL_CHECK( glEnableVertexAttribArray( static_cast<GLuint>( m_attrArcVertex ) ) );
+    GL_CHECK( glDrawArrays( GL_TRIANGLE_STRIP, 0, 4 ) );
+    GL_CHECK( glDisableVertexAttribArray( static_cast<GLuint>( m_attrArcVertex ) ) );
+    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, 0 ) );
 }
 
 void TextRenderer::renderFinishMessage()

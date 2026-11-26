@@ -21,7 +21,7 @@ class Movie
 
         int open( std::string &&filename );
         void close();
-        bool isFinished() const { return m_quit.load( std::memory_order_relaxed ) == true; }
+        bool isFinished() const { return m_quit.load( std::memory_order_acquire ); }
 
         std::pair<AVFrame *, int64_t> currentFrame();
         int64_t duration();
@@ -47,7 +47,8 @@ class Movie
         AVFormatContextPtr m_fmtCtx;
 
         microseconds m_clockBase { microseconds::min() };
-        SyncMaster m_sync { SyncMaster::Default };
+        std::atomic<int64_t> m_durationNs { -1 };
+        std::atomic<SyncMaster> m_sync { SyncMaster::Default };
 
         std::atomic<bool> m_quit { false };
 

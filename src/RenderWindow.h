@@ -64,6 +64,8 @@ class RenderWindow final : public wxGLCanvas
         void onPaint( wxPaintEvent& );
         void onSize( wxSizeEvent& );
         void onKeyPressed( wxKeyEvent& );
+        void onKeyReleased( wxKeyEvent& );
+        void onKillFocus( wxFocusEvent& );
         void onMouseMove( wxMouseEvent& );
         void onWndInitialized( wxCommandEvent& );
         void onScoreIncreased( wxCommandEvent& );
@@ -90,9 +92,10 @@ class RenderWindow final : public wxGLCanvas
         std::shared_ptr<Overlay> m_overlay;
         std::shared_ptr <TextRenderer> m_textRenderer;
 
+        // m_soundManager must outlive m_mediaManager (OpenAL context destroyed after audio thread joins).
+        std::shared_ptr <SoundManager> m_soundManager;
         std::shared_ptr <MediaManager> m_mediaManager;
         std::shared_ptr<Shapes::ShapesManager> m_shapesManager;
-        std::shared_ptr <SoundManager> m_soundManager;
 
         std::shared_ptr<Timer> m_timer;
 

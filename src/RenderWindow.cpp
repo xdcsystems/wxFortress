@@ -51,6 +51,8 @@ DEFINE_LOCAL_EVENT_TYPE( wxEVT_RESET )
 BEGIN_EVENT_TABLE( RenderWindow, wxGLCanvas )
     EVT_PAINT( RenderWindow::onPaint )
     EVT_KEY_DOWN( RenderWindow::onKeyPressed )
+    EVT_KEY_UP( RenderWindow::onKeyReleased )
+    EVT_KILL_FOCUS( RenderWindow::onKillFocus )
     EVT_MOTION( RenderWindow::onMouseMove )
     EVT_SIZE( RenderWindow::onSize )
     EVT_COMMAND( wxID_ANY, wxEVT_CURRENT_SCORE_INCREASED, RenderWindow::onScoreIncreased )
@@ -99,6 +101,8 @@ RenderWindow::RenderWindow(
 RenderWindow::~RenderWindow()
 {
     ensureContextCurrent();
+    if ( m_mediaManager )
+        m_mediaManager->reset();
     ResourceManager::Clear();
 #if defined( _WIN32 )
     timeEndPeriod( 1 );
@@ -267,6 +271,11 @@ void RenderWindow::triggerLaunch()
 void RenderWindow::stop()
 {
     m_isRunning = false;
+    if ( m_mediaManager )
+    {
+        ensureContextCurrent();
+        m_mediaManager->reset();
+    }
     if ( m_soundManager )
     {
         m_soundManager->stopLaunchAudio();
@@ -341,6 +350,8 @@ void RenderWindow::onIdle( wxIdleEvent &event )
     const auto* topLevel = wxDynamicCast( wxGetTopLevelParent( this ), wxTopLevelWindow );
     if ( !IsShownOnScreen() || ( topLevel && topLevel->IsIconized() ) )
     {
+        if ( m_mediaManager )
+            m_mediaManager->cancelSkipHold();
         if ( m_timer )
             m_timer->start();
         FramePacing::resetFrameTiming( m_framePacer );
@@ -551,10 +562,10 @@ void RenderWindow::onKeyPressed( wxKeyEvent &event )
     {
         case State::PLAY:
             if ( event.GetKeyCode() == 'R' ||
-                event.GetKeyCode() == 'r' )
+                 event.GetKeyCode() == 'r' )
             {
-                if (m_mediaManager)
-                    m_mediaManager->stop();
+                if ( m_mediaManager )
+                    m_mediaManager->onSkipKeyDown();
             }
         break;
 
@@ -630,6 +641,23 @@ void RenderWindow::onKeyPressed( wxKeyEvent &event )
         }
         break;
     }
+}
+
+void RenderWindow::onKeyReleased( wxKeyEvent &event )
+{
+    if ( event.GetKeyCode() == 'R' || event.GetKeyCode() == 'r' )
+    {
+        if ( m_mediaManager )
+            m_mediaManager->onSkipKeyUp();
+    }
+    event.Skip();
+}
+
+void RenderWindow::onKillFocus( wxFocusEvent &event )
+{
+    if ( m_mediaManager )
+        m_mediaManager->cancelSkipHold();
+    event.Skip();
 }
 
 void RenderWindow::onScoreIncreased( wxCommandEvent &event )

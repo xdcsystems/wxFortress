@@ -6,7 +6,7 @@ set( WXFORTRESS_TEST_TARGETS )
 # 1. Analytical BallPhysics GoogleTest suite (no GUI/OpenGL required)
 if( TARGET GTest::gtest_main )
     include( GoogleTest )
-    add_executable( ut_BallPhysics test_ball_physics.cpp test_hardware_audio.cpp test_frame_pacer.cpp )
+    add_executable( ut_BallPhysics test_ball_physics.cpp test_hardware_audio.cpp test_frame_pacer.cpp test_intro_skip_hold.cpp )
     target_compile_features( ut_BallPhysics PRIVATE cxx_std_17 )
     target_include_directories(
         ut_BallPhysics
