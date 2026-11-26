@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <memory>
 #include <vector>
 
@@ -64,8 +65,10 @@ namespace Shapes
 
 
             // state
+            static constexpr size_t kVboRingSize = 3;
             unsigned short m_amount { 0 };
-            unsigned int m_VBO { 0 };
+            std::array<unsigned int, kVboRingSize> m_VBOs {};
+            size_t m_vboIdx { 0 };
 
             struct ParticleVertex
             {

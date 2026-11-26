@@ -422,12 +422,17 @@ int SoundManager::init()
 ALuint SoundManager::getFreeStereoSource() const
 {
     ALint sourceState( 0 );
-    for ( const auto source : m_stereoSource )
+    for ( size_t i = 0; i < kSfxSourceCount; ++i )
     {
+        const size_t idx = ( m_nextStereoSource + i ) % kSfxSourceCount;
+        const ALuint source = m_stereoSource[ idx ];
+        if ( source == 0 || source == m_launchSource )
+            continue;
         alec( alGetSourcei( source, AL_SOURCE_STATE, &sourceState ) );
         if ( sourceState == AL_PLAYING )
             continue;
 
+        m_nextStereoSource = ( idx + 1 ) % kSfxSourceCount;
         return source;
     }
     return 0;
@@ -437,14 +442,10 @@ void SoundManager::cleanSources()
 {
     for ( const auto source : m_stereoSource )
     {
-        ALint processed( 0 );
-        alGetSourcei( source, AL_BUFFERS_PROCESSED, &processed );
-
-        while ( processed-- )
-        {
-            ALuint buffer( 0 );
-            alSourceUnqueueBuffers( source, 1, &buffer );
-        }
+        if ( source == 0 )
+            continue;
+        alSourceStop( source );
+        alSourcei( source, AL_BUFFER, 0 );
     }
 }
 
@@ -456,7 +457,18 @@ ALuint SoundManager::playStereoSource( ALuint buffer, float gain )
     auto source = getFreeStereoSource();
     if ( source == 0 )
     {
-        source = m_stereoSource[ 0 ];
+        for ( size_t i = 0; i < kSfxSourceCount; ++i )
+        {
+            const size_t idx = ( m_nextStereoSource + i ) % kSfxSourceCount;
+            const ALuint candidate = m_stereoSource[ idx ];
+            if ( candidate != 0 && candidate != m_launchSource )
+            {
+                source = candidate;
+                m_nextStereoSource = ( idx + 1 ) % kSfxSourceCount;
+                alec( alSourceStop( source ) );
+                break;
+            }
+        }
     }
     if ( source == 0 )
         return 0;
@@ -467,14 +479,6 @@ ALuint SoundManager::playStereoSource( ALuint buffer, float gain )
     alec( alSourcei( source, AL_BUFFER, buffer ) );
 
     alec( alSourcePlay( source ) );
-
-    ALint processed( 0 );
-    alec( alGetSourcei( source, AL_BUFFERS_PROCESSED, &processed ) );
-    while ( processed-- )
-    {
-        ALuint qbuf( 0 );
-        alec( alSourceUnqueueBuffers( source, 1, &qbuf ) );
-    }
 
     return source;
 }

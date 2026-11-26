@@ -129,11 +129,11 @@ void Panel::paintLaunched()
 void Panel::render( wxDC &dc, const bitmapPtr &panel )
 {
     const auto &clientSize = GetClientSize();
+    if ( !panel || !panel->IsOk() || clientSize.x < 1 || clientSize.y < 1 )
+        return;
+
     if ( !m_mdc )
     {
-        if ( !panel || clientSize.x < 1 || clientSize.y < 1 )
-            return;
-
         m_mdc = std::make_shared<wxMemoryDC>();
         m_mdc->SetBrush( *wxBLACK_BRUSH );
     }
@@ -147,9 +147,26 @@ void Panel::render( wxDC &dc, const bitmapPtr &panel )
         m_numbersDC->SelectObject( *m_numbers );
     }
 
+    const wxRect clip = wxRect( clientSize ).Intersect( wxRect( panel->GetSize() ) );
+    if ( clip.IsEmpty() )
+        return;
+
     m_mdc->SelectObject( *panel );
 
-    dc.Blit( 0, 0, clientSize.x, clientSize.y, m_mdc.get(), 0, 0 );
+    bool blitted = false;
+    for ( wxRegionIterator upd( GetUpdateRegion() ); upd; ++upd )
+    {
+        const wxRect r = upd.GetRect().Intersect( clip );
+        if ( !r.IsEmpty() )
+        {
+            dc.Blit( r.x, r.y, r.width, r.height, m_mdc.get(), r.x, r.y );
+            blitted = true;
+        }
+    }
+    if ( !blitted )
+    {
+        dc.Blit( clip.x, clip.y, clip.width, clip.height, m_mdc.get(), clip.x, clip.y );
+    }
 
     m_mdc->SelectObject( wxNullBitmap );
 }

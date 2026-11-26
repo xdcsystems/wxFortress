@@ -92,6 +92,7 @@ class SoundManager final
 
         ALuint m_monoSource { 0 };
         ALuint m_stereoSource[ kSfxSourceCount ] {};
+        mutable size_t m_nextStereoSource { 0 };
         ALuint m_launchSource { 0 };
 
         ALuint m_musicSource { 0 };

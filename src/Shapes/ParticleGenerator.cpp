@@ -47,7 +47,8 @@ ParticleGenerator::ParticleGenerator( unsigned int amount )
 
 ParticleGenerator::~ParticleGenerator()
 {
-    GL_CHECK( glDeleteBuffers( 1, &m_VBO ) );
+    GL_CHECK( glDeleteBuffers( static_cast<GLsizei>( kVboRingSize ), m_VBOs.data() ) );
+    m_VBOs.fill( 0 );
 }
 
 void ParticleGenerator::resize( const glm::mat4& projection )
@@ -72,6 +73,8 @@ void ParticleGenerator::update( float dt, const basePtr &object, unsigned int ne
         {	// particle is alive, thus update
             particle.Position -= particle.Velocity * dt;
             particle.Color.a = std::max( 0.0f, particle.Color.a - dt * 2.5f );
+            if ( particle.Color.a <= 0.0f )
+                particle.Life = 0.0f;
         }
     }
 }
@@ -79,14 +82,14 @@ void ParticleGenerator::update( float dt, const basePtr &object, unsigned int ne
 // render all particles
 void ParticleGenerator::draw()
 {
-    if ( !m_shader || m_shader->ID == 0 || !m_texture || m_attrPos < 0 || m_attrColor < 0 || m_VBO == 0 )
+    if ( !m_shader || m_shader->ID == 0 || !m_texture || m_attrPos < 0 || m_attrColor < 0 || m_VBOs[ 0 ] == 0 )
         return;
 
     m_vertexBuf.clear();
     constexpr float kScale = 10.0f;
     for ( const auto& particle : m_particles )
     {
-        if ( particle.Life <= 0.0f )
+        if ( particle.Life <= 0.0f || particle.Color.a <= 0.0f )
             continue;
 
         const float x0 = particle.Position.x;
@@ -110,19 +113,24 @@ void ParticleGenerator::draw()
     if ( m_vertexBuf.empty() )
         return;
 
+    static_assert( sizeof( ParticleVertex ) == 8 * sizeof( float ), "ParticleVertex must be tightly packed" );
+    const auto maxBytes = static_cast<GLsizeiptr>( m_particles.size() * 6 * sizeof( ParticleVertex ) );
+    const auto usedBytes = std::min(
+        maxBytes,
+        static_cast<GLsizeiptr>( m_vertexBuf.size() * sizeof( ParticleVertex ) ) );
+    const unsigned int activeVbo = m_VBOs[ m_vboIdx ];
+    m_vboIdx = ( m_vboIdx + 1 ) % kVboRingSize;
+    if ( activeVbo == 0 || usedBytes <= 0 )
+        return;
+
     // use additive blending to give it a 'glow' effect
     GL_CHECK( glBlendFunc( GL_SRC_ALPHA, GL_ONE ) );
 
     m_shader->use();
     m_texture->bind();
 
-    static_assert( sizeof( ParticleVertex ) == 8 * sizeof( float ), "ParticleVertex must be tightly packed" );
-    const auto maxBytes = static_cast<GLsizeiptr>( static_cast<size_t>( m_amount ) * 6 * sizeof( ParticleVertex ) );
-    const auto usedBytes = static_cast<GLsizeiptr>( m_vertexBuf.size() * sizeof( ParticleVertex ) );
-
-    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, m_VBO ) );
-    // Fixed-size orphaning avoids variable-size pool churn on legacy ATI Catalyst drivers.
-    GL_CHECK( glBufferData( GL_ARRAY_BUFFER, maxBytes, nullptr, GL_STREAM_DRAW ) );
+    // Triple-buffered VBO ring avoids per-frame glBufferData(NULL) pool stalls on WDDM / legacy ATI drivers.
+    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, activeVbo ) );
     GL_CHECK( glBufferSubData( GL_ARRAY_BUFFER, 0, usedBytes, m_vertexBuf.data() ) );
 
     GL_CHECK( glVertexAttribPointer(
@@ -163,14 +171,16 @@ void ParticleGenerator::init()
 
     m_vertexBuf.reserve( static_cast<size_t>( m_amount ) * 6 );
 
-    // create VBO for per-frame streaming
-    GL_CHECK( glGenBuffers( 1, &m_VBO ) );
-    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, m_VBO ) );
-    GL_CHECK( glBufferData(
-        GL_ARRAY_BUFFER,
-        static_cast<GLsizeiptr>( static_cast<size_t>( m_amount ) * 6 * sizeof( ParticleVertex ) ),
-        nullptr,
-        GL_STREAM_DRAW ) );
+    // Pre-allocate triple-buffered VBO ring for stall-free per-frame streaming
+    const auto maxBytes = static_cast<GLsizeiptr>( m_particles.size() * 6 * sizeof( ParticleVertex ) );
+    GL_CHECK( glGenBuffers( static_cast<GLsizei>( kVboRingSize ), m_VBOs.data() ) );
+    for ( const unsigned int vbo : m_VBOs )
+    {
+        if ( vbo == 0 )
+            continue;
+        GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, vbo ) );
+        GL_CHECK( glBufferData( GL_ARRAY_BUFFER, maxBytes, nullptr, GL_STREAM_DRAW ) );
+    }
     GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, 0 ) );
 }
 

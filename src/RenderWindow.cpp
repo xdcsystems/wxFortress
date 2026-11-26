@@ -457,12 +457,31 @@ void RenderWindow::onIdle( wxIdleEvent &event )
         {
             m_shapesManager->update( dtSec );
         }
-        const auto presentStart = std::chrono::steady_clock::now();
-        render();
-        const bool syncOk = waitForVBlank();
-        const double presentMs = std::chrono::duration<double, std::milli>(
-            std::chrono::steady_clock::now() - presentStart ).count();
-        FramePacing::recordSyncDuration( m_framePacer, syncOk, presentMs );
+        if ( m_useDwmPacing )
+        {
+            render();
+            const auto syncStart = std::chrono::steady_clock::now();
+            const bool syncOk = waitForVBlank();
+            const double syncMs = std::chrono::duration<double, std::milli>(
+                std::chrono::steady_clock::now() - syncStart ).count();
+            FramePacing::recordSyncDuration( m_framePacer, syncOk, syncMs );
+            if ( !m_framePacer.paceExternally )
+            {
+                m_useDwmPacing = false;
+#if defined( _WIN32 )
+                if ( wglSwapIntervalEXT )
+                    wglSwapIntervalEXT( 1 );
+#endif
+            }
+        }
+        else
+        {
+            const auto presentStart = std::chrono::steady_clock::now();
+            render();
+            const double presentMs = std::chrono::duration<double, std::milli>(
+                std::chrono::steady_clock::now() - presentStart ).count();
+            FramePacing::recordSyncDuration( m_framePacer, true, presentMs );
+        }
 
         const bool isStaticState = ( m_state == State::PAUSE || m_state == State::HELP );
         const bool musicTransitioning = m_soundManager && m_soundManager->isMusicGainTransitioning();
