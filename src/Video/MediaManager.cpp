@@ -75,14 +75,18 @@ void MediaManager::showSkipMessage()
     if ( !m_videoRenderer || !m_textRenderer )
         return;
 
+    constexpr const char kSkipText[] = "To skip, hold R";
+    constexpr size_t kSkipKeyIndex = 14;
+    static_assert( kSkipText[ kSkipKeyIndex ] == 'R', "kSkipKeyIndex must point to 'R'" );
+
     constexpr glm::vec2 kCharSize( 14.f, 16.f );
     constexpr int kTextY = 31;
     const int logicalW = ( m_logicalWidth > 0 )
         ? m_logicalWidth
         : ( m_canvas ? m_canvas->GetClientSize().GetWidth() : m_videoRenderer->viewWidth() );
-    const int textX = std::max( 0, logicalW - 300 );
+    const int textX = std::max( 0, logicalW - 250 );
 
-    m_textRenderer->print( "Press R key for skip",
+    m_textRenderer->print( kSkipText,
         textX,
         kTextY,
         kCharSize,
@@ -90,16 +94,15 @@ void MediaManager::showSkipMessage()
 
     if ( m_skipHold.holding && m_skipHold.progress > 0.0 )
     {
-        // 'R' is at index 6 in "Press R key for skip"
-        const float cx = static_cast<float>( textX ) + 6.5f * kCharSize.x;
+        const float cx = static_cast<float>( textX ) + ( static_cast<float>( kSkipKeyIndex ) + 0.5f ) * kCharSize.x;
         const float cy = static_cast<float>( kTextY ) + 0.5f * kCharSize.y;
         m_textRenderer->drawProgressArc(
             cx,
             cy,
-            13.5f,
-            16.0f,
+            14.0f,
+            15.2f,
             static_cast<float>( m_skipHold.progress ),
-            glm::vec4( 0.85f, 0.85f, 0.85f, 0.95f ) );
+            glm::vec4( 0.72f, 0.72f, 0.72f, 0.95f ) );
     }
 }
 
