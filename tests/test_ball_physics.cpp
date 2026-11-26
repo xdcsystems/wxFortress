@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -122,6 +123,24 @@ TEST_F( BallPhysicsTest, ZeroVelocityAndNormalizeSafety )
     (void)stepBall( ball, paddle, bricks, 0.016f, cfg );
     EXPECT_TRUE( isFiniteVec( ball.center ) );
     EXPECT_TRUE( isFiniteVec( ball.vel ) );
+    const Vec2 defaultVec;
+    EXPECT_FLOAT_EQ( defaultVec.x, 0.0f );
+    EXPECT_FLOAT_EQ( defaultVec.y, 0.0f );
+
+    const float nan = std::numeric_limits<float>::quiet_NaN();
+    const float inf = std::numeric_limits<float>::infinity();
+    const Vec2 nNan = normalizeSafe( { nan, 1.0f }, { 0.0f, 1.0f } );
+    EXPECT_FLOAT_EQ( nNan.x, 0.0f );
+    EXPECT_FLOAT_EQ( nNan.y, 1.0f );
+    const Vec2 nInf = normalizeSafe( { inf, 1.0f }, { 0.0f, 1.0f } );
+    EXPECT_FLOAT_EQ( nInf.x, 0.0f );
+    EXPECT_FLOAT_EQ( nInf.y, 1.0f );
+    const Vec2 nOverflow = normalizeSafe( { 1e30f, 1e30f }, { 0.0f, 1.0f } );
+    EXPECT_FLOAT_EQ( nOverflow.x, 0.0f );
+    EXPECT_FLOAT_EQ( nOverflow.y, 1.0f );
+    const Vec2 nTiny = normalizeSafe( { 1e-22f, 0.0f }, { 0.0f, 1.0f } );
+    EXPECT_FLOAT_EQ( nTiny.x, 0.0f );
+    EXPECT_FLOAT_EQ( nTiny.y, 1.0f );
 }
 
 TEST_F( BallPhysicsTest, BoundedPaddleAcceleration )

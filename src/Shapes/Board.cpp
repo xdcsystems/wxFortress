@@ -10,7 +10,6 @@
 #include <memory>
 
 #include "Common/defs.h"
-#include "Common/Rect.hpp"
 #include "Renderer/ResourceManager.h"
 #include "Base.h"
 #include "Board.h"
@@ -24,12 +23,4 @@ Board::Board()
         "simple_board" ) );
 
     m_velocity = { BEGIN_BOARD_VELOCITY, BEGIN_BOARD_VELOCITY };
-}
-
-Rect Board::admissibleBounds( const Rect& bounds ) const
-{
-    auto boundsRect = Base::bounds();
-    boundsRect.inset( -bounds.m_width / 2, .0f );
-    
-    return boundsRect;
 }

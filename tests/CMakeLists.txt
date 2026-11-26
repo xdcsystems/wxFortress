@@ -16,7 +16,7 @@ if( TARGET GTest::gtest_main )
         "${CMAKE_SOURCE_DIR}/src/Video"
         "${CMAKE_SOURCE_DIR}/src/Sounds"
     )
-    target_link_libraries( ut_BallPhysics PRIVATE GTest::gtest_main )
+    target_link_libraries( ut_BallPhysics PRIVATE GTest::gtest_main glm::glm )
     gtest_discover_tests( ut_BallPhysics DISCOVERY_MODE PRE_TEST )
 
     list( APPEND WXFORTRESS_TEST_TARGETS ut_BallPhysics )

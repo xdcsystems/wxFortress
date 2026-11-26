@@ -12,11 +12,9 @@
 #include <random>
 
 #include <glm/glm.hpp>
-#include <glm/gtc/type_ptr.hpp>
 #include <GL/glew.h>
 
 #include "Common/Tools.h"
-#include "Common/Rect.hpp"
 #include "Renderer/ResourceManager.h"
 #include "Renderer/Shader.h"
 #include "Renderer/Texture.h"

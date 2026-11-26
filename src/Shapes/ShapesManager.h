@@ -1,13 +1,12 @@
 #pragma once
 
 #include <memory>
-#include <glm/glm.hpp>
+#include <glm/mat4x4.hpp>
 
 #include "BallPhysics.hpp"
 
 
 // Forward declarations
-class Rect;
 class SpriteRenderer;
 class ParticleGenerator;
 
@@ -61,7 +60,7 @@ namespace Shapes
             // Helper functions
             void initBallVelocity();
             void updatePaddleInput( float dtSec, int remainingSteps = 1 );
-            Rect updateBallPosition( const Rect& boardBounds, bool syncPrev = false );
+            Physics::Aabb updateBallPosition( const Physics::Aabb& boardBounds, bool syncPrev = false );
 
         private:
             // Private data

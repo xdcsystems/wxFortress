@@ -5,7 +5,6 @@
 #include <unordered_map>
 
 #include <glm/glm.hpp>
-#include <glm/gtc/type_ptr.hpp>
 
 
 // General purpose shader object. Compiles from file, generates

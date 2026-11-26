@@ -15,8 +15,6 @@
 
 // Forward declarations
 class wxBitmap;
-class wxPoint;
-class wxSize;
 
 void CheckOpenGLError( const char *stmt, const char *fname, int line );
 
@@ -51,7 +49,6 @@ class Tools final : public Singleton<Tools>
         std::shared_ptr<wxBitmap> loadBitmap( const std::string &name ) const;
         std::vector< std::vector<int> > loadLevel( const std::string &name, unsigned short levelNum ) const;
 
-        void bhmLine( std::vector<wxPoint> &trajectory, int x1, int y1, int x2, int y2, const wxSize &limits ) const;
 
     private:
         mutable std::mutex m_zipMutex;

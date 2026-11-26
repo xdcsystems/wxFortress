@@ -10,7 +10,6 @@
 #include <algorithm>
 
 #include "Common/Tools.h"
-#include "Common/Rect.hpp"
 #include "Renderer/Texture.h"
 #include "Renderer/ResourceManager.h"
 #include "Renderer/SpriteRenderer.h"

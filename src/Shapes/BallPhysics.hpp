@@ -7,38 +7,26 @@
 #include <limits>
 #include <vector>
 
+#include <glm/vec2.hpp>
+#include <glm/common.hpp>
+#include <glm/geometric.hpp>
+#include <glm/trigonometric.hpp>
+
 namespace Shapes::Physics
 {
-    struct Vec2
-    {
-        float x { 0.0f };
-        float y { 0.0f };
-
-        Vec2 operator+( const Vec2& o ) const { return { x + o.x, y + o.y }; }
-        Vec2 operator-( const Vec2& o ) const { return { x - o.x, y - o.y }; }
-        Vec2 operator*( float s ) const { return { x * s, y * s }; }
-        Vec2 operator/( float s ) const { return { x / s, y / s }; }
-    };
-
-    inline float dot( const Vec2& a, const Vec2& b )
-    {
-        return a.x * b.x + a.y * b.y;
-    }
+    using Vec2 = glm::vec2;
+    using glm::dot;
+    using glm::length;
 
     inline float lengthSq( const Vec2& v )
     {
         return dot( v, v );
     }
 
-    inline float length( const Vec2& v )
-    {
-        return std::sqrt( lengthSq( v ) );
-    }
-
     inline Vec2 normalizeSafe( const Vec2& v, const Vec2& fallback = { 0.0f, 1.0f } )
     {
         const float len = length( v );
-        if ( len <= 1e-6f )
+        if ( !std::isfinite( len ) || len <= 1e-6f )
             return fallback;
         return v / len;
     }
@@ -118,14 +106,27 @@ namespace Shapes::Physics
     {
         constexpr float kEps = 1e-5f;
         constexpr float kPushOut = 1e-3f;
-        constexpr float kPi = 3.14159265358979323846f;
+
+        inline Vec2 computePaddleTopBounceVel(
+            float ballCenterX,
+            float paddleCenterX,
+            float paddleWidth,
+            float speed,
+            float maxPaddleBounceDeg )
+        {
+            const float halfW = std::max( 0.5f * paddleWidth, 1.0f );
+            const float u = std::clamp( ( ballCenterX - paddleCenterX ) / halfW, -1.0f, 1.0f );
+            const float theta = u * glm::radians( maxPaddleBounceDeg );
+            return { speed * std::sin( theta ), speed * std::cos( theta ) };
+        }
 
         // Static overlap resolution: circle at c with radius r vs AABB b.
         inline SweepHit resolveOverlapCircleAabb( const Vec2& c, float r, const Aabb& b )
         {
-            const float cx = std::clamp( c.x, b.left(), b.right() );
-            const float cy = std::clamp( c.y, b.bottom(), b.top() );
-            const Vec2 diff { c.x - cx, c.y - cy };
+            if ( b.w < 0.0f || b.h < 0.0f )
+                return {};
+            const Vec2 closest = glm::clamp( c, Vec2 { b.left(), b.bottom() }, Vec2 { b.right(), b.top() } );
+            const Vec2 diff = c - closest;
             const float distSq = lengthSq( diff );
 
             if ( distSq >= r * r )
@@ -454,12 +455,9 @@ namespace Shapes::Physics
                 if ( bestNormal.y > 0.15f )
                 {
                     // Top/upper-corner bounce: angle determined smoothly across paddle width [-maxDeg, +maxDeg] from +Y.
-                    const float halfW = std::max( 0.5f * paddle.w, 1.0f );
                     const float hitPaddleCenterX = hitPaddleX + 0.5f * paddle.w;
-                    const float u = std::clamp( ( ball.center.x - hitPaddleCenterX ) / halfW, -1.0f, 1.0f );
-                    const float maxRad = cfg.maxPaddleBounceDeg * ( detail::kPi / 180.0f );
-                    const float theta = u * maxRad;
-                    ball.vel = { spd * std::sin( theta ), spd * std::cos( theta ) };
+                    ball.vel = detail::computePaddleTopBounceVel(
+                        ball.center.x, hitPaddleCenterX, paddle.w, spd, cfg.maxPaddleBounceDeg );
                     if ( ball.center.y < paddle.top() + ball.radius )
                         ball.center.y = paddle.top() + ball.radius + detail::kPushOut;
                 }
@@ -467,9 +465,8 @@ namespace Shapes::Physics
                 {
                     // Side graze of paddle: reflect in the paddle's moving frame so fast sweeps push the ball cleanly.
                     Vec2 relVel { ball.vel.x - paddleVelX, ball.vel.y };
-                    const float rvn = dot( relVel, bestNormal );
-                    if ( rvn < 0.0f )
-                        relVel = relVel - bestNormal * ( 2.0f * rvn );
+                    if ( dot( relVel, bestNormal ) < 0.0f )
+                        relVel = glm::reflect( relVel, bestNormal );
                     Vec2 newVel { relVel.x + paddleVelX, relVel.y };
                     if ( dot( newVel, bestNormal ) <= 0.0f )
                         newVel = bestNormal * spd;
@@ -481,9 +478,8 @@ namespace Shapes::Physics
             else if ( bestKind == HitKind::Wall )
             {
                 events.hitWall = true;
-                const float vn = dot( ball.vel, bestNormal );
-                if ( vn < 0.0f )
-                    ball.vel = ball.vel - bestNormal * ( 2.0f * vn );
+                if ( dot( ball.vel, bestNormal ) < 0.0f )
+                    ball.vel = glm::reflect( ball.vel, bestNormal );
                 ball.vel = detail::enforceMinVerticalSlope( ball.vel, cfg.minAbsSinAngle );
             }
             else if ( bestKind == HitKind::Brick )
@@ -511,9 +507,8 @@ namespace Shapes::Physics
                 }
 
                 const Vec2 reflN = normalizeSafe( combinedNormal, bestNormal );
-                const float vn = dot( ball.vel, reflN );
-                if ( vn < 0.0f )
-                    ball.vel = ball.vel - reflN * ( 2.0f * vn );
+                if ( dot( ball.vel, reflN ) < 0.0f )
+                    ball.vel = glm::reflect( ball.vel, reflN );
 
                 const std::size_t hitsThisSubstep = events.hitBricks.size() - hitsBefore;
                 ball.vel = detail::scaleSpeed(
@@ -540,11 +535,8 @@ namespace Shapes::Physics
             if ( ball.center.y >= paddle.center().y )
             {
                 ball.center.y = paddle.top() + ball.radius + detail::kPushOut;
-                const float halfW = std::max( 0.5f * paddle.w, 1.0f );
-                const float u = std::clamp( ( ball.center.x - paddle.center().x ) / halfW, -1.0f, 1.0f );
-                const float maxRad = cfg.maxPaddleBounceDeg * ( detail::kPi / 180.0f );
-                const float theta = u * maxRad;
-                ball.vel = { spd * std::sin( theta ), spd * std::cos( theta ) };
+                ball.vel = detail::computePaddleTopBounceVel(
+                    ball.center.x, paddle.center().x, paddle.w, spd, cfg.maxPaddleBounceDeg );
             }
             else
             {
@@ -627,13 +619,13 @@ namespace Shapes::Physics
         // While ball moves upward, pre-position smoothly between ball X and remaining brick cluster.
         if ( ball.vel.y >= -detail::kEps )
         {
-            const float preX = 0.55f * ball.center.x + 0.45f * bricksMeanX;
+            const float preX = glm::mix( ball.center.x, bricksMeanX, 0.45f );
             return std::clamp( preX, minCenter, maxCenter );
         }
 
         const float paddleTopY = paddle.top() + ball.radius;
         const float landX = predictBallLandingX( ball, paddleTopY, cfg );
-        const float maxRad = std::max( cfg.maxPaddleBounceDeg * ( detail::kPi / 180.0f ), 0.1f );
+        const float maxRad = std::max( glm::radians( cfg.maxPaddleBounceDeg ), 0.1f );
         constexpr float kMaxSafeU = 0.80f;
 
         bool foundTarget = false;
