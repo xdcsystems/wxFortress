@@ -246,7 +246,9 @@ void ShapesManager::update( double deltaTimeSec )
         }
     }
 
+    const float prevPaddleX = m_board->bounds().m_x;
     updatePaddleInput( dtSec );
+    const float paddleDeltaX = m_paddleState.box.x - prevPaddleX;
 
     if ( isRunning() )
     {
@@ -259,7 +261,8 @@ void ShapesManager::update( double deltaTimeSec )
                 m_paddleState.box,
                 m_physBricks,
                 dtSec,
-                m_arenaCfg );
+                m_arenaCfg,
+                paddleDeltaX );
 
             const float r = m_ballState.radius;
             m_ball->moveTo( m_ballState.center.x - r, m_ballState.center.y - r );

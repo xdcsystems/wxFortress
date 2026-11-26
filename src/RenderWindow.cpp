@@ -203,6 +203,8 @@ void RenderWindow::initializeGLEW()
         const GLubyte *msg = glewGetErrorString( err );
         throw std::runtime_error( reinterpret_cast<const char *>( msg ) );
     }
+    // Drain any benign GL_INVALID_ENUM emitted by glewInit() on modern drivers (bounded).
+    for ( int i = 0; i < 64 && glGetError() != GL_NO_ERROR; ++i ) {}
 }
 
 void RenderWindow::setupGraphics()
@@ -210,8 +212,6 @@ void RenderWindow::setupGraphics()
     configureSwapAndPacing();
 
     GL_CHECK( glClearColor( 0.0, 0.0, 0.0, 1.0 ) );
-    GL_CHECK( glEnable( GL_TEXTURE_2D ) );
-    GL_CHECK( glEnable( GL_COLOR_MATERIAL ) );
     GL_CHECK( glEnable( GL_BLEND ) );
     GL_CHECK( glDisable( GL_DEPTH_TEST ) );
     GL_CHECK( glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA ) );
@@ -457,12 +457,31 @@ void RenderWindow::onIdle( wxIdleEvent &event )
         {
             m_shapesManager->update( dtSec );
         }
-        const auto presentStart = std::chrono::steady_clock::now();
-        render();
-        const bool syncOk = waitForVBlank();
-        const double presentMs = std::chrono::duration<double, std::milli>(
-            std::chrono::steady_clock::now() - presentStart ).count();
-        FramePacing::recordSyncDuration( m_framePacer, syncOk, presentMs );
+        if ( m_useDwmPacing )
+        {
+            render();
+            const auto syncStart = std::chrono::steady_clock::now();
+            const bool syncOk = waitForVBlank();
+            const double syncMs = std::chrono::duration<double, std::milli>(
+                std::chrono::steady_clock::now() - syncStart ).count();
+            FramePacing::recordSyncDuration( m_framePacer, syncOk, syncMs );
+            if ( !m_framePacer.paceExternally )
+            {
+                m_useDwmPacing = false;
+#if defined( _WIN32 )
+                if ( wglSwapIntervalEXT )
+                    wglSwapIntervalEXT( 1 );
+#endif
+            }
+        }
+        else
+        {
+            const auto presentStart = std::chrono::steady_clock::now();
+            render();
+            const double presentMs = std::chrono::duration<double, std::milli>(
+                std::chrono::steady_clock::now() - presentStart ).count();
+            FramePacing::recordSyncDuration( m_framePacer, true, presentMs );
+        }
 
         const bool isStaticState = ( m_state == State::PAUSE || m_state == State::HELP );
         const bool musicTransitioning = m_soundManager && m_soundManager->isMusicGainTransitioning();

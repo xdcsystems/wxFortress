@@ -37,10 +37,7 @@ void Texture2D::generate( const wxImage &image )
     GLubyte* alphaData = image.GetAlpha();
     const bool hasAlfa = ( alphaData != nullptr );
 
-    // https://www.khronos.org/opengl/wiki/Common_Mistakes#The_Object_Oriented_Language_Problem
-    //glPixelStorei( GL_UNPACK_ALIGNMENT, 4 );
-    if ( !hasAlfa )
-        GL_CHECK( glPixelStorei( GL_UNPACK_ALIGNMENT, 1 ) );
+    // Tightly scope GL_UNPACK_ALIGNMENT save/restore around glTexImage2D below.
 
     const int bytesPerPixel = hasAlfa ? 4 : 3;
     GLubyte* bitmapData = image.GetData();
@@ -82,15 +79,15 @@ void Texture2D::generate( const wxImage &image )
     // set Texture wrap and filter modes
     GL_CHECK( glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, Filter_Min ) );
     GL_CHECK( glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, Filter_Max ) );
-    //GL_CHECK( glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, Wrap_S ) );
-    //GL_CHECK( glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, Wrap_T ) );
-
-    // auto generate MIPMAP
-    GL_CHECK( glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT ) );
-    GL_CHECK( glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT ) );
+    GL_CHECK( glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, Wrap_S ) );
+    GL_CHECK( glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, Wrap_T ) );
     /*GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
     GL_CHECK( glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR ) );
     GL_CHECK( glTexParameteri( GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_TRUE ) );*/
+
+    GLint prevUnpackAlign = 4;
+    GL_CHECK( glGetIntegerv( GL_UNPACK_ALIGNMENT, &prevUnpackAlign ) );
+    GL_CHECK( glPixelStorei( GL_UNPACK_ALIGNMENT, hasAlfa ? 4 : 1 ) );
 
     // if yes, everything is fine
     GL_CHECK( glTexImage2D( GL_TEXTURE_2D,
@@ -102,6 +99,8 @@ void Texture2D::generate( const wxImage &image )
         hasAlfa ? GL_RGBA : GL_RGB,
         GL_UNSIGNED_BYTE,
         imageData.data() ) );
+
+    GL_CHECK( glPixelStorei( GL_UNPACK_ALIGNMENT, prevUnpackAlign ) );
 
     // unbind texture
     GL_CHECK( glBindTexture( GL_TEXTURE_2D, 0 ) );

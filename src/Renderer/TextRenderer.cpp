@@ -199,10 +199,15 @@ void TextRenderer::switchToFinishState( unsigned short stage )
     m_col = 0;
     m_delay = 57;
 
+    const auto stageIt = s_stageName.find( m_stage );
+    const std::string stageLabel = ( stageIt != s_stageName.end() )
+        ? stageIt->second
+        : std::to_string( m_stage );
+
     m_message = {
         "1844/27 DH \"Pretorian\"",
         " ",
-        "Test Program " + s_stageName.at( m_stage ) + " Stage Completed Successfully.",
+        "Test Program " + stageLabel + " Stage Completed Successfully.",
         "The sample demonstrated high penetration and large",
         "aggregate power.",
         "In order to improve the reliability of the product,",
@@ -245,49 +250,56 @@ void TextRenderer::switchToHelpState()
 
 void TextRenderer::print( const std::string& text, int x, int y, const glm::vec2& size, glm::vec3 color )
 {
-    unsigned int length = text.length();
+    if ( text.empty() )
+        return;
 
-    // Fill buffers
-    std::vector<glm::vec2> vertices;
-    std::vector<glm::vec2> coordsUV;
+    const size_t length = text.length();
 
-    for ( unsigned int i = 0; i < length; i++ )
+    // Reuse member buffers to avoid per-call heap allocations
+    m_vertices.clear();
+    m_UVs.clear();
+    m_vertices.reserve( length * 6 );
+    m_UVs.reserve( length * 6 );
+
+    const float fontRows = s_fontData.at( m_fontType ).first;
+    for ( size_t i = 0; i < length; ++i )
     {
-        glm::vec2 vertexUpLeft    { x + i * size.x,          y + size.y };
-        glm::vec2 vertexUpRight   { x + i * size.x + size.x, y + size.y };
-        glm::vec2 vertexDownRight { x + i * size.x + size.x, y };
-        glm::vec2 vertexDownLeft  { x + i * size.x,          y };
+        const float fi = static_cast<float>( i );
+        glm::vec2 vertexUpLeft    { x + fi * size.x,          y + size.y };
+        glm::vec2 vertexUpRight   { x + fi * size.x + size.x, y + size.y };
+        glm::vec2 vertexDownRight { x + fi * size.x + size.x, y };
+        glm::vec2 vertexDownLeft  { x + fi * size.x,          y };
 
-        vertices.emplace_back( vertexUpLeft );
-        vertices.emplace_back( vertexDownLeft );
-        vertices.emplace_back( vertexUpRight );
+        m_vertices.emplace_back( vertexUpLeft );
+        m_vertices.emplace_back( vertexDownLeft );
+        m_vertices.emplace_back( vertexUpRight );
 
-        vertices.emplace_back( vertexDownRight );
-        vertices.emplace_back( vertexUpRight );
-        vertices.emplace_back( vertexDownLeft );
+        m_vertices.emplace_back( vertexDownRight );
+        m_vertices.emplace_back( vertexUpRight );
+        m_vertices.emplace_back( vertexDownLeft );
 
-        char character = text[i];
-        float uvX = ( character % 16 ) / 16.f;
-        float uvY = ( character / 16 ) / s_fontData.at( m_fontType ).first;
+        const unsigned char character = static_cast<unsigned char>( text[ i ] );
+        const float uvX = ( character % 16 ) / 16.f;
+        const float uvY = ( character / 16 ) / fontRows;
 
         glm::vec2 uvUpLeft    { uvX, uvY };
         glm::vec2 uvUpRight   { uvX + 1.f / 16.f, uvY };
-        glm::vec2 uvDownRight { uvX + 1.f / 16.f, ( uvY + 1.f / s_fontData.at( m_fontType ).first ) };
-        glm::vec2 uvDownLeft  { uvX, ( uvY + 1.f / s_fontData.at( m_fontType ).first ) };
+        glm::vec2 uvDownRight { uvX + 1.f / 16.f, uvY + 1.f / fontRows };
+        glm::vec2 uvDownLeft  { uvX, uvY + 1.f / fontRows };
 
-        coordsUV.emplace_back( uvUpLeft );
-        coordsUV.emplace_back( uvDownLeft );
-        coordsUV.emplace_back( uvUpRight );
+        m_UVs.emplace_back( uvUpLeft );
+        m_UVs.emplace_back( uvDownLeft );
+        m_UVs.emplace_back( uvUpRight );
 
-        coordsUV.emplace_back( uvDownRight );
-        coordsUV.emplace_back( uvUpRight );
-        coordsUV.emplace_back( uvDownLeft );
+        m_UVs.emplace_back( uvDownRight );
+        m_UVs.emplace_back( uvUpRight );
+        m_UVs.emplace_back( uvDownLeft );
     }
 
     GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, m_vertexBufferID ) );
-    GL_CHECK( glBufferData( GL_ARRAY_BUFFER, vertices.size() * sizeof( glm::vec2 ), &vertices[0], GL_STATIC_DRAW ) );
+    GL_CHECK( glBufferData( GL_ARRAY_BUFFER, m_vertices.size() * sizeof( glm::vec2 ), m_vertices.data(), GL_STREAM_DRAW ) );
     GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, m_UVBufferID ) );
-    GL_CHECK( glBufferData( GL_ARRAY_BUFFER, coordsUV.size() * sizeof( glm::vec2 ), &coordsUV[0], GL_STATIC_DRAW ) );
+    GL_CHECK( glBufferData( GL_ARRAY_BUFFER, m_UVs.size() * sizeof( glm::vec2 ), m_UVs.data(), GL_STREAM_DRAW ) );
 
     // Bind shader
     m_shader->use();
@@ -309,7 +321,7 @@ void TextRenderer::print( const std::string& text, int x, int y, const glm::vec2
     GL_CHECK( glEnableVertexAttribArray( m_attrUVs ) );
 
     // Draw call
-    GL_CHECK( glDrawArrays( GL_TRIANGLES, 0, vertices.size() ) );
+    GL_CHECK( glDrawArrays( GL_TRIANGLES, 0, static_cast<GLsizei>( m_vertices.size() ) ) );
 
     GL_CHECK( glDisableVertexAttribArray( m_attrVertex ) );
     GL_CHECK( glDisableVertexAttribArray( m_attrUVs ) );

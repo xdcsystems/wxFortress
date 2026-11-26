@@ -29,28 +29,32 @@ void Bricks::loadLevel( unsigned short level )
 {
     const auto bricks = Tools::Instance().loadLevel( "resources/levels.txt", level );
 
-    const auto rows = bricks.size();
-    const auto cols = bricks[ 0 ].size();
+    if ( bricks.empty() )
+        return;
+
+    const size_t rows = bricks.size();
     const int startRow = 11;
 
     m_bricks.clear();
 
-    // let's throw some bricks
-    m_bricks.reserve( rows * cols );
-   
+    size_t totalBricks = 0;
+    for ( const auto& r : bricks )
+        totalBricks += r.size();
+    m_bricks.reserve( totalBricks );
+
     const glm::vec2 textureSize = { m_bricksSprite->Width, m_bricksSprite->Height };
     glm::vec2 currentPos = { .0f, .0f };
 
-    for ( unsigned int row = 0; row < rows; ++row )
+    for ( size_t row = 0; row < rows; ++row )
     {
-        for ( unsigned int col = 0; col < cols; ++col )
+        for ( size_t col = 0; col < bricks[ row ].size(); ++col )
         {
             const auto type = static_cast< BrickType >( bricks[ row ][ col ] );
-            currentPos.y = Brick::SizeOf( type ).y * ( row + startRow );
-            m_bricks.emplace_back( std::make_shared<Brick>( currentPos,  type, textureSize ) );
+            currentPos.y = Brick::SizeOf( type ).y * static_cast<float>( row + startRow );
+            m_bricks.emplace_back( std::make_shared<Brick>( currentPos, type, textureSize ) );
             currentPos.x += Brick::SizeOf( type ).x;
         }
-        currentPos.x = 0;
+        currentPos.x = 0.0f;
     }
 }
 

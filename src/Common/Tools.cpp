@@ -154,39 +154,42 @@ std::vector< std::vector<int> > Tools::loadLevel( const std::string &name, unsig
     leveLabel << levelNum;
 
     // Seek to level label
-    while ( line != leveLabel && !line.Contains( finishLabel ) && !input.Eof() )
+    while ( line != leveLabel && line != finishLabel && !input.Eof() )
     {
         line = text.ReadLine();
+        line.Trim( true ).Trim( false );
     }
 
-    if ( input.Eof() )
-    {
-        throw std::runtime_error( "Error loading level map file, file is corrupt or has wrong format" );
-    }
-
-    if ( line.Contains( finishLabel ) )
+    // Check finishLabel BEFORE input.Eof() so "End" without a trailing newline is honored.
+    if ( line == finishLabel )
     {
         throw stage_complete_exception {};
+    }
+
+    if ( line != leveLabel )
+    {
+        throw std::runtime_error( "Error loading level map file, file is corrupt or has wrong format" );
     }
 
     std::vector< std::vector<int> > bricks;
     wxStringTokenizer tkz;
 
-    while ( !line.IsEmpty() && !input.Eof() )
+    while ( !input.Eof() )
     {
-        std::vector<int> inner;
-
         line = text.ReadLine();
-        if ( line.IsEmpty() || line.Contains( label ) || line.Contains( finishLabel ) )
+        line.Trim( true ).Trim( false );
+        if ( line.IsEmpty() || line.StartsWith( label ) || line == finishLabel )
             break;
 
+        std::vector<int> inner;
         tkz.SetString( line );
         while ( tkz.HasMoreTokens() )
         {
             inner.emplace_back( wxAtoi( tkz.GetNextToken() ) );
         }
 
-        bricks.emplace_back( std::move( inner ) );
+        if ( !inner.empty() )
+            bricks.emplace_back( std::move( inner ) );
     }
 
     if ( bricks.empty() )

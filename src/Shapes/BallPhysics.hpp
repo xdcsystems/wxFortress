@@ -318,7 +318,7 @@ namespace Shapes::Physics
     // moveDir: -1 = left, 0 = none, +1 = right.
     inline void updatePaddle( PaddleState& paddle, int moveDir, float dtSec, const ArenaConfig& cfg )
     {
-        if ( dtSec <= 0.0f )
+        if ( !std::isfinite( dtSec ) || dtSec <= 0.0f )
             return;
 
         if ( moveDir == 0 )
@@ -342,14 +342,19 @@ namespace Shapes::Physics
         const Aabb& paddle,
         std::vector<BrickItem>& bricks,
         float dtSec,
-        const ArenaConfig& cfg )
+        const ArenaConfig& cfg,
+        float paddleDeltaX = 0.0f )
     {
         StepEvents events;
-        if ( dtSec <= 0.0f || ball.radius <= 0.0f )
+        if ( !std::isfinite( dtSec ) || dtSec <= 0.0f ||
+             !std::isfinite( ball.radius ) || ball.radius <= 0.0f )
             return events;
 
         // Clamp huge frame hiccups (e.g. window drag) so one frame doesn't jump across the whole screen.
         const float clampedDt = std::min( dtSec, 0.05f );
+        const float safePaddleDeltaX = std::isfinite( paddleDeltaX ) ? paddleDeltaX : 0.0f;
+        const float paddleVelX = safePaddleDeltaX / clampedDt;
+        float curPaddleX = paddle.x - safePaddleDeltaX;
         float remTime = clampedDt;
 
         constexpr int kMaxSubsteps = 8;
@@ -358,7 +363,10 @@ namespace Shapes::Physics
         for ( int iter = 0; iter < kMaxSubsteps && remTime > 1e-6f; ++iter )
         {
             const Vec2 disp = ball.vel * remTime;
-            if ( lengthSq( disp ) <= detail::kEps * detail::kEps )
+            const float paddleStepX = paddleVelX * remTime;
+            const Vec2 relPaddleDisp { disp.x - paddleStepX, disp.y };
+            if ( lengthSq( disp ) <= detail::kEps * detail::kEps &&
+                 std::fabs( paddleStepX ) <= detail::kEps )
                 break;
 
             HitKind bestKind = HitKind::None;
@@ -410,8 +418,9 @@ namespace Shapes::Physics
             checkWall( ball.center.x, disp.x, cfg.width - ball.radius, { -1.0f, 0.0f } );
             checkWall( ball.center.y, disp.y, cfg.height - ball.radius, { 0.0f, -1.0f } );
 
-            // 2. Paddle.
-            const SweepHit paddleHit = detail::sweepCircleAabb( ball.center, disp, ball.radius, paddle );
+            // 2. Paddle (relative sweep accounts for rapid horizontal mouse/keyboard paddle movement).
+            const Aabb subPaddle { curPaddleX, paddle.y, paddle.w, paddle.h };
+            const SweepHit paddleHit = detail::sweepCircleAabb( ball.center, relPaddleDisp, ball.radius, subPaddle );
             consider( HitKind::Paddle, paddleHit, 0 );
 
             // 3. Alive bricks.
@@ -426,34 +435,47 @@ namespace Shapes::Physics
             if ( bestKind == HitKind::None )
             {
                 ball.center = ball.center + disp;
+                curPaddleX += paddleStepX;
                 remTime = 0.0f;
                 break;
             }
 
             // Advance to impact point and push cleanly outside the surface.
             const Vec2 startCenter = ball.center;
+            const float hitPaddleX = curPaddleX + paddleStepX * bestT;
             ball.center = startCenter + disp * bestT + bestNormal * ( bestPen + detail::kPushOut );
+            curPaddleX = hitPaddleX;
             remTime *= ( 1.0f - bestT );
 
             if ( bestKind == HitKind::Paddle )
             {
                 events.hitPaddle = true;
                 const float spd = std::clamp( length( ball.vel ), cfg.minSpeed, cfg.maxSpeed );
-                if ( bestNormal.y > 0.25f )
+                if ( bestNormal.y > 0.15f )
                 {
-                    // Top bounce: angle determined smoothly across full paddle width [-maxDeg, +maxDeg] from +Y.
+                    // Top/upper-corner bounce: angle determined smoothly across paddle width [-maxDeg, +maxDeg] from +Y.
                     const float halfW = std::max( 0.5f * paddle.w, 1.0f );
-                    const float u = std::clamp( ( ball.center.x - paddle.center().x ) / halfW, -1.0f, 1.0f );
+                    const float hitPaddleCenterX = hitPaddleX + 0.5f * paddle.w;
+                    const float u = std::clamp( ( ball.center.x - hitPaddleCenterX ) / halfW, -1.0f, 1.0f );
                     const float maxRad = cfg.maxPaddleBounceDeg * ( detail::kPi / 180.0f );
                     const float theta = u * maxRad;
                     ball.vel = { spd * std::sin( theta ), spd * std::cos( theta ) };
+                    if ( ball.center.y < paddle.top() + ball.radius )
+                        ball.center.y = paddle.top() + ball.radius + detail::kPushOut;
                 }
                 else
                 {
-                    // Side/corner graze of paddle: pure elastic reflection (never throws!).
-                    const float vn = dot( ball.vel, bestNormal );
-                    if ( vn < 0.0f )
-                        ball.vel = ball.vel - bestNormal * ( 2.0f * vn );
+                    // Side graze of paddle: reflect in the paddle's moving frame so fast sweeps push the ball cleanly.
+                    Vec2 relVel { ball.vel.x - paddleVelX, ball.vel.y };
+                    const float rvn = dot( relVel, bestNormal );
+                    if ( rvn < 0.0f )
+                        relVel = relVel - bestNormal * ( 2.0f * rvn );
+                    Vec2 newVel { relVel.x + paddleVelX, relVel.y };
+                    if ( dot( newVel, bestNormal ) <= 0.0f )
+                        newVel = bestNormal * spd;
+                    ball.vel = detail::enforceMinVerticalSlope(
+                        normalizeSafe( newVel, bestNormal ) * spd,
+                        cfg.minAbsSinAngle );
                 }
             }
             else if ( bestKind == HitKind::Wall )
@@ -503,8 +525,38 @@ namespace Shapes::Physics
             }
 
             // Clamp inside left/right/top walls after push-out so corner hits stay strictly inside arena.
-            ball.center.x = std::clamp( ball.center.x, ball.radius, cfg.width - ball.radius );
+            const float maxCenterX = std::max( ball.radius, cfg.width - ball.radius );
+            ball.center.x = std::clamp( ball.center.x, ball.radius, maxCenterX );
             ball.center.y = std::min( ball.center.y, cfg.height - ball.radius );
+        }
+
+        // End-of-frame separation: if a fast paddle sweep still overtook the clamped ball speed,
+        // resolve overlap cleanly outside the final paddle box.
+        const SweepHit endOverlap = detail::resolveOverlapCircleAabb( ball.center, ball.radius, paddle );
+        if ( endOverlap.hit )
+        {
+            events.hitPaddle = true;
+            const float spd = std::clamp( length( ball.vel ), cfg.minSpeed, cfg.maxSpeed );
+            if ( ball.center.y >= paddle.center().y )
+            {
+                ball.center.y = paddle.top() + ball.radius + detail::kPushOut;
+                const float halfW = std::max( 0.5f * paddle.w, 1.0f );
+                const float u = std::clamp( ( ball.center.x - paddle.center().x ) / halfW, -1.0f, 1.0f );
+                const float maxRad = cfg.maxPaddleBounceDeg * ( detail::kPi / 180.0f );
+                const float theta = u * maxRad;
+                ball.vel = { spd * std::sin( theta ), spd * std::cos( theta ) };
+            }
+            else
+            {
+                const float pushDir = ( safePaddleDeltaX >= 0.0f ) ? 1.0f : -1.0f;
+                ball.center.x = ( pushDir > 0.0f )
+                    ? ( paddle.right() + ball.radius + detail::kPushOut )
+                    : ( paddle.left() - ball.radius - detail::kPushOut );
+                const float maxCenterX = std::max( ball.radius, cfg.width - ball.radius );
+                ball.center.x = std::clamp( ball.center.x, ball.radius, maxCenterX );
+                if ( ball.vel.x * pushDir < 0.0f )
+                    ball.vel.x = -ball.vel.x;
+            }
         }
 
         if ( ball.center.y + ball.radius < 0.0f )

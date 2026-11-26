@@ -14,8 +14,9 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose Release or Debug" FORCE)
 endif()
 
-if( UNIX )
-    set(CMAKE_CONFIGURATION_TYPES Release Debug)
+get_property( _wxfortress_is_multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG )
+if( _wxfortress_is_multi_config AND NOT CMAKE_CONFIGURATION_TYPES )
+    set( CMAKE_CONFIGURATION_TYPES Release Debug )
 endif()
 
 # to distinguish between debug and release lib
@@ -84,6 +85,11 @@ endforeach( OUTPUTCONFIG CMAKE_CONFIGURATION_TYPES )
 file( GLOB_RECURSE SOURCE_HEADERS CONFIGURE_DEPENDS "src/*.h" "src/*.hpp" )
 file( GLOB_RECURSE SOURCE_FILES CONFIGURE_DEPENDS "src/*.cpp" )
 
+if( CMAKE_CXX_COMPILER_ID STREQUAL "GNU" )
+    # Must precede add_executable() so wxFortress, ut_Fortress, and vendored submodules all inherit it on GCC 13+.
+    add_compile_options( "$<$<COMPILE_LANGUAGE:CXX>:SHELL:-include cstdint>" )
+endif()
+
 if( WIN32 )
     enable_language( RC )
     configure_file(
@@ -104,22 +110,19 @@ if( WIN32 )
     set_property( DIRECTORY PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME} )
 
 elseif( UNIX )
-     # the name of the target operating system
-    set(CMAKE_SYSTEM_NAME Linux)
-
     add_executable(
        ${PROJECT_NAME}
        ${SOURCE_HEADERS}
        ${SOURCE_FILES}
     )
-
-    # set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_OPTIONS "-m32" LINK_FLAGS "-m32")
 endif()
 
 target_compile_features( ${PROJECT_NAME} PRIVATE cxx_std_17 )
 
-if( CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND NOT CMAKE_CXX_FLAGS MATCHES "-include cstdint" )
-    set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -include cstdint" )
+if( MSVC )
+    target_compile_options( ${PROJECT_NAME} PRIVATE /W4 )
+elseif( CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" )
+    target_compile_options( ${PROJECT_NAME} PRIVATE -Wall -Wextra )
 endif()
 
 # add external libs

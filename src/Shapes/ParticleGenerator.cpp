@@ -7,6 +7,8 @@
     #include <wx/wx.h>
 #endif
 
+#include <algorithm>
+#include <cstddef>
 #include <random>
 
 #include <glm/glm.hpp>
@@ -45,7 +47,8 @@ ParticleGenerator::ParticleGenerator( unsigned int amount )
 
 ParticleGenerator::~ParticleGenerator()
 {
-    GL_CHECK( glDeleteBuffers( 1, &m_VBO ) );
+    GL_CHECK( glDeleteBuffers( static_cast<GLsizei>( kVboRingSize ), m_VBOs.data() ) );
+    m_VBOs.fill( 0 );
 }
 
 void ParticleGenerator::resize( const glm::mat4& projection )
@@ -69,7 +72,9 @@ void ParticleGenerator::update( float dt, const basePtr &object, unsigned int ne
         if ( particle.Life > .0f )
         {	// particle is alive, thus update
             particle.Position -= particle.Velocity * dt;
-            particle.Color.a -= dt * 2.5f;
+            particle.Color.a = std::max( 0.0f, particle.Color.a - dt * 2.5f );
+            if ( particle.Color.a <= 0.0f )
+                particle.Life = 0.0f;
         }
     }
 }
@@ -77,47 +82,80 @@ void ParticleGenerator::update( float dt, const basePtr &object, unsigned int ne
 // render all particles
 void ParticleGenerator::draw()
 {
+    if ( !m_shader || m_shader->ID == 0 || !m_texture || m_attrPos < 0 || m_attrColor < 0 || m_VBOs[ 0 ] == 0 )
+        return;
+
+    m_vertexBuf.clear();
+    constexpr float kScale = 10.0f;
+    for ( const auto& particle : m_particles )
+    {
+        if ( particle.Life <= 0.0f || particle.Color.a <= 0.0f )
+            continue;
+
+        const float x0 = particle.Position.x;
+        const float y0 = particle.Position.y;
+        const float x1 = x0 + kScale;
+        const float y1 = y0 + kScale;
+        const float r = particle.Color.r;
+        const float g = particle.Color.g;
+        const float b = particle.Color.b;
+        const float a = particle.Color.a;
+
+        m_vertexBuf.push_back( { x0, y1, 0.f, 1.f, r, g, b, a } );
+        m_vertexBuf.push_back( { x1, y0, 1.f, 0.f, r, g, b, a } );
+        m_vertexBuf.push_back( { x0, y0, 0.f, 0.f, r, g, b, a } );
+
+        m_vertexBuf.push_back( { x0, y1, 0.f, 1.f, r, g, b, a } );
+        m_vertexBuf.push_back( { x1, y0, 1.f, 0.f, r, g, b, a } );
+        m_vertexBuf.push_back( { x1, y1, 1.f, 1.f, r, g, b, a } );
+    }
+
+    if ( m_vertexBuf.empty() )
+        return;
+
+    static_assert( sizeof( ParticleVertex ) == 8 * sizeof( float ), "ParticleVertex must be tightly packed" );
+    const auto maxBytes = static_cast<GLsizeiptr>( m_particles.size() * 6 * sizeof( ParticleVertex ) );
+    const auto usedBytes = std::min(
+        maxBytes,
+        static_cast<GLsizeiptr>( m_vertexBuf.size() * sizeof( ParticleVertex ) ) );
+    const unsigned int activeVbo = m_VBOs[ m_vboIdx ];
+    m_vboIdx = ( m_vboIdx + 1 ) % kVboRingSize;
+    if ( activeVbo == 0 || usedBytes <= 0 )
+        return;
+
     // use additive blending to give it a 'glow' effect
     GL_CHECK( glBlendFunc( GL_SRC_ALPHA, GL_ONE ) );
 
     m_shader->use();
     m_texture->bind();
 
-    // set mesh attributes
-    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, m_VBO ) );
-    GL_CHECK( glVertexAttribPointer( m_attrPos, 4, GL_FLOAT, GL_FALSE, 5 * sizeof( float ), ( void* )nullptr ) );
-    GL_CHECK( glVertexAttribPointer( m_attrIndex, 1, GL_FLOAT, GL_FALSE, 5 * sizeof( float ), ( void* )( intptr_t )( 4 * sizeof( float ) ) ) );
+    // Triple-buffered VBO ring avoids per-frame glBufferData(NULL) pool stalls on WDDM / legacy ATI drivers.
+    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, activeVbo ) );
+    GL_CHECK( glBufferSubData( GL_ARRAY_BUFFER, 0, usedBytes, m_vertexBuf.data() ) );
 
-    GL_CHECK( glEnableVertexAttribArray( m_attrPos ) );
-    GL_CHECK( glEnableVertexAttribArray( m_attrIndex ) );
+    GL_CHECK( glVertexAttribPointer(
+        static_cast<GLuint>( m_attrPos ),
+        4,
+        GL_FLOAT,
+        GL_FALSE,
+        sizeof( ParticleVertex ),
+        nullptr ) );
+    GL_CHECK( glVertexAttribPointer(
+        static_cast<GLuint>( m_attrColor ),
+        4,
+        GL_FLOAT,
+        GL_FALSE,
+        sizeof( ParticleVertex ),
+        reinterpret_cast<const void*>( offsetof( ParticleVertex, r ) ) ) );
 
-    unsigned short index = 0;
-    for ( const auto& particle : m_particles )
-    {
-        if ( particle.Life > 0.0f )
-        {
-            if ( index >= m_amount )
-                break;
+    GL_CHECK( glEnableVertexAttribArray( static_cast<GLuint>( m_attrPos ) ) );
+    GL_CHECK( glEnableVertexAttribArray( static_cast<GLuint>( m_attrColor ) ) );
 
-            m_offsetsBuf[ index ] = particle.Position;
-            m_colorsBuf[ index ] = particle.Color;
+    GL_CHECK( glDrawArrays( GL_TRIANGLES, 0, static_cast<GLsizei>( m_vertexBuf.size() ) ) );
 
-            ++index;
-        }
-    }
-
-    if ( index > 0 )
-    {
-        if ( m_offsetLoc0 >= 0 )
-            GL_CHECK( glUniform2fv( m_offsetLoc0, static_cast<GLsizei>( index ), glm::value_ptr( m_offsetsBuf[ 0 ] ) ) );
-        if ( m_colorLoc0 >= 0 )
-            GL_CHECK( glUniform4fv( m_colorLoc0, static_cast<GLsizei>( index ), glm::value_ptr( m_colorsBuf[ 0 ] ) ) );
-
-        GL_CHECK( glDrawArrays( GL_TRIANGLES, 0, 6 * index ) );
-    }
-
-    GL_CHECK( glDisableVertexAttribArray( m_attrPos ) );
-    GL_CHECK( glDisableVertexAttribArray( m_attrIndex ) );
+    GL_CHECK( glDisableVertexAttribArray( static_cast<GLuint>( m_attrPos ) ) );
+    GL_CHECK( glDisableVertexAttribArray( static_cast<GLuint>( m_attrColor ) ) );
+    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, 0 ) );
 
     // don't forget to reset to default blending mode
     GL_CHECK( glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA ) );
@@ -125,41 +163,24 @@ void ParticleGenerator::draw()
 
 void ParticleGenerator::init()
 {
-    // set up mesh and attribute properties
-    float vertices[] {
-        // pos      // tex
-        0.f, 1.f,   0.f, 1.f,   0.f,
-        1.f, 0.f,   1.f, 0.f,   0.f,
-        0.f, 0.f,   0.f, 0.f,   0.f,
-
-        0.f, 1.f,   0.f, 1.f,   0.f,
-        1.f, 0.f,   1.f, 0.f,   0.f,
-        1.f, 1.f,   1.f, 1.f,   0.f,
-    };
-
-    const auto sizeVAO = sizeof( vertices );
-
-    GL_CHECK( m_attrPos = glGetAttribLocation( m_shader->ID, "vertex" ) );
-    GL_CHECK( m_attrIndex = glGetAttribLocation( m_shader->ID, "index" ) );
-    GL_CHECK( m_offsetLoc0 = glGetUniformLocation( m_shader->ID, "offset[0]" ) );
-    GL_CHECK( m_colorLoc0 = glGetUniformLocation( m_shader->ID, "color[0]" ) );
-
-    m_offsetsBuf.resize( m_amount );
-    m_colorsBuf.resize( m_amount );
-
-    // create VBOs
-    GL_CHECK( glGenBuffers( 1, &m_VBO ) );   // for vertex buffer
-
-    // fill mesh buffer
-    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, m_VBO ) );
-    GL_CHECK( glBufferData( GL_ARRAY_BUFFER, sizeVAO * m_amount, nullptr, GL_STATIC_DRAW ) );
-    
-    for ( unsigned short index = 0; index < m_amount; ++index )
+    if ( m_shader && m_shader->ID != 0 )
     {
-        vertices[ 4 ] = vertices[ 9 ] = vertices[ 14 ] = vertices[ 19 ] = vertices[ 24 ] = vertices[ 29 ]= index;
-        GL_CHECK( glBufferSubData( GL_ARRAY_BUFFER, sizeVAO * index, sizeVAO, vertices ) );
+        GL_CHECK( m_attrPos = glGetAttribLocation( m_shader->ID, "vertex" ) );
+        GL_CHECK( m_attrColor = glGetAttribLocation( m_shader->ID, "color" ) );
     }
 
+    m_vertexBuf.reserve( static_cast<size_t>( m_amount ) * 6 );
+
+    // Pre-allocate triple-buffered VBO ring for stall-free per-frame streaming
+    const auto maxBytes = static_cast<GLsizeiptr>( m_particles.size() * 6 * sizeof( ParticleVertex ) );
+    GL_CHECK( glGenBuffers( static_cast<GLsizei>( kVboRingSize ), m_VBOs.data() ) );
+    for ( const unsigned int vbo : m_VBOs )
+    {
+        if ( vbo == 0 )
+            continue;
+        GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, vbo ) );
+        GL_CHECK( glBufferData( GL_ARRAY_BUFFER, maxBytes, nullptr, GL_STREAM_DRAW ) );
+    }
     GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, 0 ) );
 }
 

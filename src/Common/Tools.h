@@ -7,6 +7,7 @@
 #include <vector>
 
 #include <GL/glew.h>
+#include "Common/defs.h"
 #include "Singleton.hpp"
 
 #include <wx/wfstream.h>
@@ -19,7 +20,7 @@ class wxSize;
 
 void CheckOpenGLError( const char *stmt, const char *fname, int line );
 
-#if defined( _DEBUG ) && SKIP_GL_CHECKS == 0
+#if SKIP_GL_CHECKS == 0
     #define GL_CHECK( stmt )                           \
     do                                                 \
     {                                                  \

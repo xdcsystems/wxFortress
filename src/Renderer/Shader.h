@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <string>
+#include <unordered_map>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -40,8 +41,11 @@ class Shader
         void setMatrix4( const char* name, const glm::mat4& matrix, bool useShader = false );
 
     private:
+        int getUniformLocation( const char* name );
         // checks if compilation or linking failed and if so, print the error logs
-        void checkCompileErrors( unsigned int object, const std::string &type );
+        bool checkCompileErrors( unsigned int object, const std::string &type );
+
+        std::unordered_map<std::string, int> m_uniformCache;
 };
 
 using shaderPtr = std::shared_ptr<Shader>;

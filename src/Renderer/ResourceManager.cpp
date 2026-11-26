@@ -63,16 +63,22 @@ void ResourceManager::Clear()
     // (properly) delete all shaders
     for ( const auto &iter : s_shaders )
     {
-        if ( iter.second )
+        if ( iter.second && iter.second->ID != 0 )
+        {
             GL_CHECK( glDeleteProgram( iter.second->ID ) );
+            iter.second->ID = 0;
+        }
     }
     s_shaders.clear();
 
     // (properly) delete all textures
     for ( const auto &iter : s_textures )
     {
-        if ( iter.second )
+        if ( iter.second && iter.second->ID != 0 )
+        {
             GL_CHECK( glDeleteTextures( 1, &iter.second->ID ) );
+            iter.second->ID = 0;
+        }
     }
     s_textures.clear();
 }
@@ -97,13 +103,21 @@ shaderPtr ResourceManager::LoadShader( const std::string& vShaderName, const std
     catch ( const std::exception& e )
     {
         wxLogMessage( "ERROR::SHADER: Failed to read shader files, \"%s\"", e.what() );
+        return std::make_shared<Shader>();
     }
+
+    auto shader = std::make_shared<Shader>();
+    if ( vertexCode.empty() || fragmentCode.empty() || ( !gShaderName.empty() && geometryCode.empty() ) )
+    {
+        wxLogMessage( "ERROR::SHADER: Empty shader source for \"%s\" / \"%s\"", vShaderName.c_str(), fShaderName.c_str() );
+        return shader;
+    }
+
     const char* vShaderCode = vertexCode.c_str();
     const char* fShaderCode = fragmentCode.c_str();
     const char* gShaderCode = geometryCode.c_str();
 
     // 2. now create shader object from source code
-    auto shader = std::make_shared<Shader>();
     shader->compile( vShaderCode, fShaderCode, gShaderName.empty() ? nullptr : gShaderCode );
 
     return shader;
