@@ -1,5 +1,11 @@
 #pragma once
 
+#include <memory>
+#include "Common/defs.h"
+#if defined( wxUSE_LOGWINDOW ) && wxUSE_LOGWINDOW && defined( USE_LOGGER ) && USE_LOGGER == 1
+    #include <wx/log.h>
+#endif
+
 // Forward declarations
 class Timer;
 class RenderWindow;
@@ -57,6 +63,9 @@ class MainFrame final : public wxFrame
         // Private data (non-owning pointers; wxWindow parent owns child windows)
         RenderWindow* m_renderSurface { nullptr };
         ControlPanel::Panel* m_controlPanel { nullptr };
+#if defined( wxUSE_LOGWINDOW ) && wxUSE_LOGWINDOW && defined( USE_LOGGER ) && USE_LOGGER == 1
+        std::unique_ptr<wxLogWindow> m_logWindow;
+#endif
         
         bool m_isRunning { false };
 

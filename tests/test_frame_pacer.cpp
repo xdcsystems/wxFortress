@@ -195,3 +195,79 @@ TEST( FramePacerTest, NonFiniteAndNegativeInputsSafe )
     FramePacing::recordSyncDuration( st, true, inf );
     EXPECT_EQ( st.fastSyncStreak, 2 );
 }
+
+TEST( FramePacerTest, FixedStepAccumulatorStepsDeterministicallyAndInterpolates )
+{
+    FramePacing::FixedStepConfig cfg {};
+    cfg.fixedDtSec = 1.0 / 120.0;
+    cfg.maxFrameSec = 0.05;
+    cfg.maxStepsPerFrame = 6;
+
+    FramePacing::FixedStepState st {};
+    // 60 Hz frame (~16.6667 ms) -> exactly 2 ticks of 120 Hz, alpha near 0
+    const int steps60 = FramePacing::consumeFixedSteps( st, 1.0 / 60.0, cfg );
+    EXPECT_EQ( steps60, 2 );
+    EXPECT_GE( st.alpha, 0.0 );
+    EXPECT_LE( st.alpha, 1.0 );
+
+    // 144 Hz frame (~6.944 ms < 8.333 ms) -> 0 ticks first frame, alpha ~0.833
+    FramePacing::resetFixedStep( st );
+    const int steps144a = FramePacing::consumeFixedSteps( st, 1.0 / 144.0, cfg );
+    EXPECT_EQ( steps144a, 0 );
+    EXPECT_NEAR( st.alpha, 120.0 / 144.0, 1e-4 );
+
+    // Second 144 Hz frame -> 1 tick, remainder ~5.556 ms -> alpha ~0.667
+    const int steps144b = FramePacing::consumeFixedSteps( st, 1.0 / 144.0, cfg );
+    EXPECT_EQ( steps144b, 1 );
+    EXPECT_NEAR( st.alpha, ( 2.0 / 144.0 - 1.0 / 120.0 ) * 120.0, 1e-4 );
+}
+
+TEST( FramePacerTest, FixedStepAccumulatorSpiralOfDeathAndNonFiniteSafe )
+{
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    const double inf = std::numeric_limits<double>::infinity();
+
+    FramePacing::FixedStepConfig cfg {};
+    FramePacing::FixedStepState st {};
+
+    // Huge 2.0s OS stall must be clamped by maxFrameSec / maxStepsPerFrame
+    const int capped = FramePacing::consumeFixedSteps( st, 2.0, cfg );
+    EXPECT_LE( capped, cfg.maxStepsPerFrame );
+    EXPECT_GE( st.alpha, 0.0 );
+    EXPECT_LE( st.alpha, 1.0 );
+
+    // Explicitly exercise backlog discard when maxStepsPerFrame < maxFrameSec / fixedDtSec
+    FramePacing::FixedStepConfig tightCfg {};
+    tightCfg.fixedDtSec = 1.0 / 120.0;
+    tightCfg.maxFrameSec = 0.05;
+    tightCfg.maxStepsPerFrame = 2;
+    FramePacing::resetFixedStep( st );
+    EXPECT_EQ( FramePacing::consumeFixedSteps( st, 0.05, tightCfg ), 2 );
+    EXPECT_DOUBLE_EQ( st.accumulatorSec, 0.0 );
+    EXPECT_DOUBLE_EQ( st.alpha, 0.0 );
+
+    // Non-finite and negative inputs must be ignored safely
+    const double prevAccum = st.accumulatorSec;
+    EXPECT_EQ( FramePacing::consumeFixedSteps( st, nan, cfg ), 0 );
+    EXPECT_EQ( FramePacing::consumeFixedSteps( st, inf, cfg ), 0 );
+    EXPECT_EQ( FramePacing::consumeFixedSteps( st, -0.016, cfg ), 0 );
+    EXPECT_DOUBLE_EQ( st.accumulatorSec, prevAccum );
+
+    // Invalid config parameters and corrupted accumulator state must self-heal
+    FramePacing::FixedStepConfig badCfg {};
+    badCfg.fixedDtSec = 0.0;
+    EXPECT_EQ( FramePacing::consumeFixedSteps( st, 1.0 / 60.0, badCfg ), 0 );
+    EXPECT_DOUBLE_EQ( st.alpha, 1.0 );
+
+    badCfg.fixedDtSec = nan;
+    EXPECT_EQ( FramePacing::consumeFixedSteps( st, 1.0 / 60.0, badCfg ), 0 );
+
+    badCfg.fixedDtSec = 1.0 / 120.0;
+    badCfg.maxFrameSec = -1.0;
+    badCfg.maxStepsPerFrame = 0;
+    st.accumulatorSec = nan;
+    EXPECT_EQ( FramePacing::consumeFixedSteps( st, 1.0 / 60.0, badCfg ), 1 );
+    EXPECT_DOUBLE_EQ( st.accumulatorSec, 0.0 );
+    EXPECT_GE( st.alpha, 0.0 );
+    EXPECT_LE( st.alpha, 1.0 );
+}

@@ -85,6 +85,7 @@ class RenderWindow final : public wxGLCanvas
         void ensureContextCurrent();
         void configureSwapAndPacing();
         bool waitForVBlank();
+        void resetSimulationTiming();
 
         // Private data
         std::unique_ptr<wxGLContext> m_context;
@@ -101,6 +102,7 @@ class RenderWindow final : public wxGLCanvas
 
         double m_elapsedTime { 0 };
         FramePacing::State m_framePacer {};
+        FramePacing::FixedStepState m_fixedStep {};
 
         bool m_isInitialized { false };
         bool m_isRunning { false };

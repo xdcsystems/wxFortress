@@ -253,12 +253,24 @@ void RenderWindow::resetBallSpeed()
         m_shapesManager->resetBallSpeed();
 }
 
+void RenderWindow::resetSimulationTiming()
+{
+    if ( m_timer )
+        m_timer->start();
+    FramePacing::resetFrameTiming( m_framePacer );
+    FramePacing::resetFixedStep( m_fixedStep );
+    if ( m_shapesManager )
+    {
+        m_shapesManager->syncPreviousState();
+        m_shapesManager->setRenderAlpha( 1.0f );
+    }
+}
+
 void RenderWindow::start()
 {
     m_state = State::NEWROUND;
     m_isRunning = true;
-    m_timer->start();
-    FramePacing::resetFrameTiming( m_framePacer );
+    resetSimulationTiming();
     if ( m_soundManager )
         m_soundManager->playMusic( m_currentLevel );
 }
@@ -280,8 +292,7 @@ void RenderWindow::triggerLaunch()
     if ( m_state == State::NEWROUND || m_state == State::RUN || m_state == State::PAUSE )
     {
         switchRun();
-        m_timer->start();
-        FramePacing::resetFrameTiming( m_framePacer );
+        resetSimulationTiming();
         wxWakeUpIdle();
     }
 }
@@ -376,9 +387,7 @@ void RenderWindow::onIdle( wxIdleEvent &event )
     {
         if ( m_mediaManager )
             m_mediaManager->cancelSkipHold();
-        if ( m_timer )
-            m_timer->start();
-        FramePacing::resetFrameTiming( m_framePacer );
+        resetSimulationTiming();
         wxMilliSleep( 25 );
         event.RequestMore();
         return;
@@ -448,6 +457,9 @@ void RenderWindow::onIdle( wxIdleEvent &event )
                         m_shapesManager->run( true );
                     m_state = State::RUN;
                     m_lastLaunchTime = std::chrono::steady_clock::now();
+                    FramePacing::resetFixedStep( m_fixedStep );
+                    if ( m_shapesManager )
+                        m_shapesManager->setRenderAlpha( 1.0f );
                 }
             }
         }
@@ -455,7 +467,19 @@ void RenderWindow::onIdle( wxIdleEvent &event )
              ( m_state == State::NEWROUND || m_state == State::LAUNCHING ||
                m_state == State::COUNTDOWN || m_state == State::RUN ) )
         {
-            m_shapesManager->update( dtSec );
+            constexpr FramePacing::FixedStepConfig kFixedCfg {};
+            const int fixedSteps = FramePacing::consumeFixedSteps( m_fixedStep, dtSec, kFixedCfg );
+            const bool wasRunning = m_shapesManager->isRunning();
+            for ( int step = 0; step < fixedSteps; ++step )
+            {
+                m_shapesManager->update( kFixedCfg.fixedDtSec, fixedSteps - step );
+                if ( wasRunning && !m_shapesManager->isRunning() )
+                {
+                    FramePacing::resetFixedStep( m_fixedStep );
+                    break;
+                }
+            }
+            m_shapesManager->setRenderAlpha( static_cast<float>( m_fixedStep.alpha ) );
         }
         if ( m_useDwmPacing )
         {
@@ -627,8 +651,7 @@ void RenderWindow::onKeyPressed( wxKeyEvent &event )
             if ( event.GetKeyCode() == WXK_ESCAPE )
             {
                 m_state = m_prevState;
-                m_timer->start();
-                FramePacing::resetFrameTiming( m_framePacer );
+                resetSimulationTiming();
                 if ( m_soundManager )
                     m_soundManager->playMusic( m_currentLevel );
                 Refresh( false );
@@ -653,8 +676,7 @@ void RenderWindow::onKeyPressed( wxKeyEvent &event )
                     if ( m_state == State::RUN )
                     {
                         switchRun();
-                        m_timer->start();
-                        FramePacing::resetFrameTiming( m_framePacer );
+                        resetSimulationTiming();
                     }
                     m_prevState = m_state;
 
@@ -687,6 +709,7 @@ void RenderWindow::onKeyPressed( wxKeyEvent &event )
                 event.GetKeyCode() == 'y' )
             {
                 m_state = State::NEWROUND;
+                resetSimulationTiming();
                 QueueEvent( new wxCommandEvent( wxEVT_RESET ) );
                 wxWakeUpIdle();
 
@@ -738,6 +761,7 @@ void RenderWindow::onRoundCompleted( wxCommandEvent &event )
 {
     m_soundManager->playLevelComplete();
     m_state = State::NEWROUND;
+    resetSimulationTiming();
 
     render();
 
@@ -750,6 +774,7 @@ void RenderWindow::onBallLost( wxCommandEvent &event )
         m_shapesManager->stop();
     m_soundManager->playBallLost();
     m_state = State::NEWROUND;
+    resetSimulationTiming();
 
     render();
 
@@ -768,6 +793,7 @@ void RenderWindow::onStageFinished( wxCommandEvent& )
     m_textRenderer->selectFontType( TextRendererFont::OLD );
     m_textRenderer->switchToFinishState( ++s_stage );
     m_state = State::FINISHED;
+    resetSimulationTiming();
     if ( m_soundManager )
         m_soundManager->playVictoryMusic();
 }

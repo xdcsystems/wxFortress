@@ -121,4 +121,65 @@ namespace FramePacing
             st.paceExternally = false;
         }
     }
+
+    /** Fixed-timestep accumulator configuration (Glenn Fiedler, "Fix Your Timestep!"). */
+    struct FixedStepConfig
+    {
+        double fixedDtSec { 1.0 / 120.0 };
+        double maxFrameSec { 0.05 };
+        int maxStepsPerFrame { 6 };
+    };
+
+    struct FixedStepState
+    {
+        double accumulatorSec { 0.0 };
+        double alpha { 1.0 };
+    };
+
+    inline void resetFixedStep( FixedStepState& st ) noexcept
+    {
+        st.accumulatorSec = 0.0;
+        st.alpha = 1.0;
+    }
+
+    /** Accumulates raw frame time, returns discrete fixed-step ticks to run, and updates render alpha in [0, 1]. */
+    inline int consumeFixedSteps(
+        FixedStepState& st,
+        double frameDtSec,
+        const FixedStepConfig& cfg = {} ) noexcept
+    {
+        if ( !std::isfinite( st.accumulatorSec ) || st.accumulatorSec < 0.0 )
+            st.accumulatorSec = 0.0;
+
+        if ( !std::isfinite( cfg.fixedDtSec ) || cfg.fixedDtSec <= 0.0 ||
+             !std::isfinite( frameDtSec ) || frameDtSec <= 0.0 )
+        {
+            st.alpha = ( std::isfinite( cfg.fixedDtSec ) && cfg.fixedDtSec > 0.0 )
+                ? std::clamp( st.accumulatorSec / cfg.fixedDtSec, 0.0, 1.0 )
+                : 1.0;
+            return 0;
+        }
+
+        const double maxFrame = ( std::isfinite( cfg.maxFrameSec ) && cfg.maxFrameSec > 0.0 )
+            ? cfg.maxFrameSec
+            : 0.05;
+        st.accumulatorSec += std::clamp( frameDtSec, 0.0, maxFrame );
+
+        int steps = 0;
+        const int maxSteps = std::max( 1, cfg.maxStepsPerFrame );
+        while ( st.accumulatorSec >= cfg.fixedDtSec && steps < maxSteps )
+        {
+            st.accumulatorSec -= cfg.fixedDtSec;
+            ++steps;
+        }
+
+        // Spiral-of-death guard: drop excess backlog cleanly when hitting maxStepsPerFrame.
+        if ( st.accumulatorSec >= cfg.fixedDtSec )
+        {
+            st.accumulatorSec = 0.0;
+        }
+
+        st.alpha = std::clamp( st.accumulatorSec / cfg.fixedDtSec, 0.0, 1.0 );
+        return steps;
+    }
 } // namespace FramePacing
