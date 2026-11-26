@@ -64,6 +64,8 @@ class RenderWindow final : public wxGLCanvas
         void onPaint( wxPaintEvent& );
         void onSize( wxSizeEvent& );
         void onKeyPressed( wxKeyEvent& );
+        void onKeyReleased( wxKeyEvent& );
+        void onKillFocus( wxFocusEvent& );
         void onMouseMove( wxMouseEvent& );
         void onWndInitialized( wxCommandEvent& );
         void onScoreIncreased( wxCommandEvent& );

@@ -7,6 +7,9 @@
     #include <wx/wx.h>
 #endif
 
+#include <algorithm>
+#include <array>
+#include <cmath>
 #include <vector>
 #include <cstring>
 
@@ -45,9 +48,40 @@ TextRenderer::TextRenderer( wxWindow* parent )
 
     GL_CHECK( glGenBuffers( 1, &m_vertexBufferID ) );
     GL_CHECK( glGenBuffers( 1, &m_UVBufferID ) );
+    GL_CHECK( glGenBuffers( 1, &m_arcBufferID ) );
 
     GL_CHECK( m_attrVertex = glGetAttribLocation( m_shader->ID, "vertex" ) );
     GL_CHECK( m_attrUVs = glGetAttribLocation( m_shader->ID, "vertexUV" ) );
+
+    static constexpr const char* kArcVertexSrc =
+        "#version 110\n"
+        "attribute vec2 vertex;\n"
+        "uniform mat4 projection;\n"
+        "void main() {\n"
+        "    gl_Position = projection * vec4( vertex, 0.0, 1.0 );\n"
+        "}\n";
+    static constexpr const char* kArcFragmentSrc =
+        "#version 110\n"
+        "uniform vec4 arcColor;\n"
+        "void main() {\n"
+        "    gl_FragColor = arcColor;\n"
+        "}\n";
+    m_arcShader = std::make_shared<Shader>();
+    m_arcShader->compile( kArcVertexSrc, kArcFragmentSrc );
+    if ( m_arcShader->ID != 0 )
+    {
+        GLint linked = GL_FALSE;
+        GL_CHECK( glGetProgramiv( m_arcShader->ID, GL_LINK_STATUS, &linked ) );
+        if ( linked == GL_TRUE )
+        {
+            GL_CHECK( m_attrArcVertex = glGetAttribLocation( m_arcShader->ID, "vertex" ) );
+        }
+        else
+        {
+            GL_CHECK( glDeleteProgram( m_arcShader->ID ) );
+            m_arcShader->ID = 0;
+        }
+    }
 
     m_timer = std::make_shared<Timer>( false );
 }
@@ -59,8 +93,26 @@ TextRenderer::~TextRenderer()
 
 void TextRenderer::cleanup()
 {
-    GL_CHECK( glDeleteBuffers( 1, &m_vertexBufferID ) );
-    GL_CHECK( glDeleteBuffers( 1, &m_UVBufferID ) );
+    if ( m_vertexBufferID != 0 )
+    {
+        GL_CHECK( glDeleteBuffers( 1, &m_vertexBufferID ) );
+        m_vertexBufferID = 0;
+    }
+    if ( m_UVBufferID != 0 )
+    {
+        GL_CHECK( glDeleteBuffers( 1, &m_UVBufferID ) );
+        m_UVBufferID = 0;
+    }
+    if ( m_arcBufferID != 0 )
+    {
+        GL_CHECK( glDeleteBuffers( 1, &m_arcBufferID ) );
+        m_arcBufferID = 0;
+    }
+    if ( m_arcShader && m_arcShader->ID != 0 )
+    {
+        GL_CHECK( glDeleteProgram( m_arcShader->ID ) );
+        m_arcShader->ID = 0;
+    }
     for ( auto& entry : s_fontData )
         entry.second.second.reset();
 }
@@ -68,6 +120,10 @@ void TextRenderer::cleanup()
 void TextRenderer::resize( const glm::mat4& projection )
 {
     m_shader->setMatrix4( "projection", projection, true );
+    if ( m_arcShader && m_arcShader->ID != 0 && m_attrArcVertex >= 0 )
+    {
+        m_arcShader->setMatrix4( "projection", projection, true );
+    }
 }
 
 void TextRenderer::switchToFinishState( unsigned short stage )
@@ -205,6 +261,52 @@ void TextRenderer::print( const std::string& text, int x, int y, const glm::vec2
 
     GL_CHECK( glDisableVertexAttribArray( m_attrVertex ) );
     GL_CHECK( glDisableVertexAttribArray( m_attrUVs ) );
+}
+
+void TextRenderer::drawProgressArc( float cx, float cy, float innerRadius, float outerRadius, float progress, const glm::vec4& color )
+{
+    if ( !m_arcShader || m_arcShader->ID == 0 || m_attrArcVertex < 0 || m_arcBufferID == 0 )
+        return;
+
+    if ( !std::isfinite( cx ) || !std::isfinite( cy ) ||
+         !std::isfinite( innerRadius ) || !std::isfinite( outerRadius ) ||
+         !std::isfinite( progress ) ||
+         progress <= 0.0f || outerRadius <= innerRadius || innerRadius < 0.0f )
+        return;
+
+    constexpr float kPi = 3.14159265358979323846f;
+    constexpr float kTwoPi = 2.0f * kPi;
+    constexpr float kHalfPi = 0.5f * kPi;
+    constexpr int kFullCircleSegments = 96;
+
+    const float clamped = std::clamp( progress, 0.0f, 1.0f );
+    const float totalAngle = clamped * kTwoPi;
+    const int segments = std::max( 1, static_cast<int>( std::ceil( clamped * kFullCircleSegments ) ) );
+
+    std::array<glm::vec2, ( kFullCircleSegments + 1 ) * 2> verts {};
+    size_t count = 0;
+
+    for ( int i = 0; i <= segments; ++i )
+    {
+        const float t = static_cast<float>( i ) / static_cast<float>( segments );
+        const float angle = kHalfPi - t * totalAngle;
+        const float cosA = std::cos( angle );
+        const float sinA = std::sin( angle );
+        verts[ count++ ] = { cx + outerRadius * cosA, cy + outerRadius * sinA };
+        verts[ count++ ] = { cx + innerRadius * cosA, cy + innerRadius * sinA };
+    }
+
+    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, m_arcBufferID ) );
+    GL_CHECK( glBufferData( GL_ARRAY_BUFFER, count * sizeof( glm::vec2 ), verts.data(), GL_DYNAMIC_DRAW ) );
+
+    m_arcShader->use();
+    m_arcShader->setVector4f( "arcColor", color );
+
+    GL_CHECK( glVertexAttribPointer( static_cast<GLuint>( m_attrArcVertex ), 2, GL_FLOAT, GL_FALSE, 0, nullptr ) );
+    GL_CHECK( glEnableVertexAttribArray( static_cast<GLuint>( m_attrArcVertex ) ) );
+    GL_CHECK( glDrawArrays( GL_TRIANGLE_STRIP, 0, static_cast<GLsizei>( count ) ) );
+    GL_CHECK( glDisableVertexAttribArray( static_cast<GLuint>( m_attrArcVertex ) ) );
+    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, 0 ) );
 }
 
 void TextRenderer::renderFinishMessage()

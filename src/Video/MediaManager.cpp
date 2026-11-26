@@ -7,6 +7,8 @@
     #include <wx/wx.h>
 #endif
 
+#include <algorithm>
+#include <chrono>
 #include <condition_variable>
 
 #include <GL/glew.h>
@@ -21,6 +23,14 @@
 
 DEFINE_LOCAL_EVENT_TYPE( wxEVT_VIDEO_PLAY )
 DEFINE_LOCAL_EVENT_TYPE( wxEVT_VIDEO_FINISHED )
+
+namespace
+{
+    double steadyNowSec()
+    {
+        return std::chrono::duration<double>( std::chrono::steady_clock::now().time_since_epoch() ).count();
+    }
+}
 
 MediaManager::MediaManager( wxGLCanvas* canvas, const textRedererPtr& textRenderer )
   : m_textRenderer( textRenderer )
@@ -41,6 +51,9 @@ MediaManager::~MediaManager()
 void MediaManager::reset()
 {
     m_isPlaying = false;
+    m_skipOverlayDirty = false;
+    m_lastOverlayRefreshSec = -1.0;
+    IntroSkipHold::reset( m_skipHold );
     m_currentFrame = { nullptr, std::numeric_limits<int64_t>::min() };
     m_duration = -1;
     if ( m_movie )
@@ -59,11 +72,35 @@ void MediaManager::playIntro()
 
 void MediaManager::showSkipMessage()
 {
-    m_textRenderer->print( "Press R or ESC to skip",
-        m_videoRenderer->viewWidth() - 300,
-        31,
-        glm::vec2( 14.f, 16.f ),
+    if ( !m_videoRenderer || !m_textRenderer )
+        return;
+
+    constexpr glm::vec2 kCharSize( 14.f, 16.f );
+    constexpr int kTextY = 31;
+    const int logicalW = ( m_logicalWidth > 0 )
+        ? m_logicalWidth
+        : ( m_canvas ? m_canvas->GetClientSize().GetWidth() : m_videoRenderer->viewWidth() );
+    const int textX = std::max( 0, logicalW - 300 );
+
+    m_textRenderer->print( "Press R key for skip",
+        textX,
+        kTextY,
+        kCharSize,
         glm::vec3( .6f, .6f, .6f ) );
+
+    if ( m_skipHold.holding && m_skipHold.progress > 0.0 )
+    {
+        // 'R' is at index 6 in "Press R key for skip"
+        const float cx = static_cast<float>( textX ) + 6.5f * kCharSize.x;
+        const float cy = static_cast<float>( kTextY ) + 0.5f * kCharSize.y;
+        m_textRenderer->drawProgressArc(
+            cx,
+            cy,
+            13.5f,
+            16.0f,
+            static_cast<float>( m_skipHold.progress ),
+            glm::vec4( 0.85f, 0.85f, 0.85f, 0.95f ) );
+    }
 }
 
 void MediaManager::open( std::string filename )
@@ -74,6 +111,9 @@ void MediaManager::open( std::string filename )
     }
     m_currentFrame = { nullptr, std::numeric_limits<int64_t>::min() };
     m_duration = -1;
+    m_skipOverlayDirty = false;
+    m_lastOverlayRefreshSec = -1.0;
+    IntroSkipHold::reset( m_skipHold );
     m_isPlaying = true;
     m_movie->open( std::move( filename ) );
 }
@@ -81,6 +121,30 @@ void MediaManager::open( std::string filename )
 void MediaManager::stop()
 {
     close();
+}
+
+void MediaManager::onSkipKeyDown()
+{
+    if ( !m_isPlaying || !m_movie )
+        return;
+
+    if ( IntroSkipHold::onKeyDown( m_skipHold, steadyNowSec() ) )
+    {
+        m_skipOverlayDirty = true;
+    }
+}
+
+void MediaManager::onSkipKeyUp()
+{
+    if ( IntroSkipHold::onKeyUp( m_skipHold ) )
+    {
+        m_skipOverlayDirty = true;
+    }
+}
+
+void MediaManager::cancelSkipHold()
+{
+    onSkipKeyUp();
 }
 
 void MediaManager::close()
@@ -94,6 +158,9 @@ void MediaManager::close()
 
 void MediaManager::resize( const wxSize& size )
 {
+    if ( size.GetWidth() > 0 )
+        m_logicalWidth = size.GetWidth();
+
     if ( !m_canvas->IsShownOnScreen() || !m_movie )
         return;
 
@@ -120,20 +187,47 @@ bool MediaManager::needRefresh()
         return false;
     }
 
+    const double now = steadyNowSec();
+    if ( IntroSkipHold::update( m_skipHold, now ) )
+    {
+        close();
+        return false;
+    }
+
     if ( m_duration < 0 )
     {
         m_duration = m_movie->duration();
     }
 
+    bool refreshed = false;
     const auto [ frame, pts ] = m_movie->currentFrame();
     if ( frame && m_currentFrame.second != pts )
     {
         m_currentFrame.first = frame;
         m_currentFrame.second = pts;
-
-        return true;
+        refreshed = true;
     }
-    return false;
+
+    if ( m_skipOverlayDirty )
+    {
+        m_skipOverlayDirty = false;
+        if ( m_currentFrame.first )
+        {
+            m_lastOverlayRefreshSec = now;
+            refreshed = true;
+        }
+    }
+    else if ( m_skipHold.holding && m_currentFrame.first )
+    {
+        constexpr double kOverlayFrameIntervalSec = 1.0 / 60.0;
+        if ( refreshed || m_lastOverlayRefreshSec < 0.0 || ( now - m_lastOverlayRefreshSec ) >= kOverlayFrameIntervalSec )
+        {
+            m_lastOverlayRefreshSec = now;
+            refreshed = true;
+        }
+    }
+
+    return refreshed;
 }
 
 void MediaManager::renderFrame()
@@ -160,8 +254,10 @@ void MediaManager::renderFrame()
         }
     }
 
-    if ( m_currentFrame.second > s_timerInterval && 
-         m_currentFrame.second < m_duration - s_timerInterval )
+    const bool inHintWindow = ( m_duration > 0 &&
+                                m_currentFrame.second > s_timerInterval &&
+                                m_currentFrame.second < m_duration - s_timerInterval );
+    if ( inHintWindow || m_skipHold.holding )
         showSkipMessage();
 }
 
