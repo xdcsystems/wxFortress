@@ -39,6 +39,11 @@
 
 #include "RenderWindow.h"
 
+#if defined( __linux__ ) || defined( __LINUX__ )
+    // Include after project headers so X11 macros (e.g. None, Bool, Status) never pollute C++ enums.
+    #include <GL/glxew.h>
+#endif
+
 
 DEFINE_LOCAL_EVENT_TYPE( wxEVT_WND_INITIALIZED )
 DEFINE_LOCAL_EVENT_TYPE( wxEVT_LAUNCH_PRESSED )
@@ -150,9 +155,23 @@ void RenderWindow::configureSwapAndPacing()
     {
         wglSwapIntervalEXT( 1 );
     }
-#elif defined( _POSIX_VER )
-    // NOTE check for GLX_SGI_swap_control extension : http://www.opengl.org/wiki/Swap_Interval#In_Linux_.2F_GLXw
-    glXSwapIntervalSGI( -1 );  
+#elif defined( __linux__ ) || defined( __LINUX__ )
+    // Prefer GLX_EXT_swap_control, then MESA, then SGI (positive interval = 1).
+    if ( GLXEW_EXT_swap_control && glXSwapIntervalEXT )
+    {
+        Display* dpy = glXGetCurrentDisplay();
+        GLXDrawable drawable = glXGetCurrentDrawable();
+        if ( dpy && drawable )
+            glXSwapIntervalEXT( dpy, drawable, 1 );
+    }
+    else if ( GLXEW_MESA_swap_control && glXSwapIntervalMESA )
+    {
+        glXSwapIntervalMESA( 1 );
+    }
+    else if ( GLXEW_SGI_swap_control && glXSwapIntervalSGI )
+    {
+        glXSwapIntervalSGI( 1 );
+    }
 #endif
 }
 
@@ -224,8 +243,7 @@ void RenderWindow::loadLevel( unsigned short level )
     }
     catch ( const stage_complete_exception& )
     {
-        wxCommandEvent eventStageFinished( wxEVT_STAGE_FINISHED );
-        AddPendingEvent( eventStageFinished );
+        QueueEvent( new wxCommandEvent( wxEVT_STAGE_FINISHED ) );
     }
 }
 
@@ -292,7 +310,7 @@ void RenderWindow::switchRun()
     if ( m_state == State::NEWROUND )
     {
         wxCommandEvent lounchPressedEvent( wxEVT_LAUNCH_PRESSED );
-        ProcessEvent( lounchPressedEvent );
+        ProcessWindowEvent( lounchPressedEvent );
 
         if ( m_soundManager )
             m_soundManager->playSiren();
@@ -318,7 +336,13 @@ void RenderWindow::resize( const wxSize &size )
     if ( size.x < 1 || size.y < 1 )
         return;
 
-    GL_CHECK( glViewport( 0, 0, ( GLint )size.GetWidth(), ( GLint )size.GetHeight() ) );
+    if ( m_isInitialized )
+        ensureContextCurrent();
+
+    const wxSize physSize = size * GetContentScaleFactor();
+    const GLsizei vpW = std::max<GLsizei>( 1, static_cast<GLsizei>( physSize.GetWidth() ) );
+    const GLsizei vpH = std::max<GLsizei>( 1, static_cast<GLsizei>( physSize.GetHeight() ) );
+    GL_CHECK( glViewport( 0, 0, vpW, vpH ) );
 
     const auto &projection =
         glm::ortho( 0.0f, static_cast< float >( size.GetWidth() ), 0.0f, static_cast< float >( size.GetHeight() ), -1.0f, 1.0f );
@@ -394,7 +418,7 @@ void RenderWindow::onIdle( wxIdleEvent &event )
             if ( !m_soundManager || !m_soundManager->isLaunchAudioPlaying() )
             {
                 wxCommandEvent roundStartedEvent( wxEVT_NEW_ROUND_STARTED );
-                ProcessEvent( roundStartedEvent );
+                ProcessWindowEvent( roundStartedEvent );
 
                 m_state = State::COUNTDOWN;
                 m_countDown = 3;
@@ -439,6 +463,11 @@ void RenderWindow::onIdle( wxIdleEvent &event )
         const double presentMs = std::chrono::duration<double, std::milli>(
             std::chrono::steady_clock::now() - presentStart ).count();
         FramePacing::recordSyncDuration( m_framePacer, syncOk, presentMs );
+
+        const bool isStaticState = ( m_state == State::PAUSE || m_state == State::HELP );
+        const bool musicTransitioning = m_soundManager && m_soundManager->isMusicGainTransitioning();
+        if ( isStaticState && !musicTransitioning )
+            return;
     }
     else
     {
@@ -527,8 +556,7 @@ void RenderWindow::onSize( wxSizeEvent &event )
 
             resize( event.GetSize() );
             
-            wxCommandEvent eventWndInitialized( wxEVT_WND_INITIALIZED );
-            AddPendingEvent( eventWndInitialized );
+            QueueEvent( new wxCommandEvent( wxEVT_WND_INITIALIZED ) );
 
             return;
         }
@@ -555,6 +583,7 @@ void RenderWindow::onKeyPressed( wxKeyEvent &event )
     {
         if ( m_soundManager )
             m_soundManager->toggleMusicMute();
+        wxWakeUpIdle();
         return;
     }
 
@@ -577,6 +606,8 @@ void RenderWindow::onKeyPressed( wxKeyEvent &event )
                 FramePacing::resetFrameTiming( m_framePacer );
                 if ( m_soundManager )
                     m_soundManager->playMusic( m_currentLevel );
+                Refresh( false );
+                wxWakeUpIdle();
             }
         break;
 
@@ -607,6 +638,8 @@ void RenderWindow::onKeyPressed( wxKeyEvent &event )
                     m_state = State::HELP;
                     if ( m_soundManager )
                         m_soundManager->playHelpMusic();
+                    Refresh( false );
+                    wxWakeUpIdle();
                 }
                 break;
 
@@ -629,8 +662,8 @@ void RenderWindow::onKeyPressed( wxKeyEvent &event )
                 event.GetKeyCode() == 'y' )
             {
                 m_state = State::NEWROUND;
-                wxCommandEvent eventReset( wxEVT_RESET );
-                AddPendingEvent( eventReset );
+                QueueEvent( new wxCommandEvent( wxEVT_RESET ) );
+                wxWakeUpIdle();
 
                 break;
             }

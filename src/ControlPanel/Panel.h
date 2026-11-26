@@ -1,5 +1,7 @@
 #pragma once
 
+#include <memory>
+
 DECLARE_LOCAL_EVENT_TYPE( wxEVT_LAUNCH_CLICKED, -1 )
 
 namespace ControlPanel

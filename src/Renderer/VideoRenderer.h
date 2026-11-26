@@ -13,6 +13,10 @@ class VideoRenderer
     public:
         VideoRenderer();
         ~VideoRenderer();
+        VideoRenderer( const VideoRenderer& ) = delete;
+        VideoRenderer& operator=( const VideoRenderer& ) = delete;
+        VideoRenderer( VideoRenderer&& ) = delete;
+        VideoRenderer& operator=( VideoRenderer&& ) = delete;
 
         bool ok();
         void setViewport( int x, int y, int width, int height );

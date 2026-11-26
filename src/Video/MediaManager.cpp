@@ -67,7 +67,7 @@ void MediaManager::reset()
 void MediaManager::playIntro()
 {
     open( Tools::Instance().getFullFileName( ( "/" + wxTheApp->GetAppName() + ".vid" ).ToStdString() ) );
-    m_eventHandler->AddPendingEvent( m_eventMediaPlay );
+    m_eventHandler->QueueEvent( m_eventMediaPlay.Clone() );
 }
 
 void MediaManager::showSkipMessage()
@@ -157,7 +157,7 @@ void MediaManager::close()
         return;
 
     reset();
-    m_eventHandler->AddPendingEvent( m_eventMediaFinished );
+    m_eventHandler->QueueEvent( m_eventMediaFinished.Clone() );
 }
 
 void MediaManager::resize( const wxSize& size )

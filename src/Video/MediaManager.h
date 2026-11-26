@@ -18,6 +18,10 @@ class MediaManager final
     public:
         MediaManager( wxGLCanvas* canvas, const textRedererPtr &textRenderer );
         ~MediaManager();
+        MediaManager( const MediaManager& ) = delete;
+        MediaManager& operator=( const MediaManager& ) = delete;
+        MediaManager( MediaManager&& ) = delete;
+        MediaManager& operator=( MediaManager&& ) = delete;
 
         void resize( const wxSize& size );
         void reset();

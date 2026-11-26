@@ -36,6 +36,10 @@ class SoundManager final
 
         SoundManager();
         ~SoundManager();
+        SoundManager( const SoundManager& ) = delete;
+        SoundManager& operator=( const SoundManager& ) = delete;
+        SoundManager( SoundManager&& ) = delete;
+        SoundManager& operator=( SoundManager&& ) = delete;
 
         int init();
         void playSiren();
@@ -59,6 +63,10 @@ class SoundManager final
         void duckMusicTemporarily( double durationSec );
         void toggleMusicMute();
         bool isMusicMuted() const { return m_musicGain.muted; }
+        bool isMusicGainTransitioning() const
+        {
+            return m_musicPlaying && m_musicSource != 0 && MusicGain::isMusicGainTransitioning( m_musicGain );
+        }
         void updateMusic( double dtSec );
 
     private:

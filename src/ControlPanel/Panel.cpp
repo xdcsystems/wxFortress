@@ -106,8 +106,7 @@ void Panel::onLeftDown( wxMouseEvent &event )
     {
         if ( auto* parent = GetParent() )
         {
-            wxCommandEvent launchEvt( wxEVT_LAUNCH_CLICKED );
-            parent->GetEventHandler()->AddPendingEvent( launchEvt );
+            parent->GetEventHandler()->QueueEvent( new wxCommandEvent( wxEVT_LAUNCH_CLICKED ) );
         }
     }
     event.Skip();

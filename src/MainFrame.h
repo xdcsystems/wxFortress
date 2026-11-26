@@ -53,9 +53,9 @@ class MainFrame final : public wxFrame
         // Helper functions
         void init();
 
-        // Private data
-        std::shared_ptr<RenderWindow> m_renderSurface;
-        std::shared_ptr<ControlPanel::Panel> m_controlPanel;
+        // Private data (non-owning pointers; wxWindow parent owns child windows)
+        RenderWindow* m_renderSurface { nullptr };
+        ControlPanel::Panel* m_controlPanel { nullptr };
         
         bool m_isRunning { false };
 

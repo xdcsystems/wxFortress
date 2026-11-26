@@ -7,8 +7,6 @@
     #include <wx/wx.h>
 #endif
 
-#include <memory>
-
 #include "Common/defs.h"
 #include "ControlPanel/Panel.h"
 #include "RenderWindow.h"
@@ -62,12 +60,12 @@ void MainFrame::init()
     
     const auto &size = GetSize();
 
-    m_renderSurface = std::make_shared<RenderWindow>( this, wxID_ANY, nullptr, wxSize( 800, size.y ) );
-    m_controlPanel = std::make_shared<ControlPanel::Panel>( this, wxID_ANY, wxPoint( 800, 0 ), wxSize( size.x - 800, size.y ) );
+    m_renderSurface = new RenderWindow( this, wxID_ANY, nullptr, wxSize( 800, size.y ) );
+    m_controlPanel = new ControlPanel::Panel( this, wxID_ANY, wxPoint( 800, 0 ), wxSize( size.x - 800, size.y ) );
 
     auto *hSizer = new wxBoxSizer( wxHORIZONTAL );
-    hSizer->Add( m_renderSurface.get(), 1, wxEXPAND | wxALL );
-    hSizer->Add( m_controlPanel.get(), 1, wxEXPAND | wxALL );
+    hSizer->Add( m_renderSurface, 1, wxEXPAND | wxALL );
+    hSizer->Add( m_controlPanel, 1, wxEXPAND | wxALL );
 
     hSizer->SetMinSize( size );
     hSizer->SetSizeHints( this );
@@ -77,6 +75,9 @@ void MainFrame::init()
 
 void MainFrame::start()
 {
+    if ( !m_renderSurface || !m_controlPanel )
+        return;
+
     m_controlPanel->Show();
 
     m_renderSurface->start();
@@ -90,6 +91,9 @@ void MainFrame::start()
 
 void MainFrame::onVideoStarted( wxCommandEvent& )
 {
+    if ( !m_renderSurface || !m_controlPanel )
+        return;
+
     m_renderSurface->init();
     m_renderSurface->loadLevel( m_controlPanel->increaseLevel() );
 }
@@ -102,7 +106,8 @@ void MainFrame::onVideoFinished( wxCommandEvent& )
 void MainFrame::stop()
 {
     m_isRunning = false;
-    m_renderSurface->stop();
+    if ( m_renderSurface )
+        m_renderSurface->stop();
 }
 
 void MainFrame::onClose( wxCloseEvent &event )

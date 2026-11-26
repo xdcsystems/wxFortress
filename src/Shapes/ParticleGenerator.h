@@ -36,6 +36,10 @@ namespace Shapes
         public:
             ParticleGenerator( unsigned int amount );
             ~ParticleGenerator();
+            ParticleGenerator( const ParticleGenerator& ) = delete;
+            ParticleGenerator& operator=( const ParticleGenerator& ) = delete;
+            ParticleGenerator( ParticleGenerator&& ) = delete;
+            ParticleGenerator& operator=( ParticleGenerator&& ) = delete;
 
             void resize( const glm::mat4& projection );
 

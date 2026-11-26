@@ -44,6 +44,17 @@ namespace MusicGain
         return baseGain;
     }
 
+    inline bool isMusicGainTransitioning(
+        const MusicGainState& state,
+        const MusicGainConfig& cfg = {} ) noexcept
+    {
+        const float target = computeTargetMusicGain( state, cfg );
+        const bool tempActive = std::isfinite( state.tempDuckRemaining ) && state.tempDuckRemaining > 0.0;
+        const bool gainPending = std::isfinite( state.currentGain ) && std::isfinite( target ) &&
+            std::abs( target - state.currentGain ) >= 1e-4f;
+        return tempActive || gainPending;
+    }
+
     inline bool stepMusicGain(
         MusicGainState& state,
         double dtSec,

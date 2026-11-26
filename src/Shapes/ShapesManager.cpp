@@ -225,7 +225,7 @@ void ShapesManager::update( double deltaTimeSec )
     {
         stop();
         updateBallPosition( m_board->bounds() );
-        m_eventHandler->AddPendingEvent( m_eventRoundCompleted );
+        m_eventHandler->QueueEvent( m_eventRoundCompleted.Clone() );
         return;
     }
 
@@ -266,12 +266,12 @@ void ShapesManager::update( double deltaTimeSec )
             m_ball->m_velocity = { m_ballState.vel.x, m_ballState.vel.y };
 
             if ( ev.hitWall )
-                m_eventHandler->AddPendingEvent( m_eventPong );
+                m_eventHandler->QueueEvent( m_eventPong.Clone() );
 
             if ( ev.hitPaddle )
             {
                 ++m_robotDryBounces;
-                m_eventHandler->AddPendingEvent( m_eventPing );
+                m_eventHandler->QueueEvent( m_eventPing.Clone() );
             }
 
             if ( !ev.hitBricks.empty() )
@@ -290,7 +290,7 @@ void ShapesManager::update( double deltaTimeSec )
                         {
                             brick->kill();
                             m_explosions->add( brick );
-                            m_eventHandler->AddPendingEvent( m_eventCurrentScoreInc );
+                            m_eventHandler->QueueEvent( m_eventCurrentScoreInc.Clone() );
                         }
                     }
                 }
@@ -301,7 +301,7 @@ void ShapesManager::update( double deltaTimeSec )
             {
                 stop();
                 updateBallPosition( m_board->bounds() );
-                m_eventHandler->AddPendingEvent( m_eventBallLost );
+                m_eventHandler->QueueEvent( m_eventBallLost.Clone() );
                 return;
             }
         }

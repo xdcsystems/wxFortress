@@ -147,3 +147,29 @@ TEST( MusicGainTest, TempDuckCountdownExpiresAndRecovers )
     ASSERT_TRUE( MusicGain::stepMusicGain( st, 0.1, cfg ) );
     EXPECT_FLOAT_EQ( st.currentGain, cfg.normalGain );
 }
+
+TEST( MusicGainTest, IsTransitioningReflectsSlewTempDuckAndNonFiniteGuards )
+{
+    const MusicGain::MusicGainConfig cfg {};
+    MusicGain::MusicGainState st {};
+
+    EXPECT_FALSE( MusicGain::isMusicGainTransitioning( st, cfg ) );
+
+    st.ducked = true;
+    EXPECT_TRUE( MusicGain::isMusicGainTransitioning( st, cfg ) );
+    for ( int i = 0; i < 10; ++i )
+        MusicGain::stepMusicGain( st, 0.1, cfg );
+    EXPECT_FALSE( MusicGain::isMusicGainTransitioning( st, cfg ) );
+
+    st.tempDuckRemaining = 0.2;
+    EXPECT_TRUE( MusicGain::isMusicGainTransitioning( st, cfg ) );
+
+    // Non-finite state values must never trap the idle loop in transitioning=true
+    st.tempDuckRemaining = std::numeric_limits<double>::infinity();
+    st.currentGain = std::numeric_limits<float>::infinity();
+    EXPECT_FALSE( MusicGain::isMusicGainTransitioning( st, cfg ) );
+
+    st.tempDuckRemaining = std::numeric_limits<double>::quiet_NaN();
+    st.currentGain = std::numeric_limits<float>::quiet_NaN();
+    EXPECT_FALSE( MusicGain::isMusicGainTransitioning( st, cfg ) );
+}
