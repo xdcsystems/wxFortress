@@ -1,7 +1,13 @@
 #pragma once
 
+#include <wx/event.h>
+
 #define USE_LOGGER 0
+#if defined( _DEBUG ) || !defined( NDEBUG )
+#define SKIP_GL_CHECKS 0
+#else
 #define SKIP_GL_CHECKS 1
+#endif
 #define SKIP_AL_CHECKS 1
 
 #define INITIAL_LIVES_VALUE 9

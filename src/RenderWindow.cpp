@@ -203,6 +203,8 @@ void RenderWindow::initializeGLEW()
         const GLubyte *msg = glewGetErrorString( err );
         throw std::runtime_error( reinterpret_cast<const char *>( msg ) );
     }
+    // Drain any benign GL_INVALID_ENUM emitted by glewInit() on modern drivers (bounded).
+    for ( int i = 0; i < 64 && glGetError() != GL_NO_ERROR; ++i ) {}
 }
 
 void RenderWindow::setupGraphics()
@@ -210,8 +212,6 @@ void RenderWindow::setupGraphics()
     configureSwapAndPacing();
 
     GL_CHECK( glClearColor( 0.0, 0.0, 0.0, 1.0 ) );
-    GL_CHECK( glEnable( GL_TEXTURE_2D ) );
-    GL_CHECK( glEnable( GL_COLOR_MATERIAL ) );
     GL_CHECK( glEnable( GL_BLEND ) );
     GL_CHECK( glDisable( GL_DEPTH_TEST ) );
     GL_CHECK( glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA ) );

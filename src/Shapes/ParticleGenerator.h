@@ -67,14 +67,17 @@ namespace Shapes
             unsigned short m_amount { 0 };
             unsigned int m_VBO { 0 };
 
-            int m_attrPos { 0 };
-            int m_attrIndex { 0 };
-            int m_offsetLoc0 { -1 };
-            int m_colorLoc0 { -1 };
+            struct ParticleVertex
+            {
+                float x, y, u, v;
+                float r, g, b, a;
+            };
+
+            int m_attrPos { -1 };
+            int m_attrColor { -1 };
 
             std::vector<Particle> m_particles;
-            std::vector<glm::vec2> m_offsetsBuf;
-            std::vector<glm::vec4> m_colorsBuf;
+            std::vector<ParticleVertex> m_vertexBuf;
 
             // render state
             shaderPtr m_shader;

@@ -292,3 +292,55 @@ TEST_F( BallPhysicsTest, BrickHitSpeedIncrement125PxPerSec )
     EXPECT_EQ( ev.hitBricks.size(), 2u );
     EXPECT_NEAR( length( ball.vel ), spdBefore + 2.0f * 1.25f, 1e-3f );
 }
+
+TEST_F( BallPhysicsTest, NonFiniteDtAndNarrowArenaAreSafe )
+{
+    ArenaConfig cfg;
+    BallState ball;
+    ball.center = { 100.0f, 100.0f };
+    ball.vel = { 200.0f, -200.0f };
+    ball.radius = 10.0f;
+    Aabb paddle { 80.0f, 20.0f, 80.0f, 16.0f };
+    std::vector<BrickItem> bricks;
+
+    const auto evNan = stepBall( ball, paddle, bricks, std::numeric_limits<float>::quiet_NaN(), cfg );
+    EXPECT_FALSE( evNan.hitWall );
+    EXPECT_FALSE( evNan.hitPaddle );
+    EXPECT_FLOAT_EQ( ball.center.x, 100.0f );
+
+    // Narrow arena (width < 2 * radius) must not trigger std::clamp UB
+    cfg.width = 10.0f;
+    ball.center = { 5.0f, 50.0f };
+    ball.vel = { 300.0f, -100.0f };
+    stepBall( ball, paddle, bricks, 0.016f, cfg );
+    EXPECT_TRUE( std::isfinite( ball.center.x ) );
+    EXPECT_TRUE( std::isfinite( ball.center.y ) );
+}
+
+TEST_F( BallPhysicsTest, FastHorizontalPaddleSweepCatchesBallWithoutTunneling )
+{
+    ArenaConfig cfg;
+    BallState ball;
+    ball.center = { 400.0f, 40.0f };
+    ball.vel = { 0.0f, -250.0f };
+    ball.radius = 10.0f;
+    // Paddle swept rapidly from x=150 to x=550 (crossing x=400 during the frame)
+    Aabb paddleEnd { 550.0f, 20.0f, 80.0f, 16.0f };
+    std::vector<BrickItem> bricks;
+
+    const auto ev = stepBall( ball, paddleEnd, bricks, 0.016f, cfg, 400.0f );
+    EXPECT_TRUE( ev.hitPaddle );
+    EXPECT_FALSE( ev.ballLost );
+    EXPECT_GT( ball.vel.y, 0.0f );
+    EXPECT_FALSE( detail::resolveOverlapCircleAabb( ball.center, ball.radius, paddleEnd ).hit );
+
+    // Side sweep straight onto the ball must push it cleanly outside paddleEnd (no embedding)
+    BallState sideBall;
+    sideBall.center = { 400.0f, 28.0f };
+    sideBall.vel = { 0.0f, -200.0f };
+    sideBall.radius = 10.0f;
+    Aabb sidePaddleEnd { 370.0f, 20.0f, 80.0f, 16.0f };
+    const auto evSide = stepBall( sideBall, sidePaddleEnd, bricks, 0.016f, cfg, 220.0f );
+    EXPECT_TRUE( evSide.hitPaddle );
+    EXPECT_FALSE( detail::resolveOverlapCircleAabb( sideBall.center, sideBall.radius, sidePaddleEnd ).hit );
+}
