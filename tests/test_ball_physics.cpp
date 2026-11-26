@@ -135,9 +135,12 @@ TEST_F( BallPhysicsTest, ZeroVelocityAndNormalizeSafety )
     const Vec2 nInf = normalizeSafe( { inf, 1.0f }, { 0.0f, 1.0f } );
     EXPECT_FLOAT_EQ( nInf.x, 0.0f );
     EXPECT_FLOAT_EQ( nInf.y, 1.0f );
+    // On SSE2 float32, 1e30f^2 overflows to +Inf -> fallback {0, 1}; on 32-bit x87
+    // 80-bit extended precision it stays finite -> exact unit vector {0.707, 0.707}.
+    // Either way normalizeSafe must return a finite unit vector (never NaN/Inf).
     const Vec2 nOverflow = normalizeSafe( { 1e30f, 1e30f }, { 0.0f, 1.0f } );
-    EXPECT_FLOAT_EQ( nOverflow.x, 0.0f );
-    EXPECT_FLOAT_EQ( nOverflow.y, 1.0f );
+    EXPECT_TRUE( isFiniteVec( nOverflow ) );
+    EXPECT_NEAR( length( nOverflow ), 1.0f, 1e-4f );
     const Vec2 nTiny = normalizeSafe( { 1e-22f, 0.0f }, { 0.0f, 1.0f } );
     EXPECT_FLOAT_EQ( nTiny.x, 0.0f );
     EXPECT_FLOAT_EQ( nTiny.y, 1.0f );
