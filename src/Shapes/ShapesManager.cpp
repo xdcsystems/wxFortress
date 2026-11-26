@@ -78,7 +78,7 @@ void ShapesManager::resetBallSpeed()
     m_currentBallSpeed = kInitialBallSpeedPxPerSec;
 }
 
-Rect ShapesManager::updateBallPosition( const Rect& boardBounds )
+Rect ShapesManager::updateBallPosition( const Rect& boardBounds, bool syncPrev )
 {
     if ( m_size.x < 1 || m_size.y < 1 )
         return {};
@@ -94,6 +94,8 @@ Rect ShapesManager::updateBallPosition( const Rect& boardBounds )
     m_ballState.center = { c.x, c.y };
     m_ballState.radius = m_ball->radius();
     m_ballState.vel = { 0.0f, 0.0f };
+    if ( syncPrev )
+        syncPreviousState();
 
     return m_ball->bounds();
 }
@@ -117,7 +119,7 @@ void ShapesManager::resize( const wxSize& size, const glm::mat4& projection )
     m_paddleState.box = { boardBounds.m_x, boardBounds.m_y, boardBounds.m_width, boardBounds.m_height };
     m_paddleState.speed = 0.0f;
 
-    updateBallPosition( boardBounds );
+    updateBallPosition( boardBounds, true );
 }
 
 void ShapesManager::initBallVelocity()
@@ -156,6 +158,7 @@ void ShapesManager::run( bool bNewRound )
         m_ballState.radius = m_ball->radius();
         initBallVelocity();
     }
+    syncPreviousState();
 }
 
 void ShapesManager::stop()
@@ -164,10 +167,12 @@ void ShapesManager::stop()
     m_isRoundCompleted = false;
     m_robotDryBounces = 0;
     m_hasMouseTarget = false;
+    m_particleSpawnAccum = 0.0f;
     m_paddleState.speed = 0.0f;
     m_ballState.vel = { 0.0f, 0.0f };
     m_particles->clear();
     m_explosions->clear();
+    syncPreviousState();
 }
 
 void ShapesManager::setPaddleMouseX( float mouseX )
@@ -176,11 +181,19 @@ void ShapesManager::setPaddleMouseX( float mouseX )
     m_hasMouseTarget = true;
 }
 
-void ShapesManager::updatePaddleInput( float dtSec )
+void ShapesManager::setRenderAlpha( float alpha )
 {
-    const auto boardBounds = m_board->bounds();
-    m_paddleState.box = { boardBounds.m_x, boardBounds.m_y, boardBounds.m_width, boardBounds.m_height };
+    m_renderAlpha = std::isfinite( alpha ) ? std::clamp( alpha, 0.0f, 1.0f ) : 1.0f;
+}
 
+void ShapesManager::syncPreviousState()
+{
+    m_prevBallCenter = m_ballState.center;
+    m_prevPaddleX = m_paddleState.box.x;
+}
+
+void ShapesManager::updatePaddleInput( float dtSec, int remainingSteps )
+{
     int moveDir = 0;
     if ( wxGetKeyState( WXK_LEFT ) )
         moveDir = -1;
@@ -194,8 +207,25 @@ void ShapesManager::updatePaddleInput( float dtSec )
     }
     else if ( m_hasMouseTarget )
     {
-        Physics::setPaddleTargetX( m_paddleState, m_mouseTargetX, m_arenaCfg );
-        m_hasMouseTarget = false;
+        if ( remainingSteps <= 1 )
+        {
+            Physics::setPaddleTargetX( m_paddleState, m_mouseTargetX, m_arenaCfg );
+            m_hasMouseTarget = false;
+        }
+        else if ( std::isfinite( m_mouseTargetX ) )
+        {
+            const float maxX = std::max( 0.0f, m_arenaCfg.width - m_paddleState.box.w );
+            const float clampedTargetX = std::clamp(
+                m_mouseTargetX - 0.5f * m_paddleState.box.w, 0.0f, maxX );
+            const float stepX = m_paddleState.box.x +
+                ( clampedTargetX - m_paddleState.box.x ) / static_cast<float>( remainingSteps );
+            m_paddleState.box.x = std::clamp( stepX, 0.0f, maxX );
+            m_paddleState.speed = 0.0f;
+        }
+        else
+        {
+            m_hasMouseTarget = false;
+        }
     }
     else
     {
@@ -216,20 +246,27 @@ void ShapesManager::updatePaddleInput( float dtSec )
     m_board->moveTo( m_paddleState.box.x, m_paddleState.box.y );
 }
 
-void ShapesManager::update( double deltaTimeSec )
+void ShapesManager::update( double deltaTimeSec, int remainingSteps )
 {
-    if ( isPaused() || m_size.x < 1 || m_size.y < 1 )
+    if ( isPaused() || m_size.x < 1 || m_size.y < 1 || !std::isfinite( deltaTimeSec ) )
         return;
 
     if ( m_isRoundCompleted && m_explosions->empty() )
     {
         stop();
-        updateBallPosition( m_board->bounds() );
+        updateBallPosition( m_board->bounds(), true );
         m_eventHandler->QueueEvent( m_eventRoundCompleted.Clone() );
         return;
     }
 
     const float dtSec = std::clamp( static_cast<float>( deltaTimeSec ), 0.0f, 0.05f );
+
+    if ( m_paddleState.box.w <= 0.0f || m_paddleState.box.h <= 0.0f )
+    {
+        const auto boardBounds = m_board->bounds();
+        m_paddleState.box = { boardBounds.m_x, boardBounds.m_y, boardBounds.m_width, boardBounds.m_height };
+        syncPreviousState();
+    }
 
     const auto& brickList = m_bricks->items();
     if ( isRunning() && !m_isRoundCompleted )
@@ -246,8 +283,12 @@ void ShapesManager::update( double deltaTimeSec )
         }
     }
 
-    const float prevPaddleX = m_board->bounds().m_x;
-    updatePaddleInput( dtSec );
+    // Snapshot previous authoritative physics state before advancing this fixed tick
+    m_prevBallCenter = m_ballState.center;
+    m_prevPaddleX = m_paddleState.box.x;
+
+    const float prevPaddleX = m_paddleState.box.x;
+    updatePaddleInput( dtSec, remainingSteps );
     const float paddleDeltaX = m_paddleState.box.x - prevPaddleX;
 
     if ( isRunning() )
@@ -303,23 +344,56 @@ void ShapesManager::update( double deltaTimeSec )
             if ( ev.ballLost )
             {
                 stop();
-                updateBallPosition( m_board->bounds() );
+                updateBallPosition( m_board->bounds(), true );
                 m_eventHandler->QueueEvent( m_eventBallLost.Clone() );
                 return;
             }
         }
 
-        // update the position of the particles according to the new position of the ball
-        m_particles->update( dtSec, m_ball, 2, glm::vec2( m_ball->radius() / 2.0f ) );
+        // Spawn particles at a frame-rate-independent 120 particles/sec (= 2 per 60 Hz frame)
+        m_particleSpawnAccum += dtSec * 120.0f;
+        const unsigned int spawnCount = static_cast<unsigned int>( m_particleSpawnAccum );
+        m_particleSpawnAccum -= static_cast<float>( spawnCount );
+        m_particles->update( dtSec, m_ball, spawnCount, glm::vec2( m_ball->radius() / 2.0f ) );
     }
     else if ( isStopped() )
     {
-        updateBallPosition( m_board->bounds() );
+        updateBallPosition( m_board->bounds(), false );
     }
 }
 
 void ShapesManager::renderFrame()
 {
+    const float alpha = m_renderAlpha;
+    const float authPaddleX = m_paddleState.box.x;
+    const float authPaddleY = m_paddleState.box.y;
+    const float interpPaddleX = m_prevPaddleX + ( authPaddleX - m_prevPaddleX ) * alpha;
+
+    const float r = m_ballState.radius;
+    const float interpBallX = m_prevBallCenter.x + ( m_ballState.center.x - m_prevBallCenter.x ) * alpha;
+    const float interpBallY = m_prevBallCenter.y + ( m_ballState.center.y - m_prevBallCenter.y ) * alpha;
+
+    // Restore authoritative physics positions on scope exit so no caller can ever read interpolated coords.
+    struct StateRestorer
+    {
+        ShapesManager& self;
+        float paddleX;
+        float paddleY;
+        float radius;
+        ~StateRestorer()
+        {
+            if ( self.m_paddleState.box.w > 0.0f )
+                self.m_board->moveTo( paddleX, paddleY );
+            if ( radius > 0.0f )
+                self.m_ball->moveTo( self.m_ballState.center.x - radius, self.m_ballState.center.y - radius );
+        }
+    } restorer { *this, authPaddleX, authPaddleY, r };
+
+    if ( m_paddleState.box.w > 0.0f )
+        m_board->moveTo( interpPaddleX, authPaddleY );
+    if ( r > 0.0f )
+        m_ball->moveTo( interpBallX - r, interpBallY - r );
+
     m_renderer->selectShader();
 
     m_board->draw( m_renderer );

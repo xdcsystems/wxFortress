@@ -34,6 +34,11 @@ namespace Shapes
             ShapesManager( wxWindow* parent, const rendererPtr& spriteRenderer );
             ~ShapesManager() = default;
 
+            ShapesManager( const ShapesManager& ) = delete;
+            ShapesManager( ShapesManager&& ) = delete;
+            ShapesManager& operator= ( const ShapesManager& ) = delete;
+            ShapesManager& operator= ( ShapesManager&& ) = delete;
+
             void run( bool bNewRound = false );
             void pause() { m_state = State::PAUSED; }
             void stop();
@@ -42,8 +47,10 @@ namespace Shapes
             bool isPaused() const { return m_state == State::PAUSED; }
             bool isStopped() const { return m_state == State::STOPPED; }
 
-            void update( double deltaTimeSec );
+            void update( double deltaTimeSec, int remainingSteps = 1 );
             void setPaddleMouseX( float mouseX );
+            void setRenderAlpha( float alpha );
+            void syncPreviousState();
             void renderFrame();
 
             void resize( const wxSize& size, const glm::mat4& projection );
@@ -53,8 +60,8 @@ namespace Shapes
         protected:
             // Helper functions
             void initBallVelocity();
-            void updatePaddleInput( float dtSec );
-            Rect updateBallPosition( const Rect& boardBounds );
+            void updatePaddleInput( float dtSec, int remainingSteps = 1 );
+            Rect updateBallPosition( const Rect& boardBounds, bool syncPrev = false );
 
         private:
             // Private data
@@ -71,6 +78,10 @@ namespace Shapes
             Physics::ArenaConfig m_arenaCfg {};
             Physics::BallState m_ballState {};
             Physics::PaddleState m_paddleState {};
+            Physics::Vec2 m_prevBallCenter { 0.0f, 0.0f };
+            float m_prevPaddleX { 0.0f };
+            float m_renderAlpha { 1.0f };
+            float m_particleSpawnAccum { 0.0f };
             std::vector<Physics::BrickItem> m_physBricks;
 
             wxEvtHandler* m_eventHandler { nullptr };

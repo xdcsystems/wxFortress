@@ -50,9 +50,10 @@ bool MainFrame::Create( wxWindow *parent, int id, const wxString &title, wxPoint
 
 void MainFrame::init()
 {
-#if defined( wxUSE_LOGWINDOW ) && USE_LOGGER == 1
-    wxLogWindow::SetVerbose( TRUE );
-    wxLog::SetActiveTarget( new wxLogWindow( nullptr, wxT( "Log" ), true, false ) );
+#if defined( wxUSE_LOGWINDOW ) && wxUSE_LOGWINDOW && defined( USE_LOGGER ) && USE_LOGGER == 1
+    wxLogWindow::SetVerbose( true );
+    // wxLogWindow inherits wxLogChain, whose ctor registers itself as active target and restores the previous one on destruction.
+    m_logWindow = std::make_unique<wxLogWindow>( this, wxT( "Log" ), true, false );
 #endif
 
     SetBackgroundColour( *wxBLACK );

@@ -19,6 +19,9 @@
 #include <wx/glcanvas.h>
 
 #include "Common/Rect.hpp"
+#include <cmath>
+#include <limits>
+#include "Common/Point.hpp"
 #include "Common/Tools.h"
 #include "App.h"
 
@@ -86,6 +89,43 @@ TEST_F( TestFortress, Tools_LoadLevel_AllLevelsAndStageComplete )
     }
 
     EXPECT_THROW( Tools::Instance().loadLevel( "resources/levels.txt", 6 ), stage_complete_exception );
+}
+
+TEST_F( TestFortress, Tools_PointSetVectorLength )
+{
+    Point zero( 0.0f, 0.0f );
+    zero.SetVectorLength( 5.0f );
+    EXPECT_FLOAT_EQ( zero.m_x, 0.0f );
+    EXPECT_FLOAT_EQ( zero.m_y, 0.0f );
+
+    Point v( 3.0f, 4.0f );
+    v.SetVectorLength( 10.0f );
+    EXPECT_NEAR( v.m_x, 6.0f, 1e-4f );
+    EXPECT_NEAR( v.m_y, 8.0f, 1e-4f );
+
+    v.Normalize();
+    EXPECT_NEAR( v.GetVectorLength(), 1.0f, 1e-4f );
+
+    const float nan = std::numeric_limits<float>::quiet_NaN();
+    const float inf = std::numeric_limits<float>::infinity();
+
+    Point nanPt( nan, 1.0f );
+    nanPt.SetVectorLength( 5.0f );
+    EXPECT_TRUE( std::isnan( nanPt.m_x ) );
+
+    Point infPt( inf, 1.0f );
+    infPt.SetVectorLength( 5.0f );
+    EXPECT_TRUE( std::isinf( infPt.m_x ) );
+
+    Point tiny( 1e-22f, 0.0f );
+    tiny.SetVectorLength( 5.0f );
+    EXPECT_FLOAT_EQ( tiny.m_x, 1e-22f );
+
+    Point good( 3.0f, 4.0f );
+    good.SetVectorLength( nan );
+    EXPECT_FLOAT_EQ( good.m_x, 3.0f );
+    good.SetVectorLength( inf );
+    EXPECT_FLOAT_EQ( good.m_y, 4.0f );
 }
 
 TEST_F( TestFortress, Frame_Creation )

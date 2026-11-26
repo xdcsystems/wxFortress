@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cmath>
 #include <glm/glm.hpp>
 
 class Point
@@ -91,9 +92,16 @@ inline float Point::GetVectorLength() const
 
 inline void Point::SetVectorLength( float length )
 {
-    float before = GetVectorLength();
-    m_x = ( m_x * length / before );
-    m_y = ( m_y * length / before );
+    if ( !std::isfinite( length ) )
+        return;
+
+    const float before = std::hypot( m_x, m_y );
+    if ( !std::isfinite( before ) || before <= 1e-6f )
+        return;
+
+    const float scale = length / before;
+    m_x *= scale;
+    m_y *= scale;
 }
 
 inline void Point::Normalize()
