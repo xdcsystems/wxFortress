@@ -245,12 +245,17 @@ void Movie::close()
         m_quit.store( true, std::memory_order_release );
     }
     m_video.m_pictQCond.notify_one();
+    {
+        std::lock_guard<std::mutex> alock { m_audio.m_srcMutex };
+    }
+    m_audio.m_srcCond.notify_all();
     m_video.m_packets.abort();
     m_audio.m_packets.abort();
     if ( m_parseThread.joinable() )
     {
         m_parseThread.join();
     }
+    m_fmtCtx.reset();
     m_video.m_codecCtx.reset();
     m_audio.m_codecCtx.reset();
     if ( m_hwDeviceCtx )
@@ -267,13 +272,7 @@ std::pair<AVFrame *, int64_t> Movie::currentFrame()
 
 int64_t Movie::duration()
 {
-    if ( m_fmtCtx && m_fmtCtx->duration != AV_NOPTS_VALUE )
-    {
-        return std::chrono::duration_cast<nanoseconds>(
-            seconds_d64 { m_fmtCtx->duration / AV_TIME_BASE } ).count();
-    }
-    
-    return -1;
+    return m_durationNs.load( std::memory_order_acquire );
 }
 
 int Movie::streamComponentOpen( unsigned int streamIndex )
@@ -429,8 +428,23 @@ int Movie::streamComponentOpen( unsigned int streamIndex )
 
 int Movie::start()
 {
+    struct QuitGuard
+    {
+        std::atomic<bool> &quit;
+        ~QuitGuard() { quit.store( true, std::memory_order_release ); }
+    } quitGuard { m_quit };
+
     AVFormatContext *fmtctx = avformat_alloc_context();
-    AVIOInterruptCB intrcb { nullptr, this };
+    if ( !fmtctx )
+    {
+        std::cerr << "Fail to avformat_alloc_context" << std::endl;
+        return AVERROR( ENOMEM );
+    }
+    auto interruptCb = []( void *opaque ) -> int {
+        const auto *self = static_cast<const Movie*>( opaque );
+        return ( self && self->m_quit.load( std::memory_order_acquire ) ) ? 1 : 0;
+    };
+    AVIOInterruptCB intrcb { +interruptCb, this };
     fmtctx->interrupt_callback = intrcb;
     if ( avformat_open_input( &fmtctx, m_filename.c_str(), nullptr, nullptr ) != 0 )
     {
@@ -445,30 +459,26 @@ int Movie::start()
         return -1;
     }
 
+    if ( m_fmtCtx->duration != AV_NOPTS_VALUE )
+    {
+        const int64_t durNs = std::chrono::duration_cast<nanoseconds>(
+            seconds_d64 { static_cast<double>( m_fmtCtx->duration ) / static_cast<double>( AV_TIME_BASE ) } ).count();
+        m_durationNs.store( durNs, std::memory_order_release );
+    }
+
     int videoIndex { -1 };
     int audioIndex { -1 };
 
-    for ( unsigned int i = 0; i < m_fmtCtx->nb_streams; i++ )
+    const int bestVideo = av_find_best_stream( m_fmtCtx.get(), AVMEDIA_TYPE_VIDEO, -1, -1, nullptr, 0 );
+    if ( bestVideo >= 0 )
     {
-        auto *codecpar = m_fmtCtx->streams[ i ]->codecpar;
+        videoIndex = streamComponentOpen( static_cast<unsigned int>( bestVideo ) );
+    }
 
-        int ret = av_find_best_stream( m_fmtCtx.get(), codecpar->codec_type, -1, -1, nullptr, 0 );
-        if ( ret < 0 )
-        {
-            std::cerr << "Could not find "
-                << av_get_media_type_string( codecpar->codec_type ) << " stream in input file'"
-                << std::endl;
-            return ret;
-        }
-
-        if ( codecpar->codec_type == AVMEDIA_TYPE_VIDEO && videoIndex == -1 )
-        {
-            videoIndex = streamComponentOpen( ret );
-        }
-        else if ( codecpar->codec_type == AVMEDIA_TYPE_AUDIO && audioIndex == -1 )
-        {
-            audioIndex = streamComponentOpen( ret );
-        }
+    const int bestAudio = av_find_best_stream( m_fmtCtx.get(), AVMEDIA_TYPE_AUDIO, -1, -1, nullptr, 0 );
+    if ( bestAudio >= 0 )
+    {
+        audioIndex = streamComponentOpen( static_cast<unsigned int>( bestAudio ) );
     }
 
     if ( videoIndex < 0 && audioIndex < 0 )
@@ -478,7 +488,7 @@ int Movie::start()
     }
 
     m_clockBase = get_avtime() + milliseconds( 750 );
-    m_sync = ( audioIndex >= 0 ) ? SyncMaster::Audio : SyncMaster::Video;
+    m_sync.store( ( audioIndex >= 0 ) ? SyncMaster::Audio : SyncMaster::Video, std::memory_order_release );
 
     auto &audioQueue = m_audio.m_packets;
     auto &videoQueue = m_video.m_packets;
@@ -492,25 +502,24 @@ int Movie::start()
         m_videoThread = std::thread( &Video::start, &m_video );
     }
 
-    while ( !m_quit.load( std::memory_order_relaxed ) )
+    while ( !m_quit.load( std::memory_order_acquire ) )
     {
-        AVPacket packet;
-        if ( av_read_frame( m_fmtCtx.get(), &packet ) < 0 )
+        AVPacketPtr packet { av_packet_alloc() };
+        if ( !packet )
+        {
+            std::cerr << "Fail to av_packet_alloc" << std::endl;
+            break;
+        }
+        if ( av_read_frame( m_fmtCtx.get(), packet.get() ) < 0 )
             break;
 
-        if ( packet.stream_index == videoIndex )
+        if ( packet->stream_index == videoIndex )
         {
-            if ( !videoQueue.putBlocking( packet ) )
-                av_packet_unref( &packet );
+            videoQueue.putBlocking( std::move( packet ) );
         }
-        else if ( packet.stream_index == audioIndex )
+        else if ( packet->stream_index == audioIndex )
         {
-            if ( !audioQueue.putBlocking( packet ) )
-                av_packet_unref( &packet );
-        }
-        else
-        {
-            av_packet_unref( &packet );
+            audioQueue.putBlocking( std::move( packet ) );
         }
     }
 
@@ -532,14 +541,12 @@ int Movie::start()
         m_videoThread.join();
     }
 
-    m_quit.store( true );
-
     return 0;
 }
 
 nanoseconds Movie::getMasterClock()
 {
-    switch ( m_sync )
+    switch ( m_sync.load( std::memory_order_acquire ) )
     {
         case SyncMaster::Audio :
             return m_audio.getClock();

@@ -45,5 +45,6 @@ class MediaManager final
         wxCommandEvent m_eventMediaPlay;
         wxCommandEvent m_eventMediaFinished;
 
+        bool m_isPlaying { false };
         std::pair<AVFrame*, int64_t> m_currentFrame { nullptr, 0 };
 };

@@ -40,6 +40,9 @@ MediaManager::~MediaManager()
 
 void MediaManager::reset()
 {
+    m_isPlaying = false;
+    m_currentFrame = { nullptr, std::numeric_limits<int64_t>::min() };
+    m_duration = -1;
     if ( m_movie )
     {
         m_movie->close();
@@ -56,7 +59,7 @@ void MediaManager::playIntro()
 
 void MediaManager::showSkipMessage()
 {
-    m_textRenderer->print( "Press R key for skip",
+    m_textRenderer->print( "Press R or ESC to skip",
         m_videoRenderer->viewWidth() - 300,
         31,
         glm::vec2( 14.f, 16.f ),
@@ -65,8 +68,14 @@ void MediaManager::showSkipMessage()
 
 void MediaManager::open( std::string filename )
 {
+    if ( !m_movie )
+    {
+        m_movie = std::make_shared<Movie>();
+    }
+    m_currentFrame = { nullptr, std::numeric_limits<int64_t>::min() };
+    m_duration = -1;
+    m_isPlaying = true;
     m_movie->open( std::move( filename ) );
-    m_currentFrame.second = std::numeric_limits<int64_t>::min();
 }
 
 void MediaManager::stop()
@@ -76,6 +85,9 @@ void MediaManager::stop()
 
 void MediaManager::close()
 {
+    if ( !m_isPlaying || !m_movie )
+        return;
+
     reset();
     m_eventHandler->AddPendingEvent( m_eventMediaFinished );
 }
@@ -99,6 +111,9 @@ void MediaManager::resize( const wxSize& size )
 
 bool MediaManager::needRefresh()
 {
+    if ( !m_isPlaying || !m_movie )
+        return false;
+
     if ( m_movie->isFinished() )
     {
         close();

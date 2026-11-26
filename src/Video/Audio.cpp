@@ -19,15 +19,18 @@ Audio::~Audio()
 
 void Audio::cleanup()
 {
-    if ( m_source )
     {
-        alDeleteSources( 1, &m_source );
-        m_source = 0;
-    }
-    if ( m_buffers[ 0 ] )
-    {
-        alDeleteBuffers( m_buffers.size(), m_buffers.data() );
-        m_buffers = {};
+        std::lock_guard<std::mutex> lock( m_srcMutex );
+        if ( m_source )
+        {
+            alDeleteSources( 1, &m_source );
+            m_source = 0;
+        }
+        if ( m_buffers[ 0 ] )
+        {
+            alDeleteBuffers( m_buffers.size(), m_buffers.data() );
+            m_buffers = {};
+        }
     }
     if ( m_samples )
     {
@@ -88,6 +91,12 @@ int Audio::start()
     m_samplesPos = 0;
     m_samplesLen = 0;
 
+    if ( !m_codecCtx || m_codecCtx->sample_rate <= 0 )
+    {
+        std::cerr << "Invalid audio sample rate\n";
+        goto finish;
+    }
+
     m_decodedFrame.reset( av_frame_alloc() );
     if ( !m_decodedFrame )
     {
@@ -118,14 +127,20 @@ int Audio::start()
         goto finish;
     }
 
-    alGenBuffers( m_buffers.size(), m_buffers.data() );
-    alGenSources( 1, &m_source );
-
-    if ( alGetError() != AL_NO_ERROR )
+    bufferLen = static_cast< size_t >( duration_cast<seconds>( m_codecCtx->sample_rate * AudioBufferTime ).count() * m_frameSize );
+    if ( bufferLen == 0 )
+        goto finish;
+    samples = av_malloc( bufferLen );
+    if ( !samples )
         goto finish;
 
-    bufferLen = static_cast< size_t >( duration_cast<seconds>( m_codecCtx->sample_rate * AudioBufferTime ).count() * m_frameSize );
-    samples = av_malloc( bufferLen );
+    {
+        std::lock_guard<std::mutex> lock( m_srcMutex );
+        alGenBuffers( m_buffers.size(), m_buffers.data() );
+        alGenSources( 1, &m_source );
+        if ( alGetError() != AL_NO_ERROR )
+            goto finish;
+    }
 
     // Prefill the codec buffer.
     do
@@ -141,14 +156,13 @@ int Audio::start()
     }
     while ( true );
 
-    srclck.lock();
-
-    while ( !m_movie.m_quit.load( std::memory_order_relaxed ) )
+    while ( !m_movie.m_quit.load( std::memory_order_acquire ) )
     {
         ALenum state( 0 );
         ALint processed( 0 );
         ALint queued( 0 );
 
+        srclck.lock();
         // First remove any processed buffers.
         alGetSourcei( m_source, AL_BUFFERS_PROCESSED, &processed );
         if ( processed > 0 )
@@ -156,47 +170,69 @@ int Audio::start()
             std::vector<ALuint> bufids( processed );
             alSourceUnqueueBuffers( m_source, processed, bufids.data() );
         }
-
-        // Refill the buffer queue.
         alGetSourcei( m_source, AL_BUFFERS_QUEUED, &queued );
-        while ( queued < static_cast<ALint>( m_buffers.size() ) )
+        srclck.unlock();
+
+        // Decode outside m_srcMutex so Audio::getClock() on UI/video thread never stalls.
+        while ( queued < static_cast<ALint>( m_buffers.size() ) &&
+                !m_movie.m_quit.load( std::memory_order_acquire ) )
         {
             if ( !readAudio( static_cast<uint8_t *>( samples ), bufferLen ) )
                 break;
 
+            srclck.lock();
+            m_publishedPts = m_currentPts;
             ALuint bufid = m_buffers[m_bufferIdx];
             m_bufferIdx = ( m_bufferIdx + 1 ) % m_buffers.size();
             alBufferData( bufid, m_format, samples, bufferLen, m_codecCtx->sample_rate );
             alSourceQueueBuffers( m_source, 1, &bufid );
             ++queued;
+            srclck.unlock();
         }
 
+        srclck.lock();
         alGetSourcei( m_source, AL_SOURCE_STATE, &state );
         if ( state == AL_PAUSED )
         {
             alSourceRewind( m_source );
             alSourcei( m_source, AL_BUFFER, 0 );
+            srclck.unlock();
             continue;
         }
 
         if ( state != AL_PLAYING && state != AL_PAUSED )
         {
             if ( !play() )
+            {
+                srclck.unlock();
                 break;
+            }
         }
 
         if ( alGetError() != AL_NO_ERROR )
+        {
+            srclck.unlock();
             break;
+        }
 
-        m_srcCond.wait_for( srclck, sleepTime );
+        m_srcCond.wait_for( srclck, sleepTime, [ this ]() {
+            return m_movie.m_quit.load( std::memory_order_acquire );
+        } );
+        srclck.unlock();
     }
 
+    srclck.lock();
     alSourceRewind( m_source );
     alSourcei( m_source, AL_BUFFER, 0 );
-
     srclck.unlock();
 
 finish:
+    if ( !m_movie.m_quit.load( std::memory_order_acquire ) )
+    {
+        // Audio ended or failed while video may still be playing: fall back to video clock
+        // so Video::currentFrame() never stalls on a frozen audio clock.
+        m_movie.m_sync.store( SyncMaster::Video, std::memory_order_release );
+    }
     m_packets.abort();
     av_freep( &samples );
     cleanup();
@@ -206,7 +242,7 @@ finish:
 
 int Audio::decodeFrame()
 {
-    while ( !m_movie.m_quit.load( std::memory_order_relaxed ) )
+    while ( !m_movie.m_quit.load( std::memory_order_acquire ) )
     {
         int ret( 0 );
         int pret( 0 );
@@ -232,22 +268,33 @@ int Audio::decodeFrame()
             m_currentPts = duration_cast<nanoseconds>(
                     seconds_d64 { av_q2d( m_stream->time_base ) * static_cast<double>( m_decodedFrame->best_effort_timestamp ) } );
         }
+        const int dstChannels = av_get_channel_layout_nb_channels( m_dstChanLayout );
+        if ( dstChannels <= 0 )
+        {
+            av_frame_unref( m_decodedFrame.get() );
+            return 0;
+        }
         if ( m_decodedFrame->nb_samples > m_samplesMax )
         {
             av_freep( &m_samples );
-            av_samples_alloc( &m_samples, nullptr, m_codecCtx->channels, m_decodedFrame->nb_samples, m_dstSampleFmt, 0 );
+            m_samplesMax = 0;
+            if ( av_samples_alloc( &m_samples, nullptr, dstChannels, m_decodedFrame->nb_samples, m_dstSampleFmt, 0 ) < 0 )
+            {
+                av_frame_unref( m_decodedFrame.get() );
+                return 0;
+            }
             m_samplesMax = m_decodedFrame->nb_samples;
         }
-        
+
         int nsamples = swr_convert( m_swrCtx.get(),
                 &m_samples,
                 m_decodedFrame->nb_samples,
                 (const uint8_t **)m_decodedFrame->data,
                 m_decodedFrame->nb_samples );
-        
+
         av_frame_unref( m_decodedFrame.get() );
-        
-        return nsamples;
+
+        return ( nsamples > 0 ) ? nsamples : 0;
     }
 
     return 0;
@@ -311,9 +358,9 @@ nanoseconds Audio::getClock()
 {
     std::unique_lock<std::mutex> lock( m_srcMutex );
 
-    nanoseconds pts = m_currentPts;
+    nanoseconds pts = m_publishedPts;
 
-    if ( m_source )
+    if ( m_source && m_codecCtx && m_codecCtx->sample_rate > 0 )
     {
         ALint offset( 0 );
         alGetSourcei( m_source, AL_SAMPLE_OFFSET, &offset );

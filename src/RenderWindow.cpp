@@ -99,6 +99,8 @@ RenderWindow::RenderWindow(
 RenderWindow::~RenderWindow()
 {
     ensureContextCurrent();
+    if ( m_mediaManager )
+        m_mediaManager->reset();
     ResourceManager::Clear();
 #if defined( _WIN32 )
     timeEndPeriod( 1 );
@@ -267,6 +269,11 @@ void RenderWindow::triggerLaunch()
 void RenderWindow::stop()
 {
     m_isRunning = false;
+    if ( m_mediaManager )
+    {
+        ensureContextCurrent();
+        m_mediaManager->reset();
+    }
     if ( m_soundManager )
     {
         m_soundManager->stopLaunchAudio();
@@ -551,9 +558,10 @@ void RenderWindow::onKeyPressed( wxKeyEvent &event )
     {
         case State::PLAY:
             if ( event.GetKeyCode() == 'R' ||
-                event.GetKeyCode() == 'r' )
+                 event.GetKeyCode() == 'r' ||
+                 event.GetKeyCode() == WXK_ESCAPE )
             {
-                if (m_mediaManager)
+                if ( m_mediaManager )
                     m_mediaManager->stop();
             }
         break;
