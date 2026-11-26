@@ -33,7 +33,7 @@ class TextRenderer
         void resize( const glm::mat4& projection );
         void renderFrame();
         void print( const std::string &text, int x, int y, const glm::vec2& size, glm::vec3 color = glm::vec3( 1.0f ) );
-        void drawProgressArc( float cx, float cy, float innerRadius, float outerRadius, float progress, const glm::vec4& color );
+        void drawProgressArc( float cx, float cy, float radius, float thickness, float progress, const glm::vec4& baseColor, const glm::vec4& fillColor );
         void cleanup();
 
         void switchToFinishState( unsigned short stage );

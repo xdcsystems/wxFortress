@@ -75,8 +75,8 @@ void MediaManager::showSkipMessage()
     if ( !m_videoRenderer || !m_textRenderer )
         return;
 
-    constexpr const char kSkipText[] = "To skip, hold R";
-    constexpr size_t kSkipKeyIndex = 14;
+    constexpr const char kSkipText[] = "Hold R to skip";
+    constexpr size_t kSkipKeyIndex = 5;
     static_assert( kSkipText[ kSkipKeyIndex ] == 'R', "kSkipKeyIndex must point to 'R'" );
 
     constexpr glm::vec2 kCharSize( 14.f, 16.f );
@@ -84,7 +84,7 @@ void MediaManager::showSkipMessage()
     const int logicalW = ( m_logicalWidth > 0 )
         ? m_logicalWidth
         : ( m_canvas ? m_canvas->GetClientSize().GetWidth() : m_videoRenderer->viewWidth() );
-    const int textX = std::max( 0, logicalW - 250 );
+    const int textX = std::max( 0, logicalW - 230 );
 
     m_textRenderer->print( kSkipText,
         textX,
@@ -92,18 +92,19 @@ void MediaManager::showSkipMessage()
         kCharSize,
         glm::vec3( .6f, .6f, .6f ) );
 
-    if ( m_skipHold.holding && m_skipHold.progress > 0.0 )
-    {
-        const float cx = static_cast<float>( textX ) + ( static_cast<float>( kSkipKeyIndex ) + 0.5f ) * kCharSize.x;
-        const float cy = static_cast<float>( kTextY ) + 0.5f * kCharSize.y;
-        m_textRenderer->drawProgressArc(
-            cx,
-            cy,
-            14.0f,
-            15.2f,
-            static_cast<float>( m_skipHold.progress ),
-            glm::vec4( 0.72f, 0.72f, 0.72f, 0.95f ) );
-    }
+    // Font18.png 'R' glyph ink spans x=2..10 (center 6.5) and top-down y=1..11 (GL bottom-up center 9.5)
+    // with max luminance 128/255 (~0.502), so textColor=0.6 renders at ~0.301 on black.
+    const float cx = static_cast<float>( textX ) + static_cast<float>( kSkipKeyIndex ) * kCharSize.x + 6.5f;
+    const float cy = static_cast<float>( kTextY ) + 9.5f;
+    const float progress = m_skipHold.holding ? static_cast<float>( m_skipHold.progress ) : 0.0f;
+    m_textRenderer->drawProgressArc(
+        cx,
+        cy,
+        12.5f,
+        1.2f,
+        progress,
+        glm::vec4( 0.30f, 0.30f, 0.30f, 0.38f ),
+        glm::vec4( 0.30f, 0.30f, 0.30f, 1.0f ) );
 }
 
 void MediaManager::open( std::string filename )
