@@ -34,6 +34,7 @@ END_EVENT_TABLE()
 Panel::Panel( wxWindow *parent, wxWindowID id, const wxPoint &pos, const wxSize &size, long style, const wxString &name )
   : wxWindow( parent, id, pos, size, style, name )
 {
+    SetCanFocus( false );
     Hide();
     init();
 }
@@ -106,8 +107,7 @@ void Panel::onLeftDown( wxMouseEvent &event )
     {
         if ( auto* parent = GetParent() )
         {
-            wxCommandEvent launchEvt( wxEVT_LAUNCH_CLICKED );
-            parent->GetEventHandler()->AddPendingEvent( launchEvt );
+            parent->GetEventHandler()->QueueEvent( new wxCommandEvent( wxEVT_LAUNCH_CLICKED ) );
         }
     }
     event.Skip();

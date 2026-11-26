@@ -21,7 +21,7 @@ class MainFrame final : public wxFrame
             const wxString &title = wxTheApp->GetAppName(),
             wxPoint pos = wxDefaultPosition,
             wxSize size = { 1008, 729 }, // { 1024, 768 },
-            int style = ( wxDEFAULT_FRAME_STYLE | wxTAB_TRAVERSAL | wxCLIP_CHILDREN ) & ~( wxRESIZE_BORDER | wxMAXIMIZE_BOX ) );
+            int style = ( wxDEFAULT_FRAME_STYLE | wxCLIP_CHILDREN ) & ~( wxRESIZE_BORDER | wxMAXIMIZE_BOX ) );
 
         bool Create(
             wxWindow* parent,
@@ -29,7 +29,7 @@ class MainFrame final : public wxFrame
             const wxString &title = wxTheApp->GetAppName(),
             wxPoint pos = wxDefaultPosition,
             wxSize size = { 1008, 729 }, // { 1024, 768 },
-            int style = ( wxDEFAULT_FRAME_STYLE | wxTAB_TRAVERSAL | wxCLIP_CHILDREN ) & ~( wxRESIZE_BORDER | wxMAXIMIZE_BOX ),
+            int style = ( wxDEFAULT_FRAME_STYLE | wxCLIP_CHILDREN ) & ~( wxRESIZE_BORDER | wxMAXIMIZE_BOX ),
             const wxString& name = wxASCII_STR( wxFrameNameStr ) );
 
         bool isRunning() const { return m_isRunning; };
@@ -39,6 +39,7 @@ class MainFrame final : public wxFrame
     private:
         // Event Handlers
         void onClose( wxCloseEvent& );
+        void onActivate( wxActivateEvent& );
         void onChildWndInitialized( wxCommandEvent& );
         void onLaunchPressed( wxCommandEvent& );
         void onLaunchClicked( wxCommandEvent& );
@@ -53,9 +54,9 @@ class MainFrame final : public wxFrame
         // Helper functions
         void init();
 
-        // Private data
-        std::shared_ptr<RenderWindow> m_renderSurface;
-        std::shared_ptr<ControlPanel::Panel> m_controlPanel;
+        // Private data (non-owning pointers; wxWindow parent owns child windows)
+        RenderWindow* m_renderSurface { nullptr };
+        ControlPanel::Panel* m_controlPanel { nullptr };
         
         bool m_isRunning { false };
 

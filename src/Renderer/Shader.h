@@ -13,6 +13,12 @@
 class Shader
 {
     public:
+        Shader() = default;
+        Shader( const Shader& ) = delete;
+        Shader& operator=( const Shader& ) = delete;
+        Shader( Shader&& ) = delete;
+        Shader& operator=( Shader&& ) = delete;
+
         // state
         unsigned int ID { 0 };
 

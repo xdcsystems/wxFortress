@@ -12,6 +12,10 @@ class CountDown
     public:
         CountDown();
         ~CountDown();
+        CountDown( const CountDown& ) = delete;
+        CountDown& operator=( const CountDown& ) = delete;
+        CountDown( CountDown&& ) = delete;
+        CountDown& operator=( CountDown&& ) = delete;
 
         void resize( const wxSize& size );
         void show( const rendererPtr& renderer, unsigned char count ) const;

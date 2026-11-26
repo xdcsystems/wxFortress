@@ -1,3 +1,6 @@
+#pragma once
+
+#include "Renderer/ResourceManager.h"
 
 class TestApp : public App
 {
@@ -7,12 +10,34 @@ class TestApp : public App
 
         void clear()
         {
+            if ( m_canvas && m_context )
+                m_canvas->SetCurrent( *m_context );
+
+            // Release GL-owning objects while the OpenGL context is still alive.
+            m_ball.reset();
+            m_brick.reset();
+            m_spriteRenderer.reset();
+            if ( m_canvas && m_context )
+                ResourceManager::Clear();
+
+            m_context.reset();
             if ( m_canvas )
-                m_canvas.reset();
+            {
+                m_canvas->Destroy();
+                m_canvas = nullptr;
+            }
+            if ( m_mainFrame )
+            {
+                m_mainFrame->Destroy();
+                m_mainFrame = nullptr;
+            }
         }
 
         void createFrame()
         {
+            if ( m_mainFrame )
+                return;
+
             m_mainFrame = new wxFrame();
             m_mainFrame->Create(
                 nullptr,
@@ -28,8 +53,11 @@ class TestApp : public App
 
         void createCanvas()
         {
-            m_canvas = std::make_shared<wxGLCanvas>( m_mainFrame );
-            m_context = std::make_shared<wxGLContext>( m_canvas.get() );
+            if ( m_canvas )
+                return;
+
+            m_canvas = new wxGLCanvas( m_mainFrame );
+            m_context = std::make_shared<wxGLContext>( m_canvas );
         }
 
         void initGLEW()
@@ -73,7 +101,7 @@ class TestApp : public App
 
     public:
         wxFrame* m_mainFrame{ nullptr };
-        std::shared_ptr<wxGLCanvas> m_canvas;
+        wxGLCanvas* m_canvas{ nullptr };
         std::shared_ptr<wxGLContext> m_context;
         std::shared_ptr<SpriteRenderer> m_spriteRenderer;
         std::shared_ptr<Shapes::Brick> m_brick;
@@ -92,6 +120,8 @@ class TestFortress : public ::testing::Test
 
         void TearDown()
         {
+            if ( m_testApp )
+                m_testApp->clear();
             wxTheApp->OnExit();
             wxEntryCleanup();
         }

@@ -18,6 +18,10 @@ namespace Shapes
         public:
             Explosions();
             ~Explosions();
+            Explosions( const Explosions& ) = delete;
+            Explosions& operator=( const Explosions& ) = delete;
+            Explosions( Explosions&& ) = delete;
+            Explosions& operator=( Explosions&& ) = delete;
 
             void add( const basePtr &shape );
             void clear();

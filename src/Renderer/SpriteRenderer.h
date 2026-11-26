@@ -15,6 +15,10 @@ class SpriteRenderer
     public:
         SpriteRenderer();
         ~SpriteRenderer();
+        SpriteRenderer( const SpriteRenderer& ) = delete;
+        SpriteRenderer& operator=( const SpriteRenderer& ) = delete;
+        SpriteRenderer( SpriteRenderer&& ) = delete;
+        SpriteRenderer& operator=( SpriteRenderer&& ) = delete;
 
         void selectShader();
         void resize( const glm::mat4& projection );

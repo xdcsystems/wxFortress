@@ -1,5 +1,7 @@
 #pragma once
 
+#include <memory>
+
 DECLARE_LOCAL_EVENT_TYPE( wxEVT_LAUNCH_CLICKED, -1 )
 
 namespace ControlPanel
@@ -25,6 +27,9 @@ namespace ControlPanel
                 const wxSize& size = wxDefaultSize,
                 long style = wxBORDER_NONE,
                 const wxString& name = wxASCII_STR( wxPanelNameStr ) );
+
+            bool AcceptsFocus() const override { return false; }
+            bool AcceptsFocusFromKeyboard() const override { return false; }
 
             void paintLaunched();
             void activate();

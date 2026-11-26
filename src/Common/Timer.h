@@ -3,50 +3,33 @@
 //////////////////////////////////////////////////////////////////////////////
 // Timer.h
 // =======
-// High Resolution Timer.
-// This timer is able to measure the elapsed time with 1 micro-second accuracy
-// in both Windows, Linux and Unix system
+// High Resolution Monotonic Timer based on std::chrono::steady_clock.
+// Measures elapsed time with microsecond accuracy across Windows, Linux, and Unix.
 //
 //////////////////////////////////////////////////////////////////////////////
 
-#if defined( WIN32 ) || defined( _WIN32 )  // Windows system specific
-#include <windows.h>
-#else                                      // Unix based system specific
-#include <sys/time.h>
-#endif
+#include <chrono>
 
 class Timer
 {
     public:
-        Timer( bool initialState = true );
+        explicit Timer( bool initialState = true );
 
         void start();                       // start timer
         void stop();                        // stop the timer
-        double getElapsedTime();            // get elapsed time in second
-        double getElapsedTimeInSec();       // get elapsed time in second (same as getElapsedTime)
-        double getElapsedTimeInMilliSec();  // get elapsed time in milli-second
-        double getElapsedTimeInMicroSec();  // get elapsed time in micro-second
+        double getElapsedTime();            // get elapsed time in seconds
+        double getElapsedTimeInSec();       // get elapsed time in seconds (same as getElapsedTime)
+        double getElapsedTimeInMilliSec();  // get elapsed time in milliseconds
+        double getElapsedTimeInMicroSec();  // get elapsed time in microseconds
         bool isStopped() const
         {
             return m_stopped;
         }
 
     private:
-        double m_startTimeInMicroSec = 0;  // starting time in micro-second
-        double m_endTimeInMicroSec = 0;    // ending time in micro-second
-        bool m_stopped;                    // stop flag
-#if defined( WIN32 ) || defined( _WIN32 )
-        LARGE_INTEGER m_frequency = {
-          {0, 0}
-        };  // ticks per second
-        LARGE_INTEGER m_startCount = {
-          {0, 0}
-        };  //
-        LARGE_INTEGER m_endCount = {
-          {0, 0}
-        };  //
-#else
-        timeval m_startCount {0};  //
-        timeval m_endCount {0};    //
-#endif
+        using Clock = std::chrono::steady_clock;
+
+        Clock::time_point m_startTime;
+        Clock::time_point m_endTime;
+        bool m_stopped;
 };

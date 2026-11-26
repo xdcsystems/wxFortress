@@ -20,6 +20,10 @@ namespace Shapes
         public:
             Brick( const glm::vec2 &position, BrickType type, const glm::vec2 &texSize );
             ~Brick();
+            Brick( const Brick& ) = delete;
+            Brick& operator=( const Brick& ) = delete;
+            Brick( Brick&& ) = delete;
+            Brick& operator=( Brick&& ) = delete;
 
             bool isAlive() const { return m_alive; }
             void kill() { m_alive = false; }

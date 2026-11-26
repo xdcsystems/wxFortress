@@ -29,7 +29,7 @@ DEFINE_LOCAL_EVENT_TYPE( wxEVT_CHAR_SHOW )
 
 
 TextRenderer::TextRenderer( wxWindow* parent )
-  : m_eventHandler( parent->GetEventHandler() )
+  : m_parent( parent )
   , m_eventCharShow( wxEVT_CHAR_SHOW )
 {
     m_shader = ResourceManager::LoadShader(
@@ -380,8 +380,8 @@ void TextRenderer::renderFinishMessage()
     {
         m_timer->stop();
 
-        if ( m_col++ )
-            m_eventHandler->ProcessEvent( m_eventCharShow );
+        if ( m_col++ && m_parent )
+            m_parent->ProcessWindowEvent( m_eventCharShow );
 
         if ( m_col < m_message[ m_row ].length() )
         {

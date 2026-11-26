@@ -7,8 +7,6 @@
     #include <wx/wx.h>
 #endif
 
-#include <memory>
-
 #include "Common/defs.h"
 #include "ControlPanel/Panel.h"
 #include "RenderWindow.h"
@@ -18,6 +16,7 @@
 // clang-format off
 BEGIN_EVENT_TABLE( MainFrame, wxFrame )
     EVT_CLOSE( MainFrame::onClose )
+    EVT_ACTIVATE( MainFrame::onActivate )
     EVT_COMMAND( wxID_ANY, wxEVT_CURRENT_SCORE_INCREASED, MainFrame::onScoreIncreased )
     EVT_COMMAND( wxID_ANY, wxEVT_ROUND_COMPLETED, MainFrame::onRoundCompleted )
     EVT_COMMAND( wxID_ANY, wxEVT_VIDEO_PLAY, MainFrame::onVideoStarted )
@@ -62,12 +61,12 @@ void MainFrame::init()
     
     const auto &size = GetSize();
 
-    m_renderSurface = std::make_shared<RenderWindow>( this, wxID_ANY, nullptr, wxSize( 800, size.y ) );
-    m_controlPanel = std::make_shared<ControlPanel::Panel>( this, wxID_ANY, wxPoint( 800, 0 ), wxSize( size.x - 800, size.y ) );
+    m_renderSurface = new RenderWindow( this, wxID_ANY, nullptr, wxSize( 800, size.y ), wxBORDER_NONE | wxWANTS_CHARS );
+    m_controlPanel = new ControlPanel::Panel( this, wxID_ANY, wxPoint( 800, 0 ), wxSize( size.x - 800, size.y ) );
 
     auto *hSizer = new wxBoxSizer( wxHORIZONTAL );
-    hSizer->Add( m_renderSurface.get(), 1, wxEXPAND | wxALL );
-    hSizer->Add( m_controlPanel.get(), 1, wxEXPAND | wxALL );
+    hSizer->Add( m_renderSurface, 1, wxEXPAND | wxALL );
+    hSizer->Add( m_controlPanel, 1, wxEXPAND | wxALL );
 
     hSizer->SetMinSize( size );
     hSizer->SetSizeHints( this );
@@ -77,6 +76,9 @@ void MainFrame::init()
 
 void MainFrame::start()
 {
+    if ( !m_renderSurface || !m_controlPanel )
+        return;
+
     m_controlPanel->Show();
 
     m_renderSurface->start();
@@ -90,6 +92,9 @@ void MainFrame::start()
 
 void MainFrame::onVideoStarted( wxCommandEvent& )
 {
+    if ( !m_renderSurface || !m_controlPanel )
+        return;
+
     m_renderSurface->init();
     m_renderSurface->loadLevel( m_controlPanel->increaseLevel() );
 }
@@ -102,12 +107,20 @@ void MainFrame::onVideoFinished( wxCommandEvent& )
 void MainFrame::stop()
 {
     m_isRunning = false;
-    m_renderSurface->stop();
+    if ( m_renderSurface )
+        m_renderSurface->stop();
 }
 
 void MainFrame::onClose( wxCloseEvent &event )
 {
     stop();
+    event.Skip();
+}
+
+void MainFrame::onActivate( wxActivateEvent &event )
+{
+    if ( event.GetActive() && m_renderSurface && m_renderSurface->IsShownOnScreen() )
+        m_renderSurface->SetFocus();
     event.Skip();
 }
 
@@ -118,6 +131,10 @@ void MainFrame::onScoreIncreased( wxCommandEvent& )
 
 void MainFrame::onChildWndInitialized( wxCommandEvent& )
 {
+    if ( !m_renderSurface )
+        return;
+
+    m_renderSurface->SetFocus();
     m_renderSurface->playIntro();
 }
 

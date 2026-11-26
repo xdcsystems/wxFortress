@@ -29,6 +29,10 @@ class TextRenderer
     public:
         TextRenderer( wxWindow* parent );
         ~TextRenderer();
+        TextRenderer( const TextRenderer& ) = delete;
+        TextRenderer& operator=( const TextRenderer& ) = delete;
+        TextRenderer( TextRenderer&& ) = delete;
+        TextRenderer& operator=( TextRenderer&& ) = delete;
 
         void resize( const glm::mat4& projection );
         void renderFrame();
@@ -67,7 +71,7 @@ class TextRenderer
 
         std::shared_ptr<Timer> m_timer;
 
-        wxEvtHandler* m_eventHandler { nullptr };
+        wxWindow* m_parent { nullptr };
         wxCommandEvent m_eventCharShow;
 
         TextRendererState m_state = TextRendererState::FINISHED;
