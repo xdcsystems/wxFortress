@@ -3,8 +3,11 @@
 #include "Common/NonCopyable.hpp"
 
 #include <memory>
+#include <string>
+#include <vector>
 #include <glm/mat4x4.hpp>
 
+#include "AiProtocols.hpp"
 #include "BallPhysics.hpp"
 #include "Resonance.hpp"
 
@@ -55,6 +58,11 @@ namespace Shapes
             }
             bool consumePendingImpact( bool& outMaxOrFinal ) noexcept;
 
+            std::string activeProtocolHudText() const { return m_protocols.hudStatusText( hasMagLockedBalls() ); }
+            bool hasMagLockedBalls() const noexcept;
+            bool releaseMagLockedBalls() noexcept;
+            void setStageIncidents( unsigned int incidents ) noexcept { m_stageIncidents = incidents; }
+
             void update( double deltaTimeSec, int remainingSteps = 1 );
             void setPaddleMouseX( float mouseX );
             void setRenderAlpha( float alpha );
@@ -66,10 +74,23 @@ namespace Shapes
             void resetBallSpeed();
 
         protected:
+            struct BallInstance
+            {
+                Physics::BallState state {};
+                Physics::Vec2 prevCenter { 0.0f, 0.0f };
+                Physics::Vec2 magLaunchVel { 0.0f, 0.0f };
+                bool magLocked { false };
+                float magOffsetX { 0.0f };
+                float robotHoldSec { 0.0f };
+                float limiterSavedSpeed { 0.0f };
+            };
+
             // Helper functions
             void initBallVelocity();
             void updatePaddleInput( float dtSec, int remainingSteps = 1 );
             Physics::Aabb updateBallPosition( const Physics::Aabb& boardBounds, bool syncPrev = false );
+            void activateProtocol( AiProtocols::ProtocolKind kind );
+            void syncPhysBricksFromBricks();
 
         private:
             // Private data
@@ -78,6 +99,7 @@ namespace Shapes
 
             bool m_isRobot { false };
             unsigned int m_robotDryBounces { 0 };
+            unsigned int m_stageIncidents { 0 };
             float m_currentBallSpeed { 0.0f };
             bool m_isRoundCompleted { false };
             bool m_hasMouseTarget { false };
@@ -85,18 +107,21 @@ namespace Shapes
 
             Resonance::State m_resonance {};
             Resonance::PaddleRecoil m_paddleRecoil {};
+            AiProtocols::ActiveState m_protocols {};
+            std::vector<AiProtocols::ProtocolCapsule> m_capsules;
             float m_smoothedPaddleVelX { 0.0f };
             float m_paddleSkillFlashSec { 0.0f };
             bool m_pendingImpact { false };
             bool m_pendingImpactMaxOrFinal { false };
 
             Physics::ArenaConfig m_arenaCfg {};
-            Physics::BallState m_ballState {};
+            std::vector<BallInstance> m_balls;
             Physics::PaddleState m_paddleState {};
-            Physics::Vec2 m_prevBallCenter { 0.0f, 0.0f };
             float m_prevPaddleX { 0.0f };
             float m_renderAlpha { 1.0f };
             float m_particleSpawnAccum { 0.0f };
+            std::size_t m_particleOrbCursor { 0u };
+            std::vector<Physics::BallState> m_robotBallScratch;
             std::vector<Physics::BrickItem> m_physBricks;
 
             wxEvtHandler* m_eventHandler { nullptr };

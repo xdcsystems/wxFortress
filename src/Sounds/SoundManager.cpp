@@ -692,3 +692,13 @@ void SoundManager::playRobotToggle( bool enabled )
 {
     playStereoSource( sfxBuffer( SfxId::CharShow ), 0.55f, enabled ? 1.35f : 0.85f );
 }
+
+void SoundManager::playProtocolActivate( bool isRisky )
+{
+    playStereoSource( sfxBuffer( SfxId::Countdown ), 0.45f, isRisky ? 1.50f : 1.25f );
+}
+
+void SoundManager::playMagRelease()
+{
+    playStereoSource( sfxBuffer( SfxId::Ping ), 0.55f, 1.18f );
+}

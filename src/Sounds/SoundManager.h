@@ -54,6 +54,8 @@ class SoundManager final : private NonCopyable
         void playBallLost();
         void playCharShow();
         void playRobotToggle( bool enabled );
+        void playProtocolActivate( bool isRisky );
+        void playMagRelease();
 
         // Background music (OpenAL looping + smooth ducking/mute)
         void playMusic( unsigned short level );

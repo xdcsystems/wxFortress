@@ -30,6 +30,7 @@
 #include "Renderer/Overlay.h"
 #include "Renderer/TextRenderer.h"
 #include "Sounds/SoundManager.h"
+#include "Shapes/AiProtocols.hpp"
 #include "Shapes/ShapesManager.h"
 #include "Shapes/ParticleGenerator.h"
 #include "Video/MediaManager.h"
@@ -63,6 +64,7 @@ BEGIN_EVENT_TABLE( RenderWindow, wxGLCanvas )
     EVT_COMMAND( wxID_ANY, wxEVT_PING, RenderWindow::onPaddleContact )
     EVT_COMMAND( wxID_ANY, wxEVT_PONG, RenderWindow::onPaddleContact )
     EVT_COMMAND( wxID_ANY, wxEVT_ARMOR_HIT, RenderWindow::onArmorHit )
+    EVT_COMMAND( wxID_ANY, wxEVT_PROTOCOL_ACTIVATED, RenderWindow::onProtocolActivated )
     EVT_COMMAND( wxID_ANY, wxEVT_STAGE_FINISHED, RenderWindow::onStageFinished )
     EVT_COMMAND( wxID_ANY, wxEVT_CHAR_SHOW, RenderWindow::onTextCharShow )
 END_EVENT_TABLE()
@@ -250,6 +252,8 @@ void RenderWindow::resetBallSpeed()
     if ( m_shapesManager )
         m_shapesManager->resetBallSpeed();
     m_stageIncidents = 0;
+    if ( m_shapesManager )
+        m_shapesManager->setStageIncidents( 0 );
     m_impactFeedback.reset();
     m_hudStatus.clearTransient();
 }
@@ -581,7 +585,8 @@ void RenderWindow::renderHud()
     const unsigned int mult = m_shapesManager ? m_shapesManager->resonanceMultiplier() : 1u;
     const bool showZone1 = ( mult >= 2u );
     const bool isRobot = m_shapesManager && m_shapesManager->isRobotMode();
-    const Resonance::HudStatus::DisplayLine zone2 = m_hudStatus.resolveZone2( isRobot, m_currentScore, m_hiScore );
+    const std::string protocolHud = m_shapesManager ? m_shapesManager->activeProtocolHudText() : std::string {};
+    const Resonance::HudStatus::DisplayLine zone2 = m_hudStatus.resolveZone2( isRobot, m_currentScore, m_hiScore, protocolHud );
     const bool showZone2 = zone2.visible && !zone2.text.empty();
     if ( !showZone1 && !showZone2 )
         return;
@@ -778,7 +783,17 @@ void RenderWindow::onKeyPressed( wxKeyEvent &event )
             {
                 case WXK_SPACE:
                 {
-                    triggerLaunch();
+                    if ( m_state == State::RUN && m_shapesManager && m_shapesManager->hasMagLockedBalls() )
+                    {
+                        if ( m_shapesManager->releaseMagLockedBalls() && m_soundManager )
+                            m_soundManager->playMagRelease();
+                        Refresh( false );
+                        wxWakeUpIdle();
+                    }
+                    else
+                    {
+                        triggerLaunch();
+                    }
                 }
                 break;
 
@@ -820,6 +835,8 @@ void RenderWindow::onKeyPressed( wxKeyEvent &event )
                 event.GetKeyCode() == 'y' )
             {
                 m_stageIncidents = 0;
+                if ( m_shapesManager )
+                    m_shapesManager->setStageIncidents( 0 );
                 m_state = State::NEWROUND;
                 resetSimulationTiming();
                 QueueEvent( new wxCommandEvent( wxEVT_RESET ) );
@@ -885,6 +902,16 @@ void RenderWindow::onArmorHit( wxCommandEvent& )
         m_soundManager->playArmorHit( 1.25f );
 }
 
+void RenderWindow::onProtocolActivated( wxCommandEvent &event )
+{
+    const auto kind = static_cast<AiProtocols::ProtocolKind>( event.GetInt() );
+    const char* banner = AiProtocols::activationBanner( kind );
+    if ( banner && banner[ 0 ] != '\0' )
+        m_hudStatus.showTransient( banner, 2.0 );
+    if ( m_soundManager )
+        m_soundManager->playProtocolActivate( AiProtocols::isRiskyProtocol( kind ) );
+}
+
 void RenderWindow::onRoundCompleted( wxCommandEvent &event )
 {
     m_soundManager->playLevelComplete();
@@ -901,6 +928,8 @@ void RenderWindow::onBallLost( wxCommandEvent &event )
     if ( m_shapesManager )
         m_shapesManager->stop();
     ++m_stageIncidents;
+    if ( m_shapesManager )
+        m_shapesManager->setStageIncidents( m_stageIncidents );
     m_impactFeedback.triggerBreachFlash();
     m_hudStatus.showTransient( "INCIDENT 1844/27: BREACH", 2.8 );
     m_soundManager->playBallLost();

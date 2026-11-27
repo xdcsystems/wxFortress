@@ -96,6 +96,7 @@ namespace Shapes::Physics
     {
         bool hitWall { false };
         bool hitPaddle { false };
+        bool hitPaddleTop { false };
         bool skillShot { false };
         bool ballLost { false };
         Vec2 skillShotPos { 0.0f, 0.0f };
@@ -407,7 +408,8 @@ namespace Shapes::Physics
         float dtSec,
         const ArenaConfig& cfg,
         float paddleDeltaX = 0.0f,
-        float effectivePaddleVelX = std::numeric_limits<float>::quiet_NaN() )
+        float effectivePaddleVelX = std::numeric_limits<float>::quiet_NaN(),
+        bool pierceBricks = false )
     {
         StepEvents events;
         if ( !std::isfinite( dtSec ) || dtSec <= 0.0f ||
@@ -509,10 +511,13 @@ namespace Shapes::Physics
                 break;
             }
 
-            // Advance to impact point and push cleanly outside the surface.
+            // Advance to impact point and push cleanly outside the surface (pierce passes straight through bricks).
             const Vec2 startCenter = ball.center;
             const float hitPaddleX = curPaddleX + paddleStepX * bestT;
-            ball.center = startCenter + disp * bestT + bestNormal * ( bestPen + detail::kPushOut );
+            if ( pierceBricks && bestKind == HitKind::Brick )
+                ball.center = startCenter + disp * bestT + normalizeSafe( ball.vel, { 0.0f, 1.0f } ) * detail::kPushOut;
+            else
+                ball.center = startCenter + disp * bestT + bestNormal * ( bestPen + detail::kPushOut );
             curPaddleX = hitPaddleX;
             remTime *= ( 1.0f - bestT );
 
@@ -522,6 +527,7 @@ namespace Shapes::Physics
                 const float spd = std::clamp( length( ball.vel ), cfg.minSpeed, cfg.maxSpeed );
                 if ( bestNormal.y > 0.15f )
                 {
+                    events.hitPaddleTop = true;
                     // Top/upper-corner bounce: angle + controlled Skill Shot spin/impulse from effective paddle velocity.
                     const float hitPaddleCenterX = hitPaddleX + 0.5f * paddle.w;
                     bool isSkill = false;
@@ -567,15 +573,17 @@ namespace Shapes::Physics
                 // Collect simultaneous brick hits (e.g. ball hitting the seam between two bricks).
                 Vec2 combinedNormal = bestNormal;
                 std::size_t destroyedThisSubstep = 0u;
-                auto damageBrickItem = [ &destroyedThisSubstep ]( BrickItem& item ) noexcept
+                auto damageBrickItem = [ &destroyedThisSubstep, pierceBricks ]( BrickItem& item ) noexcept
                 {
-                    if ( item.hp > 1u )
-                        --item.hp;
-                    else
+                    if ( pierceBricks || item.hp <= 1u )
                     {
                         item.hp = 0u;
                         item.alive = false;
                         ++destroyedThisSubstep;
+                    }
+                    else
+                    {
+                        --item.hp;
                     }
                 };
 
@@ -599,7 +607,7 @@ namespace Shapes::Physics
                 }
 
                 const Vec2 reflN = normalizeSafe( combinedNormal, bestNormal );
-                if ( dot( ball.vel, reflN ) < 0.0f )
+                if ( !pierceBricks && dot( ball.vel, reflN ) < 0.0f )
                     ball.vel = glm::reflect( ball.vel, reflN );
 
                 if ( destroyedThisSubstep > 0u )
@@ -628,6 +636,7 @@ namespace Shapes::Physics
             const float spd = std::clamp( length( ball.vel ), cfg.minSpeed, cfg.maxSpeed );
             if ( ball.center.y >= paddle.center().y )
             {
+                events.hitPaddleTop = true;
                 ball.center.y = paddle.top() + ball.radius + detail::kPushOut;
                 bool isSkill = false;
                 float skillDir = 0.0f;
@@ -812,30 +821,35 @@ namespace Shapes::Physics
         const std::vector<BrickItem>& bricks,
         float dtSec,
         const ArenaConfig& cfg,
-        unsigned int dryBounces = 0 )
+        unsigned int dryBounces = 0,
+        bool allowEmergencyCatch = true )
     {
         if ( dtSec <= 0.0f )
             return;
 
         const float halfW = 0.5f * paddle.box.w;
-        const float maxLeft = std::max( 0.0f, cfg.width - paddle.box.w );
+        const float maxLeft = ( std::max )( 0.0f, cfg.width - paddle.box.w );
         const float targetCenter = computeRobotTargetX( ball, paddle.box, bricks, cfg, dryBounces );
         const float targetLeft = std::clamp( targetCenter - halfW, 0.0f, maxLeft );
 
-        const float maxStep = ( cfg.paddleMaxSpeed * 1.6f ) * dtSec;
+        const float speedBoost = allowEmergencyCatch ? 1.6f : 1.0f;
+        const float maxStep = ( cfg.paddleMaxSpeed * speedBoost ) * dtSec;
         const float diff = targetLeft - paddle.box.x;
         if ( std::fabs( diff ) <= maxStep )
             paddle.box.x = targetLeft;
         else
             paddle.box.x += ( diff > 0.0f ? maxStep : -maxStep );
 
-        // Emergency catch guarantee right before impact if a late brick ricochet changed landX.
-        const float paddleTopY = paddle.box.top() + ball.radius;
-        if ( ball.vel.y < -detail::kEps && ball.center.y > paddleTopY )
+        // Emergency catch guarantee right before impact (disabled during Overheat penalty for honest risk-reward).
+        if ( allowEmergencyCatch )
         {
-            const float tti = ( ball.center.y - paddleTopY ) / ( -ball.vel.y );
-            if ( tti <= 0.08f )
-                paddle.box.x = targetLeft;
+            const float paddleTopY = paddle.box.top() + ball.radius;
+            if ( ball.vel.y < -detail::kEps && ball.center.y > paddleTopY )
+            {
+                const float tti = ( ball.center.y - paddleTopY ) / ( -ball.vel.y );
+                if ( tti <= 0.08f )
+                    paddle.box.x = targetLeft;
+            }
         }
 
         paddle.box.x = std::clamp( paddle.box.x, 0.0f, maxLeft );

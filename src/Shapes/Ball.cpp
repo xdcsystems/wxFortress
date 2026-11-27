@@ -10,6 +10,8 @@
 #include "Common/defs.h"
 #include "Common/Tools.h"
 #include "Renderer/ResourceManager.h"
+#include "Renderer/SpriteRenderer.h"
+#include "Renderer/Texture.h"
 #include "Base.h"
 #include "Ball.h"
 
@@ -23,4 +25,13 @@ Ball::Ball()
 
     m_radius = m_size.x / 2.0f;
     m_velocity = { BEGIN_BALL_VELOCITY, BEGIN_BALL_VELOCITY };
+}
+
+void Ball::drawTinted( const std::shared_ptr<SpriteRenderer>& renderer, const glm::vec3& color ) const
+{
+    if ( !m_sprite || !renderer )
+        return;
+
+    m_sprite->bind();
+    renderer->drawSprite( m_position, m_size, color );
 }
