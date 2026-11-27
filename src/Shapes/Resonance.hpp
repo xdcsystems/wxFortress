@@ -247,13 +247,20 @@ namespace Resonance
             return std::isfinite( transientRemainingSec ) && transientRemainingSec > 0.0 && !transientText.empty();
         }
 
-        DisplayLine resolveZone2( bool isRobotMode, uint32_t currentScore, uint32_t hiScore ) const
+        DisplayLine resolveZone2(
+            bool isRobotMode,
+            uint32_t currentScore,
+            uint32_t hiScore,
+            const std::string& activeProtocolText = {} ) const
         {
             if ( hasTransient() )
                 return { transientText, true };
 
             if ( isRobotMode )
                 return { "AUTO MODE", true };
+
+            if ( !activeProtocolText.empty() )
+                return { activeProtocolText, true };
 
             if ( hiScore > 0u && currentScore < hiScore )
             {

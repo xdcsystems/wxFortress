@@ -49,27 +49,50 @@ void ParticleGenerator::resize( const glm::mat4& projection )
     m_shader->setMatrix4( "projection", projection, true );
 }
 
-void ParticleGenerator::update( float dt, const basePtr &object, unsigned int newParticles, glm::vec2 offset )
+void ParticleGenerator::spawnTrail( const glm::vec2& pos, const glm::vec2& vel, unsigned int newParticles, glm::vec2 offset )
 {
-    // add new particles 
+    if ( m_particles.empty() || newParticles == 0u )
+        return;
+
+    static thread_local std::mt19937 rng( std::random_device {}() );
+    static thread_local std::uniform_real_distribution<float> posDist( -5.0f, 5.0f );
+    static thread_local std::uniform_real_distribution<float> colorDist( 0.5f, 1.5f );
+
     for ( unsigned int i = 0; i < newParticles; ++i )
     {
-        auto unusedParticle = firstUnusedParticle();
-        respawnParticle( m_particles[ unusedParticle ], object, offset );
+        const unsigned int unusedParticle = firstUnusedParticle();
+        Particle& particle = m_particles[ unusedParticle ];
+        const float rColor = colorDist( rng );
+        particle.Position = { posDist( rng ) + pos.x + offset.x, posDist( rng ) + pos.y + offset.y };
+        particle.Color = glm::vec4( rColor, rColor, rColor, 1.0f );
+        particle.Life = 1.0f;
+        particle.Velocity = vel * 0.1f;
     }
+}
 
-    // update all particles
+void ParticleGenerator::stepParticles( float dt )
+{
+    if ( !std::isfinite( dt ) || dt <= 0.0f )
+        return;
+
     for ( auto& particle : m_particles )
     {
-        particle.Life -= dt; // reduce life
-        if ( particle.Life > .0f )
-        {	// particle is alive, thus update
+        particle.Life -= dt;
+        if ( particle.Life > 0.0f )
+        {
             particle.Position -= particle.Velocity * dt;
-            particle.Color.a = std::max( 0.0f, particle.Color.a - dt * 2.5f );
+            particle.Color.a = ( std::max )( 0.0f, particle.Color.a - dt * 2.5f );
             if ( particle.Color.a <= 0.0f )
                 particle.Life = 0.0f;
         }
     }
+}
+
+void ParticleGenerator::update( float dt, const basePtr &object, unsigned int newParticles, glm::vec2 offset )
+{
+    if ( object )
+        spawnTrail( object->position(), object->velocity(), newParticles, offset );
+    stepParticles( dt );
 }
 
 // render all particles
@@ -218,23 +241,4 @@ unsigned int ParticleGenerator::firstUnusedParticle()
         return patrticle.Life <= 0;
     } );
     return iter == m_particles.end() ? 0 : std::distance( m_particles.begin(), iter );
-}
-
-void ParticleGenerator::respawnParticle( Particle& particle, const basePtr &object, glm::vec2 offset )
-{
-    const auto& position = object->position();
-
-    static thread_local std::mt19937 rng( std::random_device {}() );
-    static thread_local std::uniform_real_distribution<float> posDist( -5.0f, 5.0f );
-    static thread_local std::uniform_real_distribution<float> colorDist( 0.5f, 1.5f );
-
-    const float randomX = posDist( rng ) + position.x + offset.x;
-    const float randomY = posDist( rng ) + position.y + offset.y;
-
-    const float rColor = colorDist( rng );
-
-    particle.Position = { randomX, randomY };
-    particle.Color = glm::vec4( rColor, rColor, rColor, 1.0f );
-    particle.Life = 1.0f;
-    particle.Velocity = object->velocity() * 0.1f;
 }

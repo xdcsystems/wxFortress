@@ -35,3 +35,16 @@ void Board::drawTinted( const std::shared_ptr<SpriteRenderer>& renderer, const g
     m_sprite->bind();
     renderer->drawSprite( m_position, m_size, color );
 }
+
+void Board::drawRectTinted(
+    const std::shared_ptr<SpriteRenderer>& renderer,
+    const glm::vec2& pos,
+    const glm::vec2& size,
+    const glm::vec3& color ) const
+{
+    if ( !m_sprite || !renderer )
+        return;
+
+    m_sprite->bind();
+    renderer->drawSprite( pos, size, color );
+}

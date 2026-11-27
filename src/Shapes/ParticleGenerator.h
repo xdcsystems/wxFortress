@@ -45,6 +45,8 @@ namespace Shapes
 
             // update all particles
             void update( float dt, const basePtr &object, unsigned int newParticles, glm::vec2 offset = glm::vec2( 0.f, 0.f ) );
+            void spawnTrail( const glm::vec2& pos, const glm::vec2& vel, unsigned int newParticles, glm::vec2 offset = glm::vec2( 0.f, 0.f ) );
+            void stepParticles( float dt );
 
             // spawn a directional GPU spark burst (e.g. Skill Shot edge flash)
             void spawnBurst( const glm::vec2& origin, float cutDirX, unsigned int count, const glm::vec4& color );
@@ -61,9 +63,6 @@ namespace Shapes
 
             // returns the first Particle index that's currently unused e.g. Life <= 0.0f or 0 if no particle is currently inactive
             unsigned int firstUnusedParticle();
-
-            // respawns particle
-            void respawnParticle( Particle& particle, const basePtr &object, glm::vec2 offset = glm::vec2( 0.f, 0.f ) );
 
 
             // state

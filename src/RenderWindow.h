@@ -75,6 +75,7 @@ class RenderWindow final : public wxGLCanvas
         void onScoreIncreased( wxCommandEvent& );
         void onPaddleContact( wxCommandEvent& );
         void onArmorHit( wxCommandEvent& );
+        void onProtocolActivated( wxCommandEvent& );
         void onRoundCompleted( wxCommandEvent& );
         void onBallLost( wxCommandEvent& );
         void onTextCharShow( wxCommandEvent& );
