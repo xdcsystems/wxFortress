@@ -63,6 +63,7 @@ namespace Shapes::Physics
     {
         Aabb box {};
         bool alive { true };
+        unsigned char hp { 1 };
     };
 
     struct ArenaConfig
@@ -485,22 +486,34 @@ namespace Shapes::Physics
             else if ( bestKind == HitKind::Brick )
             {
                 // Collect simultaneous brick hits (e.g. ball hitting the seam between two bricks).
-                const std::size_t hitsBefore = events.hitBricks.size();
                 Vec2 combinedNormal = bestNormal;
+                std::size_t destroyedThisSubstep = 0u;
+                auto damageBrickItem = [ &destroyedThisSubstep ]( BrickItem& item ) noexcept
+                {
+                    if ( item.hp > 1u )
+                        --item.hp;
+                    else
+                    {
+                        item.hp = 0u;
+                        item.alive = false;
+                        ++destroyedThisSubstep;
+                    }
+                };
+
                 if ( bestBrickIdx < bricks.size() && bricks[ bestBrickIdx ].alive )
                 {
-                    bricks[ bestBrickIdx ].alive = false;
+                    damageBrickItem( bricks[ bestBrickIdx ] );
                     events.hitBricks.push_back( bestBrickIdx );
                 }
 
                 for ( std::size_t i = 0; i < bricks.size(); ++i )
                 {
-                    if ( !bricks[ i ].alive )
+                    if ( i == bestBrickIdx || !bricks[ i ].alive )
                         continue;
                     const SweepHit bh = detail::sweepCircleAabb( startCenter, disp, ball.radius, bricks[ i ].box );
                     if ( bh.hit && std::fabs( bh.t - bestT ) <= kSimultaneousTol )
                     {
-                        bricks[ i ].alive = false;
+                        damageBrickItem( bricks[ i ] );
                         events.hitBricks.push_back( i );
                         combinedNormal = combinedNormal + bh.normal;
                     }
@@ -510,12 +523,14 @@ namespace Shapes::Physics
                 if ( dot( ball.vel, reflN ) < 0.0f )
                     ball.vel = glm::reflect( ball.vel, reflN );
 
-                const std::size_t hitsThisSubstep = events.hitBricks.size() - hitsBefore;
-                ball.vel = detail::scaleSpeed(
-                    ball.vel,
-                    cfg.speedStepOnBrick * static_cast<float>( hitsThisSubstep ),
-                    cfg.minSpeed,
-                    cfg.maxSpeed );
+                if ( destroyedThisSubstep > 0u )
+                {
+                    ball.vel = detail::scaleSpeed(
+                        ball.vel,
+                        cfg.speedStepOnBrick * static_cast<float>( destroyedThisSubstep ),
+                        cfg.minSpeed,
+                        cfg.maxSpeed );
+                }
                 ball.vel = detail::enforceMinVerticalSlope( ball.vel, cfg.minAbsSinAngle );
             }
 

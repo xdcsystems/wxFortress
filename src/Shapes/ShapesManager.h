@@ -62,7 +62,7 @@ namespace Shapes
             void renderFrame();
 
             void resize( const wxSize& size, const glm::mat4& projection );
-            void loadLevel( unsigned short level );
+            void loadLevel( unsigned short level, unsigned short stage = 0 );
             void resetBallSpeed();
 
         protected:

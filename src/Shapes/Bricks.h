@@ -30,7 +30,8 @@ namespace Shapes
             Bricks();
             ~Bricks() = default;
 
-            void loadLevel( unsigned short level = 1 );
+            void loadLevel( unsigned short level = 1, unsigned short stage = 0 );
+            void updateVisuals( float dtSec ) noexcept;
             void checkContact( const std::function<bool( brickPtr )>& checkIntersects ) const;
             const std::vector<brickPtr>& items() const { return m_bricks; }
             bool empty() const

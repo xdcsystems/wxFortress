@@ -625,8 +625,14 @@ void SoundManager::playDestroyBrick( float pitch )
 
 void SoundManager::playPing()
 {
-    // Intentional PR #26 behavior: soft Pong.wav at 0.2f; SfxId::Ping (Ping.wav) stays loaded for future armored bricks.
+    // Intentional PR #26 behavior: soft Pong.wav at 0.2f for paddle bounce.
     playStereoSource( sfxBuffer( SfxId::Pong ), 0.2f );
+}
+
+void SoundManager::playArmorHit( float pitch )
+{
+    // Metallic Ping.wav feedback when 2-HP/3-HP BLUE composite armor absorbs a hit.
+    playStereoSource( sfxBuffer( SfxId::Ping ), 0.75f, pitch );
 }
 
 void SoundManager::playPong()

@@ -20,6 +20,7 @@
 #include "Base.h"
 #include "Ball.h"
 #include "Brick.h"
+#include "BrickMechanics.hpp"
 #include "Bricks.h"
 #include "Board.h"
 #include "Explosions.h"
@@ -32,6 +33,7 @@ DEFINE_LOCAL_EVENT_TYPE( wxEVT_ROUND_COMPLETED )
 DEFINE_LOCAL_EVENT_TYPE( wxEVT_BALL_LOST )
 DEFINE_LOCAL_EVENT_TYPE( wxEVT_PING )
 DEFINE_LOCAL_EVENT_TYPE( wxEVT_PONG )
+DEFINE_LOCAL_EVENT_TYPE( wxEVT_ARMOR_HIT )
 
 using namespace Shapes;
 
@@ -63,15 +65,18 @@ ShapesManager::ShapesManager( wxWindow* parent, const rendererPtr& spriteRendere
     }
 }
 
-void ShapesManager::loadLevel( unsigned short level )
+void ShapesManager::loadLevel( unsigned short level, unsigned short stage )
 {
     m_resonance.reset();
     m_paddleRecoil.reset();
     m_pendingImpact = false;
     m_pendingImpactMaxOrFinal = false;
 
+    // Tension sawtooth: keep level-entry speed intense yet fair after EM-heavy levels
+    m_currentBallSpeed = ( std::min )( m_currentBallSpeed, BrickMechanics::kLevelStartMaxSpeed );
+
     // let's throw some bricks
-    m_bricks->loadLevel( level );
+    m_bricks->loadLevel( level, stage );
 }
 
 void ShapesManager::resetBallSpeed()
@@ -285,6 +290,7 @@ void ShapesManager::update( double deltaTimeSec, int remainingSteps )
 
     const float dtSec = std::clamp( static_cast<float>( deltaTimeSec ), 0.0f, 0.05f );
     m_paddleRecoil.step( dtSec );
+    m_bricks->updateVisuals( dtSec );
 
     if ( m_paddleState.box.w <= 0.0f || m_paddleState.box.h <= 0.0f )
     {
@@ -299,7 +305,7 @@ void ShapesManager::update( double deltaTimeSec, int remainingSteps )
         m_physBricks.reserve( brickList.size() );
         for ( const auto& brick : brickList )
         {
-            m_physBricks.push_back( Physics::BrickItem { brick->bounds(), brick->isAlive() } );
+            m_physBricks.push_back( Physics::BrickItem { brick->bounds(), brick->isAlive(), brick->hp() } );
         }
     }
 
@@ -343,36 +349,130 @@ void ShapesManager::update( double deltaTimeSec, int remainingSteps )
             if ( !ev.hitBricks.empty() )
             {
                 m_robotDryBounces = 0;
-                m_currentBallSpeed = std::clamp(
-                    Physics::length( m_ballState.vel ),
-                    m_arenaCfg.minSpeed,
-                    m_arenaCfg.maxSpeed );
                 bool hitThreshold = false;
                 bool hitMax = false;
+                bool armorHitOccurred = false;
+                unsigned int emBoostCount = 0u;
+                std::vector<std::size_t> directRedDetonators;
+
+                auto awardDestruction = [ & ]( const brickPtr& destroyedBrick )
+                {
+                    m_explosions->add( destroyedBrick );
+                    const auto role = BrickMechanics::roleForType( static_cast<unsigned char>( destroyedBrick->type() ) );
+                    Resonance::HitResult hit = m_resonance.onBrickHit();
+                    unsigned int scoreAward = hit.scoreDelta;
+                    if ( role == BrickMechanics::BrickRole::ProtocolContainer )
+                    {
+                        // YELLOW protocol container: bonus resonance step + 2x score reward
+                        const Resonance::HitResult bonus = m_resonance.onBrickHit();
+                        hit.crossedHitStopThreshold = hit.crossedHitStopThreshold || bonus.crossedHitStopThreshold;
+                        hit.multiplier = bonus.multiplier;
+                        hit.streak = bonus.streak;
+                        scoreAward = bonus.scoreDelta * 2u;
+                    }
+                    if ( hit.crossedHitStopThreshold )
+                    {
+                        hitThreshold = true;
+                        if ( hit.multiplier >= Resonance::kMaxMultiplier )
+                            hitMax = true;
+                    }
+                    queueCommandEvent(
+                        m_eventHandler,
+                        wxEVT_CURRENT_SCORE_INCREASED,
+                        static_cast<int>( scoreAward ),
+                        static_cast<long>( hit.streak ) );
+                };
+
                 for ( const std::size_t idx : ev.hitBricks )
                 {
                     if ( idx < brickList.size() )
                     {
                         const auto& brick = brickList[ idx ];
-                        if ( brick->isAlive() )
+                        if ( !brick->isAlive() )
+                            continue;
+
+                        const bool destroyed = brick->takeDamage( 1u );
+                        if ( !destroyed )
                         {
-                            brick->kill();
-                            m_explosions->add( brick );
-                            const Resonance::HitResult hit = m_resonance.onBrickHit();
-                            if ( hit.crossedHitStopThreshold )
-                            {
-                                hitThreshold = true;
-                                if ( hit.multiplier >= Resonance::kMaxMultiplier )
-                                    hitMax = true;
-                            }
-                            queueCommandEvent(
-                                m_eventHandler,
-                                wxEVT_CURRENT_SCORE_INCREASED,
-                                static_cast<int>( hit.scoreDelta ),
-                                static_cast<long>( hit.streak ) );
+                            armorHitOccurred = true;
+                            continue;
                         }
+
+                        const auto role = BrickMechanics::roleForType( static_cast<unsigned char>( brick->type() ) );
+                        if ( role == BrickMechanics::BrickRole::EmAccelerator )
+                            ++emBoostCount;
+                        else if ( role == BrickMechanics::BrickRole::ReactiveCell )
+                            directRedDetonators.push_back( idx );
+
+                        awardDestruction( brick );
                     }
                 }
+
+                // RED reactive energy cells: depth-capped 3x3 chain detonation
+                if ( !directRedDetonators.empty() )
+                {
+                    std::vector<BrickMechanics::BlastBrick> blastGrid;
+                    blastGrid.reserve( brickList.size() );
+                    for ( const auto& b : brickList )
+                    {
+                        const auto box = b->bounds();
+                        blastGrid.push_back( BrickMechanics::BlastBrick {
+                            { box.x + 0.5f * box.w, box.y + 0.5f * box.h },
+                            { box.w, box.h },
+                            static_cast<unsigned char>( b->type() ),
+                            b->hp(),
+                            b->isAlive()
+                        } );
+                    }
+
+                    const BrickMechanics::BlastResult blast = BrickMechanics::resolveBlastChain(
+                        blastGrid,
+                        directRedDetonators,
+                        BrickMechanics::kMaxChainDepth );
+
+                    for ( const auto& [ idx, dmg ] : blast.survivedDamaged )
+                    {
+                        if ( idx < brickList.size() && brickList[ idx ]->isAlive() )
+                        {
+                            brickList[ idx ]->takeDamage( dmg );
+                            armorHitOccurred = true;
+                        }
+                    }
+
+                    for ( const std::size_t idx : blast.destroyedIndices )
+                    {
+                        if ( idx < brickList.size() && brickList[ idx ]->isAlive() )
+                        {
+                            brickList[ idx ]->kill();
+                            awardDestruction( brickList[ idx ] );
+                        }
+                    }
+
+                    if ( !blast.destroyedIndices.empty() || !blast.survivedDamaged.empty() )
+                    {
+                        hitThreshold = true;
+                        hitMax = true;
+                    }
+                }
+
+                // PURPLE EM accelerator: direct-hit velocity surge (strictly clamped to arena maxSpeed)
+                if ( emBoostCount > 0u )
+                {
+                    float spd = Physics::length( m_ballState.vel );
+                    for ( unsigned int i = 0u; i < emBoostCount; ++i )
+                        spd = BrickMechanics::applyEmBoost( spd, m_arenaCfg.minSpeed, m_arenaCfg.maxSpeed );
+                    m_ballState.vel = Physics::normalizeSafe( m_ballState.vel, { 0.0f, 1.0f } ) * spd;
+                    m_ball->setVelocity( m_ballState.vel );
+                }
+
+                m_currentBallSpeed = std::clamp(
+                    Physics::length( m_ballState.vel ),
+                    m_arenaCfg.minSpeed,
+                    m_arenaCfg.maxSpeed );
+
+                if ( armorHitOccurred )
+                    queueCommandEvent( m_eventHandler, wxEVT_ARMOR_HIT );
+
                 const bool justCompleted = m_bricks->empty();
                 m_isRoundCompleted = justCompleted;
                 if ( hitThreshold || justCompleted )

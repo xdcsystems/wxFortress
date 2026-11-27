@@ -59,7 +59,7 @@ class MainFrame final : public wxFrame
 
         // Helper functions
         void init();
-        void resetToFirstLevel();
+        void resetToFirstLevel( bool resetStage = false );
 
         // Private data (non-owning pointers; wxWindow parent owns child windows)
         RenderWindow* m_renderSurface { nullptr };

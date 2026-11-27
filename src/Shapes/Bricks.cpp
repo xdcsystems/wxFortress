@@ -33,7 +33,7 @@ Bricks::Bricks()
     }
 }
 
-void Bricks::loadLevel( unsigned short level )
+void Bricks::loadLevel( unsigned short level, unsigned short stage )
 {
     const auto bricks = Tools::Instance().loadLevel( "resources/levels.txt", level );
 
@@ -58,7 +58,7 @@ void Bricks::loadLevel( unsigned short level )
         {
             const auto type = static_cast<BrickType>( bricks[ row ][ col ] );
             currentPos.y = Brick::SizeOf( type ).y * static_cast<float>( row + startRow );
-            m_bricks.emplace_back( std::make_shared<Brick>( currentPos, type ) );
+            m_bricks.emplace_back( std::make_shared<Brick>( currentPos, type, stage ) );
             currentPos.x += Brick::SizeOf( type ).x;
         }
         currentPos.x = 0.0f;
@@ -77,6 +77,15 @@ void Bricks::checkContact( const std::function<bool( brickPtr )>& checkIntersect
     }
 }
 
+void Bricks::updateVisuals( float dtSec ) noexcept
+{
+    for ( const auto& brick : m_bricks )
+    {
+        if ( brick->isAlive() )
+            brick->stepVisual( dtSec );
+    }
+}
+
 void Bricks::draw( const rendererPtr& renderer )
 {
     if ( !m_bricksSprite || m_bricksSprite->Width <= 0 )
@@ -92,7 +101,7 @@ void Bricks::draw( const rendererPtr& renderer )
         const unsigned char typeVal = static_cast<unsigned char>( brick->type() );
         if ( typeVal >= 1 && typeVal <= kVisibleBrickTypeCount )
         {
-            renderer->drawSprite( brick->position(), brick->size(), glm::vec3( 1.0f ), m_typeUvRects[ typeVal - 1 ] );
+            renderer->drawSprite( brick->position(), brick->size(), brick->renderTint(), m_typeUvRects[ typeVal - 1 ] );
         }
     }
 }
