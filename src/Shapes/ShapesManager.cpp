@@ -69,6 +69,8 @@ void ShapesManager::loadLevel( unsigned short level, unsigned short stage )
 {
     m_resonance.reset();
     m_paddleRecoil.reset();
+    m_smoothedPaddleVelX = 0.0f;
+    m_paddleSkillFlashSec = 0.0f;
     m_pendingImpact = false;
     m_pendingImpactMaxOrFinal = false;
 
@@ -170,6 +172,7 @@ void ShapesManager::initBallVelocity()
 void ShapesManager::run( bool bNewRound )
 {
     m_state = State::RUN;
+    m_smoothedPaddleVelX = 0.0f;
 
     if ( bNewRound )
     {
@@ -177,6 +180,8 @@ void ShapesManager::run( bool bNewRound )
         m_robotDryBounces = 0;
         m_resonance.reset();
         m_paddleRecoil.reset();
+        m_smoothedPaddleVelX = 0.0f;
+        m_paddleSkillFlashSec = 0.0f;
         m_pendingImpact = false;
         m_pendingImpactMaxOrFinal = false;
         m_ballState.center = m_ball->center();
@@ -197,6 +202,8 @@ void ShapesManager::stop()
     m_ballState.vel = { 0.0f, 0.0f };
     m_resonance.reset();
     m_paddleRecoil.reset();
+    m_smoothedPaddleVelX = 0.0f;
+    m_paddleSkillFlashSec = 0.0f;
     m_pendingImpact = false;
     m_pendingImpactMaxOrFinal = false;
     m_particles->clear();
@@ -290,6 +297,8 @@ void ShapesManager::update( double deltaTimeSec, int remainingSteps )
 
     const float dtSec = std::clamp( static_cast<float>( deltaTimeSec ), 0.0f, 0.05f );
     m_paddleRecoil.step( dtSec );
+    if ( m_paddleSkillFlashSec > 0.0f )
+        m_paddleSkillFlashSec = ( std::max )( 0.0f, m_paddleSkillFlashSec - dtSec );
     m_bricks->updateVisuals( dtSec );
 
     if ( m_paddleState.box.w <= 0.0f || m_paddleState.box.h <= 0.0f )
@@ -316,6 +325,8 @@ void ShapesManager::update( double deltaTimeSec, int remainingSteps )
     const float prevPaddleX = m_paddleState.box.x;
     updatePaddleInput( dtSec, remainingSteps );
     const float paddleDeltaX = m_paddleState.box.x - prevPaddleX;
+    m_smoothedPaddleVelX = Physics::smoothPaddleVelX(
+        m_smoothedPaddleVelX, paddleDeltaX, dtSec, m_arenaCfg.paddleMaxSpeed );
 
     if ( isRunning() )
     {
@@ -329,21 +340,43 @@ void ShapesManager::update( double deltaTimeSec, int remainingSteps )
                 m_physBricks,
                 dtSec,
                 m_arenaCfg,
-                paddleDeltaX );
+                paddleDeltaX,
+                m_smoothedPaddleVelX );
 
             const float r = m_ballState.radius;
             m_ball->moveTo( m_ballState.center - glm::vec2( r ) );
             m_ball->setVelocity( m_ballState.vel );
 
             if ( ev.hitWall )
-                queueCommandEvent( m_eventHandler, wxEVT_PONG );
+            {
+                const float wallPitch = Resonance::impactPitchForSpeed( ev.wallImpactSpeed, false );
+                queueCommandEvent( m_eventHandler, wxEVT_PONG, static_cast<int>( std::lround( wallPitch * 100.0f ) ) );
+            }
 
             if ( ev.hitPaddle )
             {
                 ++m_robotDryBounces;
                 m_resonance.onPaddleHit();
-                m_paddleRecoil.trigger();
-                queueCommandEvent( m_eventHandler, wxEVT_PING );
+                if ( ev.skillShot )
+                {
+                    m_paddleRecoil.trigger( Resonance::PaddleRecoil::kMaxOffsetPx );
+                    m_paddleSkillFlashSec = 0.16f;
+                    m_currentBallSpeed = std::clamp(
+                        Physics::length( m_ballState.vel ),
+                        m_arenaCfg.minSpeed,
+                        m_arenaCfg.maxSpeed );
+                    m_particles->spawnBurst(
+                        ev.skillShotPos,
+                        ev.skillShotDir,
+                        18u,
+                        glm::vec4( 1.0f, 0.88f, 0.45f, 1.0f ) );
+                }
+                else
+                {
+                    m_paddleRecoil.trigger();
+                }
+                const float paddlePitch = Resonance::impactPitchForSpeed( ev.paddleImpactSpeed, ev.skillShot );
+                queueCommandEvent( m_eventHandler, wxEVT_PING, static_cast<int>( std::lround( paddlePitch * 100.0f ) ) );
             }
 
             if ( !ev.hitBricks.empty() )
@@ -529,7 +562,16 @@ void ShapesManager::renderFrame()
 
     m_renderer->selectShader();
 
-    m_board->draw( m_renderer );
+    if ( m_paddleSkillFlashSec > 0.0f )
+    {
+        const float t = std::clamp( m_paddleSkillFlashSec / 0.16f, 0.0f, 1.0f );
+        const glm::vec3 tint = glm::mix( glm::vec3( 1.0f ), glm::vec3( 1.50f, 1.38f, 1.08f ), t );
+        m_board->drawTinted( m_renderer, tint );
+    }
+    else
+    {
+        m_board->draw( m_renderer );
+    }
 
     if ( !m_isRoundCompleted )
     {

@@ -38,7 +38,7 @@ namespace Shapes
 
 
             void run( bool bNewRound = false );
-            void pause() { m_state = State::PAUSED; }
+            void pause() { m_state = State::PAUSED; m_smoothedPaddleVelX = 0.0f; }
             void stop();
 
             bool isRunning() const { return m_state == State::RUN; }
@@ -85,6 +85,8 @@ namespace Shapes
 
             Resonance::State m_resonance {};
             Resonance::PaddleRecoil m_paddleRecoil {};
+            float m_smoothedPaddleVelX { 0.0f };
+            float m_paddleSkillFlashSec { 0.0f };
             bool m_pendingImpact { false };
             bool m_pendingImpactMaxOrFinal { false };
 

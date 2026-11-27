@@ -623,10 +623,10 @@ void SoundManager::playDestroyBrick( float pitch )
     playStereoSource( sfxBuffer( SfxId::DestroyBrick ), 1.f, pitch );
 }
 
-void SoundManager::playPing()
+void SoundManager::playPing( float pitch )
 {
-    // Intentional PR #26 behavior: soft Pong.wav at 0.2f for paddle bounce.
-    playStereoSource( sfxBuffer( SfxId::Pong ), 0.2f );
+    // Intentional PR #26 behavior: soft Pong.wav at 0.2f for paddle bounce, velocity/skill-shot pitched.
+    playStereoSource( sfxBuffer( SfxId::Pong ), 0.2f, pitch );
 }
 
 void SoundManager::playArmorHit( float pitch )
@@ -635,9 +635,9 @@ void SoundManager::playArmorHit( float pitch )
     playStereoSource( sfxBuffer( SfxId::Ping ), 0.75f, pitch );
 }
 
-void SoundManager::playPong()
+void SoundManager::playPong( float pitch )
 {
-    playStereoSource( sfxBuffer( SfxId::Pong ), 0.25f );
+    playStereoSource( sfxBuffer( SfxId::Pong ), 0.25f, pitch );
 }
 
 void SoundManager::playSiren()
