@@ -43,11 +43,6 @@ namespace
 
 ShapesManager::ShapesManager( wxWindow* parent, const rendererPtr& spriteRenderer )
     : m_eventHandler( parent->GetEventHandler() )
-    , m_eventCurrentScoreInc( wxEVT_CURRENT_SCORE_INCREASED )
-    , m_eventRoundCompleted( wxEVT_ROUND_COMPLETED )
-    , m_eventPing( wxEVT_PING )
-    , m_eventPong( wxEVT_PONG )
-    , m_eventBallLost( wxEVT_BALL_LOST )
     , m_renderer( spriteRenderer )
 {
     m_currentBallSpeed = kInitialBallSpeedPxPerSec;
@@ -142,7 +137,7 @@ void ShapesManager::initBallVelocity()
         launchSpeed * std::cos( rad ),
         launchSpeed * std::sin( rad )
     };
-    m_ball->m_velocity = m_ballState.vel;
+    m_ball->setVelocity( m_ballState.vel );
 }
 
 void ShapesManager::run( bool bNewRound )
@@ -254,7 +249,7 @@ void ShapesManager::update( double deltaTimeSec, int remainingSteps )
     {
         stop();
         updateBallPosition( m_board->bounds(), true );
-        m_eventHandler->QueueEvent( m_eventRoundCompleted.Clone() );
+        queueCommandEvent( m_eventHandler, wxEVT_ROUND_COMPLETED );
         return;
     }
 
@@ -301,15 +296,15 @@ void ShapesManager::update( double deltaTimeSec, int remainingSteps )
 
             const float r = m_ballState.radius;
             m_ball->moveTo( m_ballState.center - glm::vec2( r ) );
-            m_ball->m_velocity = m_ballState.vel;
+            m_ball->setVelocity( m_ballState.vel );
 
             if ( ev.hitWall )
-                m_eventHandler->QueueEvent( m_eventPong.Clone() );
+                queueCommandEvent( m_eventHandler, wxEVT_PONG );
 
             if ( ev.hitPaddle )
             {
                 ++m_robotDryBounces;
-                m_eventHandler->QueueEvent( m_eventPing.Clone() );
+                queueCommandEvent( m_eventHandler, wxEVT_PING );
             }
 
             if ( !ev.hitBricks.empty() )
@@ -328,7 +323,7 @@ void ShapesManager::update( double deltaTimeSec, int remainingSteps )
                         {
                             brick->kill();
                             m_explosions->add( brick );
-                            m_eventHandler->QueueEvent( m_eventCurrentScoreInc.Clone() );
+                            queueCommandEvent( m_eventHandler, wxEVT_CURRENT_SCORE_INCREASED );
                         }
                     }
                 }
@@ -339,7 +334,7 @@ void ShapesManager::update( double deltaTimeSec, int remainingSteps )
             {
                 stop();
                 updateBallPosition( m_board->bounds(), true );
-                m_eventHandler->QueueEvent( m_eventBallLost.Clone() );
+                queueCommandEvent( m_eventHandler, wxEVT_BALL_LOST );
                 return;
             }
         }

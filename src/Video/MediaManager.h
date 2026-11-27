@@ -49,8 +49,6 @@ class MediaManager final : private NonCopyable
         wxGLCanvas* m_canvas { nullptr };
 
         wxEvtHandler* m_eventHandler { nullptr };
-        wxCommandEvent m_eventMediaPlay;
-        wxCommandEvent m_eventMediaFinished;
 
         bool m_isPlaying { false };
         bool m_skipOverlayDirty { false };

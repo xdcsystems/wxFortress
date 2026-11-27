@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Common/GlBuffer.hpp"
 #include "Common/NonCopyable.hpp"
 
 #include <array>
@@ -38,7 +39,7 @@ namespace Shapes
 
         public:
             ParticleGenerator( unsigned int amount );
-            ~ParticleGenerator();
+            ~ParticleGenerator() = default;
 
             void resize( const glm::mat4& projection );
 
@@ -65,7 +66,7 @@ namespace Shapes
             // state
             static constexpr size_t kVboRingSize = 3;
             unsigned short m_amount { 0 };
-            std::array<unsigned int, kVboRingSize> m_VBOs {};
+            std::array<GlBuffer, kVboRingSize> m_VBOs;
             size_t m_vboIdx { 0 };
 
             struct ParticleVertex

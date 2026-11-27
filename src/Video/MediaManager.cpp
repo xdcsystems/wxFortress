@@ -36,8 +36,6 @@ MediaManager::MediaManager( wxGLCanvas* canvas, const textRedererPtr& textRender
   : m_textRenderer( textRenderer )
   , m_canvas( canvas )
   , m_eventHandler( canvas->GetEventHandler() )
-  , m_eventMediaPlay( wxEVT_VIDEO_PLAY )
-  , m_eventMediaFinished( wxEVT_VIDEO_FINISHED )
 {
     m_textRenderer->selectFontType( TextRendererFont::NORMAL );
     m_movie = std::make_shared<Movie>();
@@ -67,7 +65,7 @@ void MediaManager::reset()
 void MediaManager::playIntro()
 {
     open( Tools::Instance().getFullFileName( ( "/" + wxTheApp->GetAppName() + ".vid" ).ToStdString() ) );
-    m_eventHandler->QueueEvent( m_eventMediaPlay.Clone() );
+    queueCommandEvent( m_eventHandler, wxEVT_VIDEO_PLAY );
 }
 
 void MediaManager::showSkipMessage()
@@ -158,7 +156,7 @@ void MediaManager::close()
         return;
 
     reset();
-    m_eventHandler->QueueEvent( m_eventMediaFinished.Clone() );
+    queueCommandEvent( m_eventHandler, wxEVT_VIDEO_FINISHED );
 }
 
 void MediaManager::resize( const wxSize& size )

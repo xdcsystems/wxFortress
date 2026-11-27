@@ -5,6 +5,8 @@
 #include "FramePacer.hpp"
 #include "MathUtil.hpp"
 #include "NonCopyable.hpp"
+#include <glm/vec2.hpp>
+#include <glm/vec4.hpp>
 #include "ScopeExit.hpp"
 
 TEST( FramePacerTest, NominalPeriodClampAndReset )
@@ -332,4 +334,37 @@ TEST( CommonUtilsTest, NonCopyableTraits )
     static_assert( !std::is_move_constructible_v<Resource> );
     static_assert( !std::is_move_assignable_v<Resource> );
     EXPECT_EQ( sizeof( Resource ), 1u );
+}
+
+TEST( CommonUtilsTest, SpriteUvRectMappingMatchesLegacyQuads )
+{
+    // Matches Sprite.vs: uv = uvRect.xy + vertex.zw * uvRect.zw; TexCoords = vec2(uv.x, 1.0 - uv.y)
+    auto evalTexCoord = []( const glm::vec2& vertZw, const glm::vec4& uvRect ) -> glm::vec2 {
+        const glm::vec2 uv { uvRect.x + vertZw.x * uvRect.z, uvRect.y + vertZw.y * uvRect.w };
+        return { uv.x, 1.0f - uv.y };
+    };
+
+    // Unit quad corners (pos -> vertex.zw): (0,0)->(0,1), (0,1)->(0,0), (1,0)->(1,1), (1,1)->(1,0)
+    const glm::vec2 bl { 0.0f, 1.0f };
+    const glm::vec2 tl { 0.0f, 0.0f };
+    const glm::vec2 br { 1.0f, 1.0f };
+    const glm::vec2 tr { 1.0f, 0.0f };
+
+    // 1. Full texture (default uvRect = {0, 0, 1, 1})
+    const glm::vec4 fullUv { 0.0f, 0.0f, 1.0f, 1.0f };
+    EXPECT_FLOAT_EQ( evalTexCoord( bl, fullUv ).x, 0.0f );
+    EXPECT_FLOAT_EQ( evalTexCoord( bl, fullUv ).y, 0.0f );
+    EXPECT_FLOAT_EQ( evalTexCoord( tr, fullUv ).x, 1.0f );
+    EXPECT_FLOAT_EQ( evalTexCoord( tr, fullUv ).y, 1.0f );
+
+    // 2. Explosion sub-tile (left=0.25, top=0.5, uScale=0.25, vScale=0.25 -> right=0.5, bottom=0.75)
+    const glm::vec4 expUv { 0.25f, 0.5f, 0.25f, 0.25f };
+    EXPECT_FLOAT_EQ( evalTexCoord( bl, expUv ).x, 0.25f );
+    EXPECT_FLOAT_EQ( evalTexCoord( bl, expUv ).y, 0.25f ); // 1.0 - bottom (0.75)
+    EXPECT_FLOAT_EQ( evalTexCoord( tl, expUv ).x, 0.25f );
+    EXPECT_FLOAT_EQ( evalTexCoord( tl, expUv ).y, 0.50f ); // 1.0 - top (0.50)
+    EXPECT_FLOAT_EQ( evalTexCoord( br, expUv ).x, 0.50f );
+    EXPECT_FLOAT_EQ( evalTexCoord( br, expUv ).y, 0.25f );
+    EXPECT_FLOAT_EQ( evalTexCoord( tr, expUv ).x, 0.50f );
+    EXPECT_FLOAT_EQ( evalTexCoord( tr, expUv ).y, 0.50f );
 }

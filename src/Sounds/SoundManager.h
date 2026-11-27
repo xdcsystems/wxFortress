@@ -104,14 +104,23 @@ class SoundManager final : private NonCopyable
         std::unique_ptr<ALCcontext, AlContextDeleter> m_context;
         ALuint m_monoSoundBuffer { 0 };
 
-        ALuint m_stereoLounchSoundBuffer { 0 };
-        ALuint m_stereoCountdownSoundBuffer { 0 };
-        ALuint m_stereoDesroyBrickSoundBuffer { 0 };
-        ALuint m_stereoPingSoundBuffer { 0 };
-        ALuint m_stereoPongSoundBuffer { 0 };
-        ALuint m_stereoLevelCompleteSoundBuffer { 0 };
-        ALuint m_stereoBallLostSoundBuffer { 0 };
-        ALuint m_stereoCharShowSoundBuffer { 0 };
+        enum class SfxId : size_t
+        {
+            Launch = 0,
+            Countdown,
+            DestroyBrick,
+            Ping, // Kept loaded (Ping.wav) for upcoming armored-brick metallic SFX
+            Pong,
+            LevelComplete,
+            BallLost,
+            CharShow,
+            Count
+        };
+
+        ALuint& sfxBuffer( SfxId id ) noexcept { return m_sfxBuffers[ static_cast<size_t>( id ) ]; }
+        ALuint  sfxBuffer( SfxId id ) const noexcept { return m_sfxBuffers[ static_cast<size_t>( id ) ]; }
+
+        std::array<ALuint, static_cast<size_t>( SfxId::Count )> m_sfxBuffers {};
 
         ALuint m_monoSource { 0 };
         ALuint m_stereoSource[ kSfxSourceCount ] {};

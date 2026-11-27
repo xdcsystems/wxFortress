@@ -4,6 +4,7 @@
 #include <memory>
 
 #include <glm/vec2.hpp>
+#include <glm/vec4.hpp>
 
 #include "Common/NonCopyable.hpp"
 
@@ -18,22 +19,14 @@ class CountDown : private NonCopyable
 
     public:
         CountDown();
-        ~CountDown();
+        ~CountDown() = default;
 
         void resize( const wxSize& size );
         void show( const rendererPtr& renderer, unsigned char count ) const;
 
     private:
-        void clear();
-
         texture2DPtr m_countdownSprite;
-
-        std::map<unsigned char, unsigned int> m_countdownMap
-        {
-            { 3, 0 },
-            { 2, 0 },
-            { 1, 0 },
-        };
+        std::map<unsigned char, glm::vec4> m_uvRects;
         constexpr inline static glm::vec2 s_countdownSize { 250.f, 250.f };
         glm::vec2 m_countDownPosition { .0f, .0f };
 };

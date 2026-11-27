@@ -48,3 +48,9 @@ DECLARE_LOCAL_EVENT_TYPE( wxEVT_RESET, wxID_ANY )
 DECLARE_LOCAL_EVENT_TYPE( wxEVT_VIDEO_FINISHED, wxID_ANY )
 DECLARE_LOCAL_EVENT_TYPE( wxEVT_VIDEO_PLAY, wxID_ANY )
 
+
+inline void queueCommandEvent( wxEvtHandler* handler, wxEventType eventType )
+{
+    if ( handler )
+        handler->QueueEvent( new wxCommandEvent( eventType ) );
+}

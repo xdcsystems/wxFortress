@@ -25,31 +25,11 @@ Bricks::Bricks()
 
     if ( m_bricksSprite && m_bricksSprite->Width > 0 )
     {
-        const float divisionScale = 1.f / static_cast<float>( m_bricksSprite->Width );
-        const float brickW = Brick::SizeOf( BrickType::AQUA ).x;
-
+        const float uScale = Brick::SizeOf( BrickType::AQUA ).x / static_cast<float>( m_bricksSprite->Width );
         for ( size_t i = 0; i < kVisibleBrickTypeCount; ++i )
         {
-            const float left = divisionScale * static_cast<float>( i ) * brickW;
-            const float right = left + divisionScale * brickW;
-
-            m_typeVBOs[ i ] = SpriteRenderer::generateBuffer( {
-                // pos      // tex
-                0.f, 0.f,   left,  1.f,
-                0.f, 1.f,   left,  0.f,
-                1.f, 0.f,   right, 1.f,
-                1.f, 1.f,   right, 0.f,
-            } );
+            m_typeUvRects[ i ] = { static_cast<float>( i ) * uScale, 0.f, uScale, 1.f };
         }
-    }
-}
-
-Bricks::~Bricks()
-{
-    for ( unsigned int& vbo : m_typeVBOs )
-    {
-        SpriteRenderer::clearBuffer( vbo );
-        vbo = 0;
     }
 }
 
@@ -99,6 +79,9 @@ void Bricks::checkContact( const std::function<bool( brickPtr )>& checkIntersect
 
 void Bricks::draw( const rendererPtr& renderer )
 {
+    if ( !m_bricksSprite || m_bricksSprite->Width <= 0 )
+        return;
+
     m_bricksSprite->bind();
 
     for ( const auto& brick : m_bricks )
@@ -109,7 +92,7 @@ void Bricks::draw( const rendererPtr& renderer )
         const unsigned char typeVal = static_cast<unsigned char>( brick->type() );
         if ( typeVal >= 1 && typeVal <= kVisibleBrickTypeCount )
         {
-            renderer->drawSprite( m_typeVBOs[ typeVal - 1 ], brick->position(), brick->size() );
+            renderer->drawSprite( brick->position(), brick->size(), glm::vec3( 1.0f ), m_typeUvRects[ typeVal - 1 ] );
         }
     }
 }

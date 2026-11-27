@@ -7,8 +7,6 @@
     #include <wx/wx.h>
 #endif
 
-#include <map>
-
 #include "Common/Tools.h"
 #include "ResourceManager.h"
 #include "Texture.h"
@@ -24,34 +22,11 @@ CountDown::CountDown()
 
     if ( m_countdownSprite && m_countdownSprite->Width > 0 )
     {
-        const float divisionScale = 1.f / static_cast<float>( m_countdownSprite->Width );
+        const float uScale = s_countdownSize.x / static_cast<float>( m_countdownSprite->Width );
         for ( unsigned char count = 1; count <= 3; ++count )
         {
-            const float left = divisionScale * static_cast<float>( count - 1 ) * s_countdownSize.x;
-            const float right = left + divisionScale * s_countdownSize.x;
-
-            m_countdownMap[ count ] = SpriteRenderer::generateBuffer( {
-                // pos      // tex
-                0.f, 0.f,    left,  1.f,
-                0.f, 1.f,    left,  0.f,
-                1.f, 0.f,    right, 1.f,
-                1.f, 1.f,    right, 0.f,
-            } );
+            m_uvRects[ count ] = { static_cast<float>( count - 1 ) * uScale, 0.f, uScale, 1.f };
         }
-    }
-}
-
-CountDown::~CountDown()
-{
-    clear();
-}
-
-void CountDown::clear()
-{
-    for ( auto& countdown : m_countdownMap )
-    {
-        SpriteRenderer::clearBuffer( countdown.second );
-        countdown.second = 0;
     }
 }
 
@@ -66,13 +41,14 @@ void CountDown::show( const rendererPtr& renderer, unsigned char count ) const
     if ( !m_countdownSprite )
         return;
 
-    const auto it = m_countdownMap.find( count );
-    if ( it == m_countdownMap.end() || it->second == 0 )
+    const auto it = m_uvRects.find( count );
+    if ( it == m_uvRects.end() )
         return;
 
     m_countdownSprite->bind();
     renderer->drawSprite(
-        it->second,
         m_countDownPosition,
-        s_countdownSize );
+        s_countdownSize,
+        glm::vec3( 1.0f ),
+        it->second );
 }

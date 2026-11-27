@@ -143,18 +143,7 @@ int Audio::start()
     }
 
     // Prefill the codec buffer.
-    do
-    {
-        const int ret = m_packets.sendTo( m_codecCtx.get() );
-        if ( ret == AVERROR( EAGAIN ) || ret == AVErrorEOF )
-            break;
-
-        if ( ret != 0 )
-        {
-            std::cout << "Fail to send packet audio: " << ret << std::endl;
-        }
-    }
-    while ( true );
+    m_packets.prefillCodec( m_codecCtx.get(), "audio" );
 
     while ( !m_movie.m_quit.load( std::memory_order_acquire ) )
     {
@@ -247,9 +236,7 @@ int Audio::decodeFrame()
         int ret( 0 );
         int pret( 0 );
 
-        while ( ( ret = avcodec_receive_frame( m_codecCtx.get(), m_decodedFrame.get() ) ) == AVERROR( EAGAIN ) &&
-                ( pret = m_packets.sendTo( m_codecCtx.get() ) ) != AVErrorEOF ) 
-        {}
+        ret = m_packets.receiveFrame( m_codecCtx.get(), m_decodedFrame.get(), pret );
         
         if ( ret != 0 )
         {
@@ -265,8 +252,7 @@ int Audio::decodeFrame()
         
         if ( m_decodedFrame->best_effort_timestamp != AVNoPtsValue )
         {
-            m_currentPts = duration_cast<nanoseconds>(
-                    seconds_d64 { av_q2d( m_stream->time_base ) * static_cast<double>( m_decodedFrame->best_effort_timestamp ) } );
+            m_currentPts = ptsToNanoseconds( m_decodedFrame->best_effort_timestamp, m_stream->time_base );
         }
         const int dstChannels = av_get_channel_layout_nb_channels( m_dstChanLayout );
         if ( dstChannels <= 0 )

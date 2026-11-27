@@ -164,6 +164,13 @@ void MainFrame::onRoundCompleted( wxCommandEvent& )
     m_renderSurface->loadLevel( m_controlPanel->increaseLevel() );
 }
 
+void MainFrame::resetToFirstLevel()
+{
+    m_controlPanel->reset();
+    m_renderSurface->resetBallSpeed();
+    m_renderSurface->loadLevel( m_controlPanel->increaseLevel() );
+}
+
 void MainFrame::onBallLost( wxCommandEvent& )
 {
     if ( m_controlPanel->decreaseLives() > 0 )
@@ -172,15 +179,11 @@ void MainFrame::onBallLost( wxCommandEvent& )
     }
     else
     {
-        m_controlPanel->reset();
-        m_renderSurface->resetBallSpeed();
-        m_renderSurface->loadLevel( m_controlPanel->increaseLevel() );
+        resetToFirstLevel();
     }
 }
 
 void MainFrame::onReset( wxCommandEvent& )
 {
-    m_controlPanel->reset();
-    m_renderSurface->resetBallSpeed();
-    m_renderSurface->loadLevel( m_controlPanel->increaseLevel() );
+    resetToFirstLevel();
 }

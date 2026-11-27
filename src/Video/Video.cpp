@@ -31,19 +31,7 @@ int Video::start()
     }
 
     // Prefill the codec buffer.
-    do
-    {
-        int ret = m_packets.sendTo( m_codecCtx.get() );
-
-        if ( ret == AVERROR( EAGAIN ) || ret == AVErrorEOF )
-            break;
-
-        if ( ret != 0 )
-        {
-            std::cout << "Fail to send packet video: " << ret << std::endl;
-        }
-    }
-    while ( true );
+    m_packets.prefillCodec( m_codecCtx.get(), "video" );
 
     int ret( 0 );
     int pret( 0 );
@@ -59,8 +47,7 @@ int Video::start()
         Picture *vp = &m_pictQ[ writeIdx ];
 
         // Retrieve video frame.
-        while ( ( ret = avcodec_receive_frame( m_codecCtx.get(), frame.get() ) ) == AVERROR( EAGAIN ) &&
-                  ( pret = m_packets.sendTo( m_codecCtx.get() ) ) != AVErrorEOF ) {}
+        ret = m_packets.receiveFrame( m_codecCtx.get(), frame.get(), pret );
 
         if ( ret != 0 )
         {
@@ -97,8 +84,7 @@ int Video::start()
         // Update pts
         if ( decodedFrame->best_effort_timestamp != AVNoPtsValue )
         {
-            currentPts = duration_cast<nanoseconds>(
-                    seconds_d64 { av_q2d( m_stream->time_base ) * static_cast<double>( decodedFrame->best_effort_timestamp ) } );
+            currentPts = ptsToNanoseconds( decodedFrame->best_effort_timestamp, m_stream->time_base );
         }
         vp->pts = currentPts;
 

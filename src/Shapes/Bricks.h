@@ -6,6 +6,8 @@
 #include <memory>
 #include <vector>
 
+#include <glm/vec4.hpp>
+
 #include "Common/NonCopyable.hpp"
 
 // Forward declarations
@@ -14,13 +16,11 @@ class SpriteRenderer;
 
 namespace Shapes
 {
-    class Base;
     class Brick;
 
     class Bricks : private NonCopyable
     {
         using brickPtr = std::shared_ptr<Brick>;
-        using ballPtr = std::shared_ptr<Base>;
         using rendererPtr = std::shared_ptr<SpriteRenderer>;
         using texture2DPtr = std::shared_ptr<Texture2D>;
 
@@ -28,7 +28,7 @@ namespace Shapes
             static constexpr size_t kVisibleBrickTypeCount = 7; // AQUA..BLUE
 
             Bricks();
-            ~Bricks();
+            ~Bricks() = default;
 
             void loadLevel( unsigned short level = 1 );
             void checkContact( const std::function<bool( brickPtr )>& checkIntersects ) const;
@@ -44,6 +44,6 @@ namespace Shapes
         private:
             std::vector<brickPtr> m_bricks;
             texture2DPtr m_bricksSprite;
-            std::array<unsigned int, kVisibleBrickTypeCount> m_typeVBOs {};
+            std::array<glm::vec4, kVisibleBrickTypeCount> m_typeUvRects {};
     };
 }

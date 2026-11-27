@@ -131,6 +131,13 @@ add_subdirectory( external )
 # Enforce pure scalar GLM codegen and zero-initialized vector constructors for GLM consumers only
 if( TARGET glm )
     target_compile_definitions( glm INTERFACE GLM_FORCE_PURE GLM_FORCE_CTOR_INIT )
+elseif( TARGET glm::glm )
+    get_target_property( _glm_aliased glm::glm ALIASED_TARGET )
+    if( _glm_aliased )
+        target_compile_definitions( ${_glm_aliased} INTERFACE GLM_FORCE_PURE GLM_FORCE_CTOR_INIT )
+    else()
+        target_compile_definitions( glm::glm INTERFACE GLM_FORCE_PURE GLM_FORCE_CTOR_INIT )
+    endif()
 endif()
 
 if( MINGW AND TARGET libglew_shared )

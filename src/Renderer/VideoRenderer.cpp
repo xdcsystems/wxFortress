@@ -39,10 +39,8 @@ VideoRenderer::VideoRenderer()
 
 VideoRenderer::~VideoRenderer()
 {
-    if ( m_VBO != 0 )
-        GL_CHECK( glDeleteBuffers( 1, &m_VBO ) );
-    if ( m_EBO != 0 )
-        GL_CHECK( glDeleteBuffers( 1, &m_EBO ) );
+    m_VBO.reset();
+    m_EBO.reset();
     GL_CHECK( glDeleteTextures( 3, m_texs ) );
 }
 
@@ -75,16 +73,19 @@ void VideoRenderer::init()
         GL_CHECK( m_locScaleNV12 = glGetUniformLocation( m_shaderNV12->ID, "uScale" ) );
     }
 
-    GL_CHECK( glGenBuffers( 1, &m_VBO ) );
-    GL_CHECK( glGenBuffers( 1, &m_EBO ) );
+    m_VBO.create();
+    m_EBO.create();
 
-    // Static unit quad [-1..1]; aspect ratio scaling is applied on GPU via uniform vec2 uScale.
-    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, m_VBO ) );
-    GL_CHECK( glBufferData( GL_ARRAY_BUFFER, sizeof( vertices ), vertices, GL_STATIC_DRAW ) );
-    GL_CHECK( glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, m_EBO ) );
-    GL_CHECK( glBufferData( GL_ELEMENT_ARRAY_BUFFER, sizeof( indices ), indices, GL_STATIC_DRAW ) );
-    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, 0 ) );
-    GL_CHECK( glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, 0 ) );
+    if ( m_VBO && m_EBO )
+    {
+        // Static unit quad [-1..1]; aspect ratio scaling is applied on GPU via uniform vec2 uScale.
+        GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, m_VBO.id() ) );
+        GL_CHECK( glBufferData( GL_ARRAY_BUFFER, sizeof( vertices ), vertices, GL_STATIC_DRAW ) );
+        GL_CHECK( glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, m_EBO.id() ) );
+        GL_CHECK( glBufferData( GL_ELEMENT_ARRAY_BUFFER, sizeof( indices ), indices, GL_STATIC_DRAW ) );
+        GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, 0 ) );
+        GL_CHECK( glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, 0 ) );
+    }
 
     GL_CHECK( glGenTextures( 3, m_texs ) );
     for ( const auto& tex : m_texs )
@@ -104,7 +105,7 @@ void VideoRenderer::init()
 
 bool VideoRenderer::ok()
 {
-    return true;
+    return m_VBO && m_EBO && ( ( m_shader && m_shader->ID != 0 ) || ( m_shaderNV12 && m_shaderNV12->ID != 0 ) );
 }
 
 void VideoRenderer::setViewport( int x, int y, int width, int height )
@@ -166,15 +167,15 @@ void VideoRenderer::uploadPlane( int unit, unsigned int tex, int width, int heig
 
 void VideoRenderer::drawQuad( const shaderPtr& shader, int attrVertex, int attrUVs, int locScale )
 {
-    if ( !shader || shader->ID == 0 || attrVertex < 0 || attrUVs < 0 )
+    if ( !shader || shader->ID == 0 || attrVertex < 0 || attrUVs < 0 || !m_VBO || !m_EBO )
         return;
 
     shader->use();
     if ( locScale >= 0 )
         GL_CHECK( glUniform2f( locScale, m_scale.x, m_scale.y ) );
 
-    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, m_VBO ) );
-    GL_CHECK( glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, m_EBO ) );
+    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, m_VBO.id() ) );
+    GL_CHECK( glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, m_EBO.id() ) );
 
     GL_CHECK( glVertexAttribPointer( static_cast<GLuint>( attrVertex ), 2, GL_FLOAT, GL_FALSE, 4 * sizeof( float ), ( void* )nullptr ) );
     GL_CHECK( glEnableVertexAttribArray( static_cast<GLuint>( attrVertex ) ) );
