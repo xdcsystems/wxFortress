@@ -11,34 +11,53 @@ on:
 permissions:
   actions: write
 
+concurrency:
+  group: cleanup-old-workflow-runs
+  cancel-in-progress: true
+
 jobs:
   cleanup:
     runs-on: ubuntu-latest
     steps:
-      - name: Delete old completed Build wxFortress runs (keep latest 5)
+      - name: Prune completed workflow runs (keep at most 10 total)
         uses: actions/github-script@v7
         with:
           script: |
             const { owner, repo } = context.repo;
-            const workflows = await github.paginate(github.rest.actions.listRepoWorkflows, { owner, repo });
-            const buildWf = workflows.find(w => w.name === 'Build wxFortress');
-            if (!buildWf) {
-              console.log('Build wxFortress workflow not found');
-              return;
-            }
-
-            const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
+            const runs = await github.paginate(github.rest.actions.listWorkflowRunsForRepo, {
               owner,
               repo,
-              workflow_id: buildWf.id,
               status: 'completed',
               per_page: 100
             });
 
-            // Always preserve the latest 5 completed Build wxFortress runs.
-            const sorted = runs.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-            const toDelete = sorted.slice(5);
-            console.log(`Found ${sorted.length} completed Build wxFortress runs; deleting ${toDelete.length}.`);
+            const completed = runs
+              .filter(r => r.id !== context.runId)
+              .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+            const kMaxTotal = 10;
+            const kMaxCleanup = 2;
+            const keepIds = new Set();
+
+            // First keep up to 2 most recent Cleanup runs, then fill remaining slots up to 10 with other workflows (e.g. Build wxFortress).
+            let cleanupKept = 0;
+            for (const r of completed) {
+              if (r.name === 'Cleanup old workflow runs') {
+                if (cleanupKept < kMaxCleanup) {
+                  keepIds.add(r.id);
+                  cleanupKept++;
+                }
+              }
+            }
+            for (const r of completed) {
+              if (keepIds.size >= kMaxTotal) break;
+              if (r.name !== 'Cleanup old workflow runs') {
+                keepIds.add(r.id);
+              }
+            }
+
+            const toDelete = completed.filter(r => !keepIds.has(r.id));
+            console.log(`Found ${completed.length} completed runs; keeping ${keepIds.size}, deleting ${toDelete.length}.`);
 
             for (const run of toDelete) {
               try {
@@ -47,7 +66,7 @@ jobs:
                   repo,
                   run_id: run.id
                 });
-                console.log(`Deleted run ${run.id} (${run.head_branch} @ ${run.head_sha.slice(0, 7)})`);
+                console.log(`Deleted run ${run.id} [${run.name}] (${run.head_branch} @ ${run.head_sha.slice(0, 7)})`);
               } catch (err) {
                 console.log(`Skip run ${run.id}: ${err.message}`);
               }

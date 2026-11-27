@@ -2,7 +2,7 @@ name: Build wxFortress
 
 on:
   push:
-    branches: [ master, "feat/**", "fix/**" ]
+    branches: [ master ]
     tags: [ "v*" ]
   pull_request:
     branches: [ master ]
