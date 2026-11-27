@@ -19,12 +19,11 @@
 #include <AL/alc.h>
 
 extern "C" {
-    #include <libavcodec/avcodec.h>
-    #include <libavformat/avformat.h>
     #include <libavutil/channel_layout.h>
     #include <libavutil/opt.h>
-    #include <libswresample/swresample.h>
 }
+
+#include "Video/FFmpeg.h"
 
 #include "Common/Tools.h"
 #include "AudioFile/AudioFile.h"
@@ -147,15 +146,19 @@ SoundManager::~SoundManager()
 
     alec( alDeleteSources( 1, &m_monoSource ) );
     alec( alDeleteSources( static_cast<ALsizei>( kSfxSourceCount ), m_stereoSource ) );
-    alec( alDeleteBuffers( 1, &m_monoSoundBuffer ) );
-    alec( alDeleteBuffers( 1, &m_stereoLounchSoundBuffer ) );
-    alec( alDeleteBuffers( 1, &m_stereoCountdownSoundBuffer ) );
-    alec( alDeleteBuffers( 1, &m_stereoDesroyBrickSoundBuffer ) );
-    alec( alDeleteBuffers( 1, &m_stereoPingSoundBuffer ) );
-    alec( alDeleteBuffers( 1, &m_stereoPongSoundBuffer ) );
-    alec( alDeleteBuffers( 1, &m_stereoLevelCompleteSoundBuffer ) );
-    alec( alDeleteBuffers( 1, &m_stereoBallLostSoundBuffer ) );
-    alec( alDeleteBuffers( 1, &m_stereoCharShowSoundBuffer ) );
+    if ( m_monoSoundBuffer != 0 )
+    {
+        alec( alDeleteBuffers( 1, &m_monoSoundBuffer ) );
+        m_monoSoundBuffer = 0;
+    }
+    for ( ALuint& buf : m_sfxBuffers )
+    {
+        if ( buf != 0 )
+        {
+            alec( alDeleteBuffers( 1, &buf ) );
+            buf = 0;
+        }
+    }
 
     // m_context and m_device are released automatically in reverse declaration order
     // after all sources and buffers above are deleted.
@@ -217,172 +220,154 @@ int SoundManager::loadOggBuffer( const std::string& name, ALuint* buffer )
     if ( rawBytes.empty() )
         return -1;
 
+    auto fail = [ &name ]() -> int {
+        std::cerr << "Failed to decode OGG music resource: " << name << std::endl;
+        return -1;
+    };
+
+    // Strict destruction order: fmtCtx -> avioCtx -> reader
     MemBufferReader reader { rawBytes.data(), rawBytes.size(), 0 };
     constexpr int kAvioBufSize = 16384;
     auto* avioBuf = static_cast<uint8_t*>( av_malloc( kAvioBufSize ) );
     if ( !avioBuf )
-        return -1;
+        return fail();
 
-    AVIOContext* avioCtx = avio_alloc_context( avioBuf, kAvioBufSize, 0, &reader, &readMemPacket, nullptr, &seekMemPacket );
+    CustomAVIOContextPtr avioCtx { avio_alloc_context( avioBuf, kAvioBufSize, 0, &reader, &readMemPacket, nullptr, &seekMemPacket ) };
     if ( !avioCtx )
     {
         av_free( avioBuf );
-        return -1;
+        return fail();
     }
 
-    AVFormatContext* fmtCtx = avformat_alloc_context();
+    AVFormatContextPtr fmtCtx { avformat_alloc_context() };
     if ( !fmtCtx )
-    {
-        av_freep( &avioCtx->buffer );
-        avio_context_free( &avioCtx );
-        return -1;
-    }
-    fmtCtx->pb = avioCtx;
+        return fail();
+
+    fmtCtx->pb = avioCtx.get();
     fmtCtx->flags |= AVFMT_FLAG_CUSTOM_IO;
 
-    AVCodecContext* codecCtx = nullptr;
-    SwrContext* swrCtx = nullptr;
-    AVFrame* frame = nullptr;
-    AVPacket* pkt = nullptr;
-    std::vector<int16_t> pcm;
-    int result = -1;
+    // avformat_open_input frees and nulls its AVFormatContext* argument on failure; release/reset avoids double-free.
+    AVFormatContext* rawFmt = fmtCtx.release();
+    const int openRet = avformat_open_input( &rawFmt, nullptr, nullptr, nullptr );
+    fmtCtx.reset( rawFmt );
+    if ( openRet != 0 || avformat_find_stream_info( fmtCtx.get(), nullptr ) < 0 )
+        return fail();
+
+    int audioStreamIdx = -1;
+    for ( unsigned int i = 0; i < fmtCtx->nb_streams; ++i )
+    {
+        if ( fmtCtx->streams[ i ]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO )
+        {
+            audioStreamIdx = static_cast<int>( i );
+            break;
+        }
+    }
+    if ( audioStreamIdx < 0 )
+        return fail();
+
+    const AVCodecParameters* codecpar = fmtCtx->streams[ audioStreamIdx ]->codecpar;
+    const AVCodec* decoder = avcodec_find_decoder( codecpar->codec_id );
+    if ( !decoder )
+        return fail();
+
+    AVCodecContextPtr codecCtx { avcodec_alloc_context3( decoder ) };
+    if ( !codecCtx ||
+         avcodec_parameters_to_context( codecCtx.get(), codecpar ) < 0 ||
+         avcodec_open2( codecCtx.get(), decoder, nullptr ) < 0 )
+        return fail();
 
     constexpr int kTargetRate = 44100;
     constexpr int kTargetChannels = 2;
 
-    if ( avformat_open_input( &fmtCtx, nullptr, nullptr, nullptr ) == 0 &&
-         avformat_find_stream_info( fmtCtx, nullptr ) >= 0 )
+    const int64_t inChLayout = codecCtx->channel_layout
+        ? static_cast<int64_t>( codecCtx->channel_layout )
+        : av_get_default_channel_layout( codecCtx->channels );
+
+    SwrContextPtr swrCtx { swr_alloc_set_opts(
+        nullptr,
+        AV_CH_LAYOUT_STEREO,
+        AV_SAMPLE_FMT_S16,
+        kTargetRate,
+        inChLayout,
+        codecCtx->sample_fmt,
+        codecCtx->sample_rate,
+        0,
+        nullptr ) };
+    if ( !swrCtx || swr_init( swrCtx.get() ) < 0 )
+        return fail();
+
+    AVFramePtr frame { av_frame_alloc() };
+    AVPacketPtr pkt { av_packet_alloc() };
+    if ( !frame || !pkt )
+        return fail();
+
+    std::vector<int16_t> pcm;
+    auto drainFrames = [ & ]() {
+        while ( avcodec_receive_frame( codecCtx.get(), frame.get() ) == 0 )
+        {
+            const int outSamples = static_cast<int>( av_rescale_rnd(
+                swr_get_delay( swrCtx.get(), codecCtx->sample_rate ) + frame->nb_samples,
+                kTargetRate,
+                codecCtx->sample_rate,
+                AV_ROUND_UP ) );
+            if ( outSamples <= 0 )
+                continue;
+
+            const size_t prevSize = pcm.size();
+            pcm.resize( prevSize + static_cast<size_t>( outSamples * kTargetChannels ) );
+            uint8_t* outPtr = reinterpret_cast<uint8_t*>( pcm.data() + prevSize );
+            const int converted = swr_convert(
+                swrCtx.get(),
+                &outPtr,
+                outSamples,
+                const_cast<const uint8_t**>( frame->extended_data ),
+                frame->nb_samples );
+            if ( converted > 0 )
+                pcm.resize( prevSize + static_cast<size_t>( converted * kTargetChannels ) );
+            else
+                pcm.resize( prevSize );
+            av_frame_unref( frame.get() );
+        }
+    };
+
+    while ( av_read_frame( fmtCtx.get(), pkt.get() ) >= 0 )
     {
-        int audioStreamIdx = -1;
-        for ( unsigned int i = 0; i < fmtCtx->nb_streams; ++i )
+        if ( pkt->stream_index == audioStreamIdx )
         {
-            if ( fmtCtx->streams[ i ]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO )
-            {
-                audioStreamIdx = static_cast<int>( i );
-                break;
-            }
+            if ( avcodec_send_packet( codecCtx.get(), pkt.get() ) >= 0 )
+                drainFrames();
         }
-
-        if ( audioStreamIdx >= 0 )
-        {
-            const AVCodecParameters* codecpar = fmtCtx->streams[ audioStreamIdx ]->codecpar;
-            const AVCodec* decoder = avcodec_find_decoder( codecpar->codec_id );
-            if ( decoder )
-            {
-                codecCtx = avcodec_alloc_context3( decoder );
-                if ( codecCtx &&
-                     avcodec_parameters_to_context( codecCtx, codecpar ) >= 0 &&
-                     avcodec_open2( codecCtx, decoder, nullptr ) >= 0 )
-                {
-                    int64_t inChLayout = codecCtx->channel_layout
-                        ? static_cast<int64_t>( codecCtx->channel_layout )
-                        : av_get_default_channel_layout( codecCtx->channels );
-
-                    swrCtx = swr_alloc_set_opts(
-                        nullptr,
-                        AV_CH_LAYOUT_STEREO,
-                        AV_SAMPLE_FMT_S16,
-                        kTargetRate,
-                        inChLayout,
-                        codecCtx->sample_fmt,
-                        codecCtx->sample_rate,
-                        0,
-                        nullptr );
-
-                    if ( swrCtx && swr_init( swrCtx ) >= 0 )
-                    {
-                        frame = av_frame_alloc();
-                        pkt = av_packet_alloc();
-                        if ( frame && pkt )
-                        {
-                            auto drainFrames = [ & ]() {
-                                while ( avcodec_receive_frame( codecCtx, frame ) == 0 )
-                                {
-                                    const int outSamples = static_cast<int>( av_rescale_rnd(
-                                        swr_get_delay( swrCtx, codecCtx->sample_rate ) + frame->nb_samples,
-                                        kTargetRate,
-                                        codecCtx->sample_rate,
-                                        AV_ROUND_UP ) );
-                                    if ( outSamples <= 0 )
-                                        continue;
-
-                                    const size_t prevSize = pcm.size();
-                                    pcm.resize( prevSize + static_cast<size_t>( outSamples * kTargetChannels ) );
-                                    uint8_t* outPtr = reinterpret_cast<uint8_t*>( pcm.data() + prevSize );
-                                    const int converted = swr_convert(
-                                        swrCtx,
-                                        &outPtr,
-                                        outSamples,
-                                        const_cast<const uint8_t**>( frame->extended_data ),
-                                        frame->nb_samples );
-                                    if ( converted > 0 )
-                                        pcm.resize( prevSize + static_cast<size_t>( converted * kTargetChannels ) );
-                                    else
-                                        pcm.resize( prevSize );
-                                    av_frame_unref( frame );
-                                }
-                            };
-
-                            while ( av_read_frame( fmtCtx, pkt ) >= 0 )
-                            {
-                                if ( pkt->stream_index == audioStreamIdx )
-                                {
-                                    if ( avcodec_send_packet( codecCtx, pkt ) >= 0 )
-                                        drainFrames();
-                                }
-                                av_packet_unref( pkt );
-                            }
-
-                            // Flush decoder and resampler
-                            avcodec_send_packet( codecCtx, nullptr );
-                            drainFrames();
-
-                            const int remaining = static_cast<int>( swr_get_delay( swrCtx, kTargetRate ) );
-                            if ( remaining > 0 )
-                            {
-                                const size_t prevSize = pcm.size();
-                                pcm.resize( prevSize + static_cast<size_t>( remaining * kTargetChannels ) );
-                                uint8_t* outPtr = reinterpret_cast<uint8_t*>( pcm.data() + prevSize );
-                                const int flushed = swr_convert( swrCtx, &outPtr, remaining, nullptr, 0 );
-                                if ( flushed > 0 )
-                                    pcm.resize( prevSize + static_cast<size_t>( flushed * kTargetChannels ) );
-                                else
-                                    pcm.resize( prevSize );
-                            }
-
-                            if ( !pcm.empty() )
-                            {
-                                alec( alGenBuffers( 1, buffer ) );
-                                alec( alBufferData(
-                                    *buffer,
-                                    AL_FORMAT_STEREO16,
-                                    pcm.data(),
-                                    static_cast<ALsizei>( pcm.size() * sizeof( int16_t ) ),
-                                    kTargetRate ) );
-                                result = 0;
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        av_packet_unref( pkt.get() );
     }
 
-    if ( pkt ) av_packet_free( &pkt );
-    if ( frame ) av_frame_free( &frame );
-    if ( swrCtx ) swr_free( &swrCtx );
-    if ( codecCtx ) avcodec_free_context( &codecCtx );
-    if ( fmtCtx ) avformat_close_input( &fmtCtx );
-    if ( avioCtx )
+    // Flush decoder and resampler
+    avcodec_send_packet( codecCtx.get(), nullptr );
+    drainFrames();
+
+    const int remaining = static_cast<int>( swr_get_delay( swrCtx.get(), kTargetRate ) );
+    if ( remaining > 0 )
     {
-        av_freep( &avioCtx->buffer );
-        avio_context_free( &avioCtx );
+        const size_t prevSize = pcm.size();
+        pcm.resize( prevSize + static_cast<size_t>( remaining * kTargetChannels ) );
+        uint8_t* outPtr = reinterpret_cast<uint8_t*>( pcm.data() + prevSize );
+        const int flushed = swr_convert( swrCtx.get(), &outPtr, remaining, nullptr, 0 );
+        if ( flushed > 0 )
+            pcm.resize( prevSize + static_cast<size_t>( flushed * kTargetChannels ) );
+        else
+            pcm.resize( prevSize );
     }
 
-    if ( result != 0 )
-        std::cerr << "Failed to decode OGG music resource: " << name << std::endl;
+    if ( pcm.empty() )
+        return fail();
 
-    return result;
+    alec( alGenBuffers( 1, buffer ) );
+    alec( alBufferData(
+        *buffer,
+        AL_FORMAT_STEREO16,
+        pcm.data(),
+        static_cast<ALsizei>( pcm.size() * sizeof( int16_t ) ),
+        kTargetRate ) );
+    return 0;
 }
 
 int SoundManager::init()
@@ -393,14 +378,18 @@ int SoundManager::init()
         loadBuffer( soundFile, "Rocket.wav", &m_monoSoundBuffer );
 
         // load stereo SFX files into buffers
-        loadBuffer( soundFile, "Launch.wav", &m_stereoLounchSoundBuffer );
-        loadBuffer( soundFile, "Countdown.wav", &m_stereoCountdownSoundBuffer );
-        loadBuffer( soundFile, "DesroyBrick.wav", &m_stereoDesroyBrickSoundBuffer );
-        loadBuffer( soundFile, "Ping.wav", &m_stereoPingSoundBuffer );
-        loadBuffer( soundFile, "Pong.wav", &m_stereoPongSoundBuffer );
-        loadBuffer( soundFile, "LevelComplete.wav", &m_stereoLevelCompleteSoundBuffer );
-        loadBuffer( soundFile, "BallLost.wav", &m_stereoBallLostSoundBuffer );
-        loadBuffer( soundFile, "Char.wav", &m_stereoCharShowSoundBuffer );
+        static constexpr std::array<std::pair<SfxId, const char*>, static_cast<size_t>( SfxId::Count )> kSfxFiles {{
+            { SfxId::Launch,        "Launch.wav"        },
+            { SfxId::Countdown,     "Countdown.wav"     },
+            { SfxId::DestroyBrick,  "DesroyBrick.wav"   },
+            { SfxId::Ping,          "Ping.wav"          },
+            { SfxId::Pong,          "Pong.wav"          },
+            { SfxId::LevelComplete, "LevelComplete.wav" },
+            { SfxId::BallLost,      "BallLost.wav"      },
+            { SfxId::CharShow,      "Char.wav"          },
+        }};
+        for ( const auto& entry : kSfxFiles )
+            loadBuffer( soundFile, entry.second, &sfxBuffer( entry.first ) );
 
         alec( alGenSources( static_cast<ALsizei>( kSfxSourceCount ), m_stereoSource ) );
 
@@ -624,29 +613,30 @@ void SoundManager::playRocket() const
 void SoundManager::playDestroyBrick()
 {
     alec( alSourceStop( m_monoSource ) );
-    playStereoSource( m_stereoDesroyBrickSoundBuffer );
+    playStereoSource( sfxBuffer( SfxId::DestroyBrick ) );
 }
 
 void SoundManager::playPing()
 {
-    playStereoSource( m_stereoPongSoundBuffer, 0.2f );
+    // Intentional PR #26 behavior: soft Pong.wav at 0.2f; SfxId::Ping (Ping.wav) stays loaded for future armored bricks.
+    playStereoSource( sfxBuffer( SfxId::Pong ), 0.2f );
 }
 
 void SoundManager::playPong()
 {
-    playStereoSource( m_stereoPongSoundBuffer, 0.25f );
+    playStereoSource( sfxBuffer( SfxId::Pong ), 0.25f );
 }
 
 void SoundManager::playSiren()
 {
     duckMusicTemporarily( 2.1 );
-    m_launchSource = playStereoSource( m_stereoLounchSoundBuffer, 0.5f );
+    m_launchSource = playStereoSource( sfxBuffer( SfxId::Launch ), 0.5f );
 }
 
 void SoundManager::playCountdown()
 {
     duckMusicTemporarily( 1.1 );
-    m_launchSource = playStereoSource( m_stereoCountdownSoundBuffer, 0.5f );
+    m_launchSource = playStereoSource( sfxBuffer( SfxId::Countdown ), 0.5f );
 }
 
 bool SoundManager::isLaunchAudioPlaying() const
@@ -671,16 +661,16 @@ void SoundManager::stopLaunchAudio()
 void SoundManager::playLevelComplete()
 {
     duckMusicTemporarily( 5.2 );
-    playStereoSource( m_stereoLevelCompleteSoundBuffer, 0.5f );
+    playStereoSource( sfxBuffer( SfxId::LevelComplete ), 0.5f );
 }
 
 void SoundManager::playBallLost()
 {
     duckMusicTemporarily( 3.4 );
-    playStereoSource( m_stereoBallLostSoundBuffer );
+    playStereoSource( sfxBuffer( SfxId::BallLost ) );
 }
 
 void SoundManager::playCharShow()
 {
-    playStereoSource( m_stereoCharShowSoundBuffer );
+    playStereoSource( sfxBuffer( SfxId::CharShow ) );
 }

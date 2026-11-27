@@ -45,21 +45,27 @@ TextRenderer::TextRenderer( wxWindow* parent )
     s_fontData.at( TextRendererFont::OLD ).second = 
         ResourceManager::LoadTexture( "resources/images/Font.png", "font" );
 
-    GL_CHECK( glGenBuffers( 1, &m_vertexBufferID ) );
-    GL_CHECK( glGenBuffers( 1, &m_UVBufferID ) );
-    GL_CHECK( glGenBuffers( 1, &m_arcBufferID ) );
+    m_vertexBuffer.create();
+    m_uvBuffer.create();
+    m_arcBuffer.create();
     static constexpr std::array<glm::vec2, 4> kUnitQuad {{
         { -1.0f, -1.0f },
         {  1.0f, -1.0f },
         { -1.0f,  1.0f },
         {  1.0f,  1.0f }
     }};
-    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, m_arcBufferID ) );
-    GL_CHECK( glBufferData( GL_ARRAY_BUFFER, kUnitQuad.size() * sizeof( glm::vec2 ), kUnitQuad.data(), GL_STATIC_DRAW ) );
-    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, 0 ) );
+    if ( m_arcBuffer )
+    {
+        GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, m_arcBuffer.id() ) );
+        GL_CHECK( glBufferData( GL_ARRAY_BUFFER, kUnitQuad.size() * sizeof( glm::vec2 ), kUnitQuad.data(), GL_STATIC_DRAW ) );
+        GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, 0 ) );
+    }
 
-    GL_CHECK( m_attrVertex = glGetAttribLocation( m_shader->ID, "vertex" ) );
-    GL_CHECK( m_attrUVs = glGetAttribLocation( m_shader->ID, "vertexUV" ) );
+    if ( m_shader && m_shader->ID != 0 )
+    {
+        GL_CHECK( m_attrVertex = glGetAttribLocation( m_shader->ID, "vertex" ) );
+        GL_CHECK( m_attrUVs = glGetAttribLocation( m_shader->ID, "vertexUV" ) );
+    }
 
     static constexpr const char* kArcVertexSrc =
         "#version 110\n"
@@ -144,21 +150,9 @@ TextRenderer::~TextRenderer()
 
 void TextRenderer::cleanup()
 {
-    if ( m_vertexBufferID != 0 )
-    {
-        GL_CHECK( glDeleteBuffers( 1, &m_vertexBufferID ) );
-        m_vertexBufferID = 0;
-    }
-    if ( m_UVBufferID != 0 )
-    {
-        GL_CHECK( glDeleteBuffers( 1, &m_UVBufferID ) );
-        m_UVBufferID = 0;
-    }
-    if ( m_arcBufferID != 0 )
-    {
-        GL_CHECK( glDeleteBuffers( 1, &m_arcBufferID ) );
-        m_arcBufferID = 0;
-    }
+    m_vertexBuffer.reset();
+    m_uvBuffer.reset();
+    m_arcBuffer.reset();
     if ( m_arcShader && m_arcShader->ID != 0 )
     {
         GL_CHECK( glDeleteProgram( m_arcShader->ID ) );
@@ -249,7 +243,7 @@ void TextRenderer::switchToHelpState()
 
 void TextRenderer::print( const std::string& text, const glm::vec2& pos, const glm::vec2& size, glm::vec3 color )
 {
-    if ( text.empty() )
+    if ( text.empty() || !m_shader || m_shader->ID == 0 || m_attrVertex < 0 || m_attrUVs < 0 || !m_vertexBuffer || !m_uvBuffer )
         return;
 
     const size_t length = text.length();
@@ -295,9 +289,9 @@ void TextRenderer::print( const std::string& text, const glm::vec2& pos, const g
         m_UVs.emplace_back( uvDownLeft );
     }
 
-    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, m_vertexBufferID ) );
+    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, m_vertexBuffer.id() ) );
     GL_CHECK( glBufferData( GL_ARRAY_BUFFER, m_vertices.size() * sizeof( glm::vec2 ), m_vertices.data(), GL_STREAM_DRAW ) );
-    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, m_UVBufferID ) );
+    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, m_uvBuffer.id() ) );
     GL_CHECK( glBufferData( GL_ARRAY_BUFFER, m_UVs.size() * sizeof( glm::vec2 ), m_UVs.data(), GL_STREAM_DRAW ) );
 
     // Bind shader
@@ -310,25 +304,26 @@ void TextRenderer::print( const std::string& text, const glm::vec2& pos, const g
     m_shader->setVector3f( "textColor", color );
 
     // 1rst attribute buffer : vertices
-    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, m_vertexBufferID ) );
-    GL_CHECK( glVertexAttribPointer( m_attrVertex, 2, GL_FLOAT, GL_FALSE, 0, (void*)nullptr ) );
-    GL_CHECK( glEnableVertexAttribArray( m_attrVertex ) );
+    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, m_vertexBuffer.id() ) );
+    GL_CHECK( glVertexAttribPointer( static_cast<GLuint>( m_attrVertex ), 2, GL_FLOAT, GL_FALSE, 0, (void*)nullptr ) );
+    GL_CHECK( glEnableVertexAttribArray( static_cast<GLuint>( m_attrVertex ) ) );
 
     // 2nd attribute buffer : UVs
-    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, m_UVBufferID ) );
-    GL_CHECK( glVertexAttribPointer( m_attrUVs, 2, GL_FLOAT, GL_FALSE, 0, (void*)nullptr ) );
-    GL_CHECK( glEnableVertexAttribArray( m_attrUVs ) );
+    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, m_uvBuffer.id() ) );
+    GL_CHECK( glVertexAttribPointer( static_cast<GLuint>( m_attrUVs ), 2, GL_FLOAT, GL_FALSE, 0, (void*)nullptr ) );
+    GL_CHECK( glEnableVertexAttribArray( static_cast<GLuint>( m_attrUVs ) ) );
 
     // Draw call
     GL_CHECK( glDrawArrays( GL_TRIANGLES, 0, static_cast<GLsizei>( m_vertices.size() ) ) );
 
-    GL_CHECK( glDisableVertexAttribArray( m_attrVertex ) );
-    GL_CHECK( glDisableVertexAttribArray( m_attrUVs ) );
+    GL_CHECK( glDisableVertexAttribArray( static_cast<GLuint>( m_attrVertex ) ) );
+    GL_CHECK( glDisableVertexAttribArray( static_cast<GLuint>( m_attrUVs ) ) );
+    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, 0 ) );
 }
 
 void TextRenderer::drawProgressArc( const glm::vec2& center, float radius, float thickness, float progress, const glm::vec4& baseColor, const glm::vec4& fillColor )
 {
-    if ( !m_arcShader || m_arcShader->ID == 0 || m_attrArcVertex < 0 || m_arcBufferID == 0 )
+    if ( !m_arcShader || m_arcShader->ID == 0 || m_attrArcVertex < 0 || !m_arcBuffer )
         return;
 
     if ( !std::isfinite( center.x ) || !std::isfinite( center.y ) ||
@@ -349,7 +344,7 @@ void TextRenderer::drawProgressArc( const glm::vec2& center, float radius, float
     m_arcShader->setVector4f( "uBaseColor", baseColor );
     m_arcShader->setVector4f( "uFillColor", fillColor );
 
-    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, m_arcBufferID ) );
+    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, m_arcBuffer.id() ) );
     GL_CHECK( glVertexAttribPointer( static_cast<GLuint>( m_attrArcVertex ), 2, GL_FLOAT, GL_FALSE, 0, nullptr ) );
     GL_CHECK( glEnableVertexAttribArray( static_cast<GLuint>( m_attrArcVertex ) ) );
     GL_CHECK( glDrawArrays( GL_TRIANGLE_STRIP, 0, 4 ) );

@@ -82,11 +82,6 @@ namespace Shapes
             std::vector<Physics::BrickItem> m_physBricks;
 
             wxEvtHandler* m_eventHandler { nullptr };
-            wxCommandEvent m_eventCurrentScoreInc;
-            wxCommandEvent m_eventRoundCompleted;
-            wxCommandEvent m_eventPing;
-            wxCommandEvent m_eventPong;
-            wxCommandEvent m_eventBallLost;
 
             std::shared_ptr<Ball> m_ball;
             std::shared_ptr<Board> m_board;

@@ -25,21 +25,21 @@ namespace Shapes
             virtual inline glm::vec2 velocity() const { return m_velocity; }
             virtual glm::vec2 center() const;
             virtual inline Physics::Aabb bounds() const { return { m_position.x, m_position.y, m_size.x, m_size.y }; }
-            virtual unsigned int VBO() const { return m_VBO; }
 
             virtual void load( const texture2DPtr &sprite );
             virtual void moveTo( float x, float y );
             virtual void moveTo( const glm::vec2& position );
+            virtual void setVelocity( const glm::vec2& velocity ) { m_velocity = velocity; }
             virtual void increaseVelocity( float value ) { m_velocity += value; }
             virtual void draw( const rendererPtr &renderer ) const;
 
+        protected:
             // Protected data
             glm::vec2 m_position { 0, 0 };
             glm::vec2 m_size { 0, 0 };
             glm::vec2 m_velocity { 0, 0 };
 
             texture2DPtr m_sprite;
-            unsigned int m_VBO { 0 };
     };
 
     using basePtr = std::shared_ptr<Base>;

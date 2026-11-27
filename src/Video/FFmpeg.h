@@ -55,3 +55,22 @@ using AVFramePtr         = std::unique_ptr<AVFrame, FfmpegDeleter<av_frame_free>
 using AVPacketPtr        = std::unique_ptr<AVPacket, FfmpegDeleter<av_packet_free>>;
 using SwrContextPtr      = std::unique_ptr<SwrContext, FfmpegDeleter<swr_free>>;
 using SwsContextPtr      = std::unique_ptr<SwsContext, FfmpegDeleter<sws_freeContext>>;
+
+/* Custom-IO AVIOContext deleter (avio_alloc_context + AVFMT_FLAG_CUSTOM_IO). */
+struct CustomAvioDeleter
+{
+    void operator()( AVIOContext* ptr ) const noexcept
+    {
+        if ( !ptr )
+            return;
+        av_freep( &ptr->buffer );
+        avio_context_free( &ptr );
+    }
+};
+using CustomAVIOContextPtr = std::unique_ptr<AVIOContext, CustomAvioDeleter>;
+
+inline nanoseconds ptsToNanoseconds( int64_t pts, AVRational timeBase ) noexcept
+{
+    return std::chrono::duration_cast<nanoseconds>(
+        seconds_d64 { av_q2d( timeBase ) * static_cast<double>( pts ) } );
+}

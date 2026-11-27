@@ -25,44 +25,30 @@ Explosions::Explosions()
         "resources/images/Explosion.png",
         "explosions" );
 
-    const glm::vec2 divisionScale = { 
-        1.f / m_explosionsSprite->Width, 
-        1.f / m_explosionsSprite->Height 
-    };
-    const auto numOfHorizontalSprites = m_explosionsSprite->Width / s_defaultSize.x;
-    const auto numOfVerticalSprites = m_explosionsSprite->Height / s_defaultSize.y;
+    if ( !m_explosionsSprite || m_explosionsSprite->Width <= 0 || m_explosionsSprite->Height <= 0 )
+        return;
 
-    m_VBO.reserve( numOfHorizontalSprites * numOfVerticalSprites );
+    const float uScale = s_defaultSize.x / static_cast<float>( m_explosionsSprite->Width );
+    const float vScale = s_defaultSize.y / static_cast<float>( m_explosionsSprite->Height );
+    const auto numOfHorizontalSprites = static_cast<unsigned short>( m_explosionsSprite->Width / s_defaultSize.x );
+    const auto numOfVerticalSprites = static_cast<unsigned short>( m_explosionsSprite->Height / s_defaultSize.y );
+
+    m_uvRects.reserve( static_cast<size_t>( numOfHorizontalSprites ) * numOfVerticalSprites );
 
     for ( unsigned short y = 0; y < numOfVerticalSprites; ++y )
     {
         for ( unsigned short x = 0; x < numOfHorizontalSprites; ++x )
         {
-            const float left = divisionScale.x * x * s_defaultSize.x; // left coord
-            const float right = left + divisionScale.x * s_defaultSize.x; // right coord
-            const float top = divisionScale.y * y * s_defaultSize.y; // top coord
-            const float bottom = top + divisionScale.y * s_defaultSize.y; // bottom coord
-
-            m_VBO.emplace_back( SpriteRenderer::generateBuffer( {
-                // pos      // tex
-                0.f, 0.f,    left,   bottom,
-                0.f, 1.f,    left,   top,
-                1.f, 0.f,    right, bottom,
-                1.f, 1.f,    right, top,
-            } ) );
+            m_uvRects.emplace_back(
+                static_cast<float>( x ) * uScale,
+                static_cast<float>( y ) * vScale,
+                uScale,
+                vScale );
         }
     }
 }
 
-Explosions::~Explosions()
-{
-    for ( const auto& vbo : m_VBO )
-    {
-        SpriteRenderer::clearBuffer( vbo );
-    }
-}
-
-void Explosions::add( const basePtr &shape )
+void Explosions::add( const basePtr& shape )
 {
     m_explosions.emplace_back( std::make_shared<Explosion>( shape, s_defaultSize ) );
 }
@@ -74,26 +60,29 @@ void Explosions::clear()
 
 bool Explosions::empty() const
 {
-    return std::find_if( m_explosions.begin(), m_explosions.end(), []( const explosionPtr& explosion ) {
-        return explosion->isActive(); } ) == m_explosions.end();
-};
+    return std::none_of( m_explosions.begin(), m_explosions.end(), []( const explosionPtr& explosion ) {
+        return explosion->isActive();
+    } );
+}
 
-
-void Explosions::draw( const rendererPtr &renderer )
+void Explosions::draw( const rendererPtr& renderer )
 {
+    if ( !m_explosionsSprite )
+        return;
+
     m_explosionsSprite->bind();
 
-    for ( const auto &expolosion : m_explosions )
+    for ( const auto& explosion : m_explosions )
     {
-        if ( expolosion->isActive() )
+        if ( explosion->isActive() )
         {
-            const auto current = expolosion->current();
-            if ( current < m_VBO.size() )
+            const auto current = explosion->current();
+            if ( current < m_uvRects.size() )
             {
-                renderer->drawSprite( m_VBO[ current ], expolosion->position(), expolosion->size() );
+                renderer->drawSprite( explosion->position(), explosion->size(), glm::vec3( 1.0f ), m_uvRects[ current ] );
                 continue;
             }
-            expolosion->kill();
+            explosion->kill();
         }
     }
 
@@ -101,6 +90,6 @@ void Explosions::draw( const rendererPtr &renderer )
         std::remove_if(
             m_explosions.begin(),
             m_explosions.end(),
-            []( const explosionPtr &explosion ) { return !explosion->isActive(); } ),
+            []( const explosionPtr& explosion ) { return !explosion->isActive(); } ),
         m_explosions.end() );
 }

@@ -5,6 +5,7 @@
 
 #include <glm/vec2.hpp>
 
+#include "Common/GlBuffer.hpp"
 #include "Common/NonCopyable.hpp"
 
 // Forward declarations
@@ -43,8 +44,8 @@ class VideoRenderer : private NonCopyable
         void uploadPlane( int unit, unsigned int tex, int width, int height, int rowLengthTexels, unsigned int format, const uint8_t* data, bool alloc );
         void drawQuad( const shaderPtr& shader, int attrVertex, int attrUVs, int locScale );
 
-        unsigned int m_VBO { 0 };
-        unsigned int m_EBO { 0 };
+        GlBuffer m_VBO;
+        GlBuffer m_EBO;
         unsigned int m_texs[ 3 ] {};
 
         int m_attrVertex { -1 };

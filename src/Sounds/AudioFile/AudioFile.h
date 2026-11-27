@@ -31,7 +31,12 @@
 #include <unordered_map>
 #include <iterator>
 #include <algorithm>
+#include <cstdint>
 #include <cstring>
+#include <limits>
+static_assert(
+    sizeof( float ) == sizeof( int32_t ) && std::numeric_limits<float>::is_iec559,
+    "IEEE 754 32-bit float required for AudioFile memcpy" );
 
 // disable some warnings on Windows
 #if defined (_MSC_VER)

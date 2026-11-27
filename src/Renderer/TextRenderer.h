@@ -10,6 +10,7 @@
 #include <glm/vec4.hpp>
 #include <glm/mat4x4.hpp>
 
+#include "Common/GlBuffer.hpp"
 #include "Common/NonCopyable.hpp"
 
 
@@ -54,11 +55,11 @@ class TextRenderer : private NonCopyable
         void renderFinishMessage();
         void renderHelp();
 
-        unsigned int m_vertexBufferID { 0 };
-        unsigned int m_UVBufferID { 0 };
-        unsigned int m_arcBufferID { 0 };
-        unsigned int m_attrVertex { 0 };
-        unsigned int m_attrUVs { 0 };
+        GlBuffer m_vertexBuffer;
+        GlBuffer m_uvBuffer;
+        GlBuffer m_arcBuffer;
+        int m_attrVertex { -1 };
+        int m_attrUVs { -1 };
         int m_attrArcVertex { -1 };
 
         unsigned short m_col { 0 };

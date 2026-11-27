@@ -4,6 +4,7 @@
 #include <cassert>
 #include <condition_variable>
 #include <deque>
+#include <iostream>
 #include <mutex>
 #include <thread>
 
@@ -141,6 +142,28 @@ class PacketQueue
 
             m_cv.notify_one();
             return true;
+        }
+
+        void prefillCodec( AVCodecContext* codecCtx, const char* streamLabel )
+        {
+            while ( true )
+            {
+                const int ret = sendTo( codecCtx );
+                if ( ret == AVERROR( EAGAIN ) || ret == AVErrorEOF )
+                    break;
+                if ( ret != 0 )
+                    std::cout << "Fail to send packet " << streamLabel << ": " << ret << std::endl;
+            }
+        }
+
+        int receiveFrame( AVCodecContext* codecCtx, AVFrame* frame, int& outSendRet )
+        {
+            int ret = 0;
+            outSendRet = 0;
+            while ( ( ret = avcodec_receive_frame( codecCtx, frame ) ) == AVERROR( EAGAIN ) &&
+                    ( outSendRet = sendTo( codecCtx ) ) != AVErrorEOF )
+            {}
+            return ret;
         }
 
     private:

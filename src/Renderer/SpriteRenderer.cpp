@@ -11,7 +11,6 @@
 
 #include "Common/Tools.h"
 #include "ResourceManager.h"
-#include "Texture.h"
 #include "Shader.h"
 #include "SpriteRenderer.h"
 
@@ -25,19 +24,10 @@ SpriteRenderer::SpriteRenderer()
         "sprite" );
 
     m_shader->setInteger( "image", 0, true );
+    // GLSL #version 110 forbids uniform initializers; initialize uvRect explicitly to full texture.
+    m_shader->setVector4f( "uvRect", 0.0f, 0.0f, 1.0f, 1.0f );
 
     initRenderData();
-}
-
-SpriteRenderer::~SpriteRenderer()
-{
-    clearBuffer( m_VBO );
-}
-
-void SpriteRenderer::clearBuffer( unsigned int sourceVBO )
-{
-    if ( sourceVBO != 0 )
-        GL_CHECK( glDeleteBuffers( 1, &sourceVBO ) );
 }
 
 void SpriteRenderer::selectShader()
@@ -50,59 +40,54 @@ void SpriteRenderer::resize( const glm::mat4& projection )
     m_shader->setMatrix4( "projection", projection, true );
 }
 
-void SpriteRenderer::drawSprite( unsigned int sourceVBO, const glm::vec2& position, glm::vec2 size, glm::vec3 color )
+void SpriteRenderer::drawSprite( const glm::vec2& position, glm::vec2 size, glm::vec3 color, const glm::vec4& uvRect )
 {
-    if ( m_attrVertex < 0 || sourceVBO == 0 )
+    if ( m_attrVertex < 0 || !m_VBO )
         return;
 
-    // GPU-first: upload packed (pos.xy, size.xy) in one uniform; Sprite.vs computes vertex.xy * rect.zw + rect.xy
+    // GPU-first: upload packed (pos.xy, size.xy) and (uOff, vOff, uScale, vScale) over a single static VBO.
     if ( m_locRect >= 0 )
         GL_CHECK( glUniform4f( m_locRect, position.x, position.y, size.x, size.y ) );
+    if ( m_locUvRect >= 0 )
+        GL_CHECK( glUniform4f( m_locUvRect, uvRect.x, uvRect.y, uvRect.z, uvRect.w ) );
     if ( m_locSpriteColor >= 0 )
         GL_CHECK( glUniform3f( m_locSpriteColor, color.x, color.y, color.z ) );
 
-    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, sourceVBO ) );
+    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, m_VBO.id() ) );
     GL_CHECK( glVertexAttribPointer( static_cast<GLuint>( m_attrVertex ), 4, GL_FLOAT, GL_FALSE, 4 * sizeof( float ), ( void* )nullptr ) );
     GL_CHECK( glEnableVertexAttribArray( static_cast<GLuint>( m_attrVertex ) ) );
 
     GL_CHECK( glDrawArrays( GL_TRIANGLE_STRIP, 0, 4 ) );
 
     GL_CHECK( glDisableVertexAttribArray( static_cast<GLuint>( m_attrVertex ) ) );
-}
-
-void SpriteRenderer::drawSprite( const glm::vec2& position, glm::vec2 size, glm::vec3 color )
-{
-    drawSprite( m_VBO, position, size, color );
+    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, 0 ) );
 }
 
 void SpriteRenderer::initRenderData()
 {
-    // configure VBO
     if ( m_shader && m_shader->ID != 0 )
     {
         GL_CHECK( m_attrVertex = glGetAttribLocation( m_shader->ID, "vertex" ) );
         GL_CHECK( m_locRect = glGetUniformLocation( m_shader->ID, "rect" ) );
+        GL_CHECK( m_locUvRect = glGetUniformLocation( m_shader->ID, "uvRect" ) );
         GL_CHECK( m_locSpriteColor = glGetUniformLocation( m_shader->ID, "spriteColor" ) );
     }
 
-    m_VBO = generateBuffer( {
+    // clang-format off
+    static constexpr float kUnitQuad[] {
         // pos      // tex
         0.f, 0.f,   0.f, 1.f,
         0.f, 1.f,   0.f, 0.f,
         1.f, 0.f,   1.f, 1.f,
         1.f, 1.f,   1.f, 0.f,
-     } );
-}
+    };
+    // clang-format on
 
-unsigned int SpriteRenderer::generateBuffer( const std::vector<float>& vertices )
-{
-    unsigned int targetVBO = 0;
-
-    GL_CHECK( glGenBuffers( 1, &targetVBO ) );
-    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, targetVBO ) );
-    GL_CHECK( glBufferData( GL_ARRAY_BUFFER, sizeof( vertices[ 0 ] ) * vertices.size(), vertices.data(), GL_STATIC_DRAW ) );
-
-    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, 0 ) );
-
-    return targetVBO;
+    m_VBO.create();
+    if ( m_VBO )
+    {
+        GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, m_VBO.id() ) );
+        GL_CHECK( glBufferData( GL_ARRAY_BUFFER, sizeof( kUnitQuad ), kUnitQuad, GL_STATIC_DRAW ) );
+        GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, 0 ) );
+    }
 }

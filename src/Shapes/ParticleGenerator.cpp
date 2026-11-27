@@ -43,12 +43,6 @@ ParticleGenerator::ParticleGenerator( unsigned int amount )
     init();
 }
 
-ParticleGenerator::~ParticleGenerator()
-{
-    GL_CHECK( glDeleteBuffers( static_cast<GLsizei>( kVboRingSize ), m_VBOs.data() ) );
-    m_VBOs.fill( 0 );
-}
-
 void ParticleGenerator::resize( const glm::mat4& projection )
 {
     m_shader->setMatrix4( "projection", projection, true );
@@ -80,7 +74,7 @@ void ParticleGenerator::update( float dt, const basePtr &object, unsigned int ne
 // render all particles
 void ParticleGenerator::draw()
 {
-    if ( !m_shader || m_shader->ID == 0 || !m_texture || m_attrPos < 0 || m_attrColor < 0 || m_VBOs[ 0 ] == 0 )
+    if ( !m_shader || m_shader->ID == 0 || !m_texture || m_attrPos < 0 || m_attrColor < 0 || !m_VBOs[ 0 ] )
         return;
 
     m_vertexBuf.clear();
@@ -116,7 +110,7 @@ void ParticleGenerator::draw()
     const auto usedBytes = std::min(
         maxBytes,
         static_cast<GLsizeiptr>( m_vertexBuf.size() * sizeof( ParticleVertex ) ) );
-    const unsigned int activeVbo = m_VBOs[ m_vboIdx ];
+    const unsigned int activeVbo = m_VBOs[ m_vboIdx ].id();
     m_vboIdx = ( m_vboIdx + 1 ) % kVboRingSize;
     if ( activeVbo == 0 || usedBytes <= 0 )
         return;
@@ -171,12 +165,12 @@ void ParticleGenerator::init()
 
     // Pre-allocate triple-buffered VBO ring for stall-free per-frame streaming
     const auto maxBytes = static_cast<GLsizeiptr>( m_particles.size() * 6 * sizeof( ParticleVertex ) );
-    GL_CHECK( glGenBuffers( static_cast<GLsizei>( kVboRingSize ), m_VBOs.data() ) );
-    for ( const unsigned int vbo : m_VBOs )
+    for ( GlBuffer& vbo : m_VBOs )
     {
-        if ( vbo == 0 )
+        vbo.create();
+        if ( !vbo )
             continue;
-        GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, vbo ) );
+        GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, vbo.id() ) );
         GL_CHECK( glBufferData( GL_ARRAY_BUFFER, maxBytes, nullptr, GL_STREAM_DRAW ) );
     }
     GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, 0 ) );
