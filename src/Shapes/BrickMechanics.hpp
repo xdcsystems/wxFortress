@@ -64,6 +64,10 @@ namespace BrickMechanics
             return 0u;
         if ( typeVal == kTypeBlue )
             return ( stage >= 1u ) ? 3u : 2u;
+        if ( typeVal == kTypePurple && stage >= 2u )
+            return 2u;
+        if ( typeVal == kTypeOrange && stage >= 3u )
+            return 2u;
         return 1u;
     }
 

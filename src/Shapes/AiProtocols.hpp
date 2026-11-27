@@ -115,7 +115,7 @@ namespace AiProtocols
             return isOverheatActive() ? kOverheatPaddleSpeedScale : 1.0f;
         }
 
-        void activate( ProtocolKind kind ) noexcept
+        void activate( ProtocolKind kind, float magLockDurationSec = kMagLockDurationSec ) noexcept
         {
             switch ( kind )
             {
@@ -125,7 +125,9 @@ namespace AiProtocols
                     break;
 
                 case ProtocolKind::MagLock:
-                    magLockRemainingSec = kMagLockDurationSec;
+                    magLockRemainingSec = MathUtil::isPositiveFinite( magLockDurationSec )
+                        ? magLockDurationSec
+                        : kMagLockDurationSec;
                     magLockCharges = kMagLockMaxCharges;
                     break;
 

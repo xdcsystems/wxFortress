@@ -7,6 +7,7 @@
 
 #include "Common/FramePacer.hpp"
 #include "Shapes/Resonance.hpp"
+#include "Shapes/StageDirector.hpp"
 
 
 // Forward declarations
@@ -76,6 +77,7 @@ class RenderWindow final : public wxGLCanvas
         void onPaddleContact( wxCommandEvent& );
         void onArmorHit( wxCommandEvent& );
         void onProtocolActivated( wxCommandEvent& );
+        void onTelemetrySignal( wxCommandEvent& );
         void onRoundCompleted( wxCommandEvent& );
         void onBallLost( wxCommandEvent& );
         void onTextCharShow( wxCommandEvent& );
@@ -112,6 +114,11 @@ class RenderWindow final : public wxGLCanvas
         FramePacing::FixedStepState m_fixedStep {};
         Resonance::ImpactFeedback m_impactFeedback {};
         Resonance::HudStatus m_hudStatus {};
+        StageDirector::HighSpeedCaptureState m_highSpeedCapture {};
+        StageDirector::TelemetryState m_telemetry {};
+        bool m_newRecordInRound { false };
+        bool m_roundFinishedAwaitingNext { false };
+        bool m_highSpeedTriggeredInRound { false };
 
         uint32_t m_currentScore { 0 };
         uint32_t m_hiScore { 0 };

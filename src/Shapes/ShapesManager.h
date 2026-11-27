@@ -8,6 +8,7 @@
 #include <glm/mat4x4.hpp>
 
 #include "AiProtocols.hpp"
+#include "StageDirector.hpp"
 #include "BallPhysics.hpp"
 #include "Resonance.hpp"
 
@@ -57,6 +58,7 @@ namespace Shapes
                 return Resonance::musicDuckScaleForMultiplier( m_resonance.multiplier() );
             }
             bool consumePendingImpact( bool& outMaxOrFinal ) noexcept;
+            bool consumeRoundFinishTelemetry( bool& outLastKillChainBlast, unsigned int& outResonanceMult ) noexcept;
 
             std::string activeProtocolHudText() const { return m_protocols.hudStatusText( hasMagLockedBalls() ); }
             bool hasMagLockedBalls() const noexcept;
@@ -99,6 +101,7 @@ namespace Shapes
 
             bool m_isRobot { false };
             unsigned int m_robotDryBounces { 0 };
+            unsigned short m_stage { 0 };
             unsigned int m_stageIncidents { 0 };
             float m_currentBallSpeed { 0.0f };
             bool m_isRoundCompleted { false };
@@ -113,6 +116,12 @@ namespace Shapes
             float m_paddleSkillFlashSec { 0.0f };
             bool m_pendingImpact { false };
             bool m_pendingImpactMaxOrFinal { false };
+            bool m_pendingHighSpeedCapture { false };
+            bool m_pendingHighSpeedChainBlast { false };
+            unsigned int m_pendingHighSpeedResonance { 1u };
+            bool m_plasmaPeakAnnounced { false };
+            unsigned int m_roundSkillShots { 0u };
+            bool m_vectorCutAnnounced { false };
 
             Physics::ArenaConfig m_arenaCfg {};
             std::vector<BallInstance> m_balls;

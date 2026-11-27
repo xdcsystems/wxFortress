@@ -35,6 +35,7 @@ DEFINE_LOCAL_EVENT_TYPE( wxEVT_PING )
 DEFINE_LOCAL_EVENT_TYPE( wxEVT_PONG )
 DEFINE_LOCAL_EVENT_TYPE( wxEVT_ARMOR_HIT )
 DEFINE_LOCAL_EVENT_TYPE( wxEVT_PROTOCOL_ACTIVATED )
+DEFINE_LOCAL_EVENT_TYPE( wxEVT_TELEMETRY_SIGNAL )
 
 using namespace Shapes;
 
@@ -70,6 +71,7 @@ ShapesManager::ShapesManager( wxWindow* parent, const rendererPtr& spriteRendere
 
 void ShapesManager::loadLevel( unsigned short level, unsigned short stage )
 {
+    m_stage = stage;
     m_resonance.reset();
     m_paddleRecoil.reset();
     m_protocols.reset();
@@ -78,9 +80,17 @@ void ShapesManager::loadLevel( unsigned short level, unsigned short stage )
     m_paddleSkillFlashSec = 0.0f;
     m_pendingImpact = false;
     m_pendingImpactMaxOrFinal = false;
+    m_pendingHighSpeedCapture = false;
+    m_pendingHighSpeedChainBlast = false;
+    m_pendingHighSpeedResonance = 1u;
+    m_plasmaPeakAnnounced = false;
+    m_roundSkillShots = 0u;
+    m_vectorCutAnnounced = false;
 
-    // Tension sawtooth: keep level-entry speed intense yet fair after EM-heavy levels
-    m_currentBallSpeed = ( std::min )( m_currentBallSpeed, BrickMechanics::kLevelStartMaxSpeed );
+    // Progressive Stage 1 -> N escalation with bounded tension sawtooth ceiling
+    const StageDirector::StageProfile stageProfile = StageDirector::profileForStage( m_stage );
+    const float stageFloor = kInitialBallSpeedPxPerSec + stageProfile.startSpeedBonusPx;
+    m_currentBallSpeed = std::clamp( m_currentBallSpeed, stageFloor, stageProfile.levelStartMaxSpeed );
 
     // let's throw some bricks
     m_bricks->loadLevel( level, stage );
@@ -105,6 +115,18 @@ bool ShapesManager::consumePendingImpact( bool& outMaxOrFinal ) noexcept
     outMaxOrFinal = m_pendingImpactMaxOrFinal;
     m_pendingImpact = false;
     m_pendingImpactMaxOrFinal = false;
+    return true;
+}
+
+bool ShapesManager::consumeRoundFinishTelemetry( bool& outLastKillChainBlast, unsigned int& outResonanceMult ) noexcept
+{
+    if ( !m_pendingHighSpeedCapture )
+        return false;
+    outLastKillChainBlast = m_pendingHighSpeedChainBlast;
+    outResonanceMult = m_pendingHighSpeedResonance;
+    m_pendingHighSpeedCapture = false;
+    m_pendingHighSpeedChainBlast = false;
+    m_pendingHighSpeedResonance = 1u;
     return true;
 }
 
@@ -158,7 +180,8 @@ void ShapesManager::activateProtocol( AiProtocols::ProtocolKind kind )
     if ( kind == AiProtocols::ProtocolKind::None )
         return;
 
-    m_protocols.activate( kind );
+    const StageDirector::StageProfile stageProfile = StageDirector::profileForStage( m_stage );
+    m_protocols.activate( kind, stageProfile.magLockDurationSec );
 
     if ( kind == AiProtocols::ProtocolKind::Split && !m_balls.empty() )
     {
@@ -308,6 +331,12 @@ void ShapesManager::run( bool bNewRound )
         m_paddleSkillFlashSec = 0.0f;
         m_pendingImpact = false;
         m_pendingImpactMaxOrFinal = false;
+        m_pendingHighSpeedCapture = false;
+        m_pendingHighSpeedChainBlast = false;
+        m_pendingHighSpeedResonance = 1u;
+        m_plasmaPeakAnnounced = false;
+        m_roundSkillShots = 0u;
+        m_vectorCutAnnounced = false;
 
         m_balls.clear();
         BallInstance primary {};
@@ -337,6 +366,12 @@ void ShapesManager::stop()
     m_paddleSkillFlashSec = 0.0f;
     m_pendingImpact = false;
     m_pendingImpactMaxOrFinal = false;
+    m_pendingHighSpeedCapture = false;
+    m_pendingHighSpeedChainBlast = false;
+    m_pendingHighSpeedResonance = 1u;
+    m_plasmaPeakAnnounced = false;
+    m_roundSkillShots = 0u;
+    m_vectorCutAnnounced = false;
 
     if ( m_balls.empty() )
     {
@@ -484,6 +519,7 @@ void ShapesManager::update( double deltaTimeSec, int remainingSteps )
     if ( m_paddleSkillFlashSec > 0.0f )
         m_paddleSkillFlashSec = ( std::max )( 0.0f, m_paddleSkillFlashSec - dtSec );
     m_bricks->updateVisuals( dtSec );
+    m_explosions->update( dtSec );
 
     if ( m_paddleState.box.w <= 0.0f || m_paddleState.box.h <= 0.0f )
     {
@@ -546,6 +582,7 @@ void ShapesManager::update( double deltaTimeSec, int remainingSteps )
             bool armorHitOccurred = false;
             bool hitThreshold = false;
             bool hitMax = false;
+            bool lastKillWasChainBlast = false;
 
             const float ballRadius = m_ball->radius();
             const unsigned int scoreMult = m_protocols.scoreMultiplier();
@@ -613,6 +650,15 @@ void ShapesManager::update( double deltaTimeSec, int remainingSteps )
                             ev.skillShotDir,
                             18u,
                             glm::vec4( 1.0f, 0.88f, 0.45f, 1.0f ) );
+                        ++m_roundSkillShots;
+                        if ( !m_vectorCutAnnounced && m_roundSkillShots >= StageDirector::kSkillShotTelemetryThreshold )
+                        {
+                            m_vectorCutAnnounced = true;
+                            queueCommandEvent(
+                                m_eventHandler,
+                                wxEVT_TELEMETRY_SIGNAL,
+                                static_cast<int>( StageDirector::TelemetryEvent::VectorCut ) );
+                        }
                     }
                     else
                     {
@@ -668,7 +714,7 @@ void ShapesManager::update( double deltaTimeSec, int remainingSteps )
                                     AiProtocols::kCapsuleWidth,
                                     AiProtocols::kCapsuleHeight
                                 };
-                                cap.fallSpeed = AiProtocols::kCapsuleFallSpeed;
+                                cap.fallSpeed = AiProtocols::kCapsuleFallSpeed * StageDirector::profileForStage( m_stage ).capsuleFallScale;
                                 cap.active = true;
                                 m_capsules.push_back( cap );
                                 m_protocols.spawnCooldownSec = AiProtocols::kCapsuleSpawnCooldownSec;
@@ -676,6 +722,14 @@ void ShapesManager::update( double deltaTimeSec, int remainingSteps )
                         }
                         scoreAward *= scoreMult;
 
+                        if ( hit.multiplier >= Resonance::kMaxMultiplier && !m_plasmaPeakAnnounced )
+                        {
+                            m_plasmaPeakAnnounced = true;
+                            queueCommandEvent(
+                                m_eventHandler,
+                                wxEVT_TELEMETRY_SIGNAL,
+                                static_cast<int>( StageDirector::TelemetryEvent::PlasmaPeak ) );
+                        }
                         if ( hit.crossedHitStopThreshold )
                         {
                             hitThreshold = true;
@@ -720,6 +774,7 @@ void ShapesManager::update( double deltaTimeSec, int remainingSteps )
                             else if ( role == BrickMechanics::BrickRole::ReactiveCell )
                                 directRedDetonators.push_back( idx );
 
+                            lastKillWasChainBlast = false;
                             awardDestruction( brick );
                         }
                     }
@@ -760,6 +815,7 @@ void ShapesManager::update( double deltaTimeSec, int remainingSteps )
                             if ( idx < brickList.size() && brickList[ idx ]->isAlive() )
                             {
                                 brickList[ idx ]->kill();
+                                lastKillWasChainBlast = true;
                                 awardDestruction( brickList[ idx ] );
                             }
                         }
@@ -819,6 +875,9 @@ void ShapesManager::update( double deltaTimeSec, int remainingSteps )
                 m_capsules.clear();
                 m_pendingImpact = true;
                 m_pendingImpactMaxOrFinal = true;
+                m_pendingHighSpeedCapture = true;
+                m_pendingHighSpeedChainBlast = lastKillWasChainBlast;
+                m_pendingHighSpeedResonance = m_resonance.multiplier();
             }
             else
             {
@@ -919,15 +978,15 @@ void ShapesManager::renderFrame()
         m_board->draw( m_renderer );
     }
 
+    if ( isRunning() )
+    {
+        m_particles->draw();
+        m_renderer->selectShader();
+    }
+
     if ( !m_isRoundCompleted )
     {
         m_bricks->draw( m_renderer );
-
-        if ( isRunning() )
-        {
-            m_particles->draw();
-            m_renderer->selectShader();
-        }
 
         // Falling AI protocol capsules (GPU-first: reuses SimpleBoard texture + single SpriteRenderer VBO)
         for ( const auto& cap : m_capsules )
