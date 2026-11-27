@@ -46,12 +46,13 @@ class SoundManager final : private NonCopyable
         bool isLaunchAudioPlaying() const;
         void stopLaunchAudio();
         void playRocket() const;
-        void playDestroyBrick();
+        void playDestroyBrick( float pitch = 1.f );
         void playPing();
         void playPong();
         void playLevelComplete();
         void playBallLost();
         void playCharShow();
+        void playRobotToggle( bool enabled );
 
         // Background music (OpenAL looping + smooth ducking/mute)
         void playMusic( unsigned short level );
@@ -59,6 +60,7 @@ class SoundManager final : private NonCopyable
         void playVictoryMusic();
         void stopMusic();
         void setMusicDucked( bool ducked );
+        void setResonanceDuckScale( float scale );
         void duckMusicTemporarily( double durationSec );
         void toggleMusicMute();
         bool isMusicMuted() const { return m_musicGain.muted; }
@@ -73,7 +75,7 @@ class SoundManager final : private NonCopyable
         int loadOggBuffer( const std::string& name, ALuint* buffer );
         ALuint getFreeStereoSource() const;
         void cleanSources();
-        ALuint playStereoSource( ALuint buffer, float gain = 1.f );
+        ALuint playStereoSource( ALuint buffer, float gain = 1.f, float pitch = 1.f );
         void applyMusicGain( float gain );
         void startMusicTrack( ALuint buffer, bool isHelp, bool isVictory );
 

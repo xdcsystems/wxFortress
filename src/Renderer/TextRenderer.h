@@ -44,9 +44,10 @@ class TextRenderer : private NonCopyable
         void renderFrame();
         void print( const std::string& text, const glm::vec2& pos, const glm::vec2& size, glm::vec3 color = glm::vec3( 1.0f ) );
         void drawProgressArc( const glm::vec2& center, float radius, float thickness, float progress, const glm::vec4& baseColor, const glm::vec4& fillColor );
+        void drawSensorFlash( const glm::vec3& color, float intensity );
         void cleanup();
 
-        void switchToFinishState( unsigned short stage );
+        void switchToFinishState( unsigned short stage, unsigned int incidents = 0 );
         void switchToHelpState();
 
         void selectFontType( TextRendererFont fontType ) { m_fontType = fontType; };
@@ -61,6 +62,7 @@ class TextRenderer : private NonCopyable
         int m_attrVertex { -1 };
         int m_attrUVs { -1 };
         int m_attrArcVertex { -1 };
+        int m_attrFlashVertex { -1 };
 
         unsigned short m_col { 0 };
         unsigned short m_row { 0 };
@@ -84,6 +86,7 @@ class TextRenderer : private NonCopyable
 
         shaderPtr m_shader;
         shaderPtr m_arcShader;
+        shaderPtr m_flashShader;
 
         inline static std::map<TextRendererFont, std::pair<float, texture2DPtr> > s_fontData {
             { TextRendererFont::NORMAL, { 8.f, nullptr } },
@@ -92,4 +95,3 @@ class TextRenderer : private NonCopyable
 };
 
 using textRedererPtr = std::shared_ptr<TextRenderer>;
-

@@ -23,6 +23,7 @@ namespace MusicGain
         bool inHelpMusic { false };
         bool inVictoryMusic { false };
         double tempDuckRemaining { 0.0 };
+        float resonanceScale { 1.0f };
         float currentGain { 0.030f };
     };
 
@@ -37,10 +38,15 @@ namespace MusicGain
             ? cfg.helpGain
             : ( state.inVictoryMusic ? cfg.victoryGain : cfg.normalGain );
 
-        if ( !state.inHelpMusic && !state.inVictoryMusic &&
-             ( state.ducked || state.tempDuckRemaining > 0.0 ) )
+        if ( !state.inHelpMusic && !state.inVictoryMusic )
         {
-            return cfg.duckedGain;
+            if ( state.ducked || state.tempDuckRemaining > 0.0 )
+                return cfg.duckedGain;
+
+            const float scale = std::isfinite( state.resonanceScale )
+                ? std::clamp( state.resonanceScale, 0.5f, 1.0f )
+                : 1.0f;
+            return ( std::max )( cfg.duckedGain, baseGain * scale );
         }
         return baseGain;
     }

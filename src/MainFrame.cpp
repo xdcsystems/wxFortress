@@ -7,6 +7,8 @@
     #include <wx/wx.h>
 #endif
 
+#include <cstdint>
+
 #include "Common/defs.h"
 #include "ControlPanel/Panel.h"
 #include "RenderWindow.h"
@@ -81,6 +83,7 @@ void MainFrame::start()
         return;
 
     m_controlPanel->Show();
+    m_renderSurface->syncScoreTelemetry( m_controlPanel->currentScore(), m_controlPanel->hiScore(), false );
 
     m_renderSurface->start();
     m_isRunning = true;
@@ -125,9 +128,13 @@ void MainFrame::onActivate( wxActivateEvent &event )
     event.Skip();
 }
 
-void MainFrame::onScoreIncreased( wxCommandEvent& )
+void MainFrame::onScoreIncreased( wxCommandEvent& event )
 {
-    m_controlPanel->increaseScore();
+    const int rawDelta = event.GetInt();
+    const uint32_t delta = rawDelta > 0 ? static_cast<uint32_t>( rawDelta ) : 1u;
+    const bool newRecord = m_controlPanel->addScore( delta );
+    if ( m_renderSurface )
+        m_renderSurface->syncScoreTelemetry( m_controlPanel->currentScore(), m_controlPanel->hiScore(), newRecord );
 }
 
 void MainFrame::onChildWndInitialized( wxCommandEvent& )
@@ -168,6 +175,7 @@ void MainFrame::resetToFirstLevel()
 {
     m_controlPanel->reset();
     m_renderSurface->resetBallSpeed();
+    m_renderSurface->syncScoreTelemetry( m_controlPanel->currentScore(), m_controlPanel->hiScore(), false );
     m_renderSurface->loadLevel( m_controlPanel->increaseLevel() );
 }
 

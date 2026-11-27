@@ -442,7 +442,7 @@ void SoundManager::cleanSources()
     }
 }
 
-ALuint SoundManager::playStereoSource( ALuint buffer, float gain )
+ALuint SoundManager::playStereoSource( ALuint buffer, float gain, float pitch )
 {
     if ( buffer == 0 )
         return 0;
@@ -466,7 +466,8 @@ ALuint SoundManager::playStereoSource( ALuint buffer, float gain )
     if ( source == 0 )
         return 0;
 
-    alec( alSourcef( source, AL_PITCH, 1.f ) );
+    const float clampedPitch = std::isfinite( pitch ) ? std::clamp( pitch, 0.5f, 2.0f ) : 1.f;
+    alec( alSourcef( source, AL_PITCH, clampedPitch ) );
     alec( alSourcef( source, AL_GAIN, gain ) );
     alec( alSourcei( source, AL_LOOPING, AL_FALSE ) );
     alec( alSourcei( source, AL_BUFFER, buffer ) );
@@ -568,12 +569,18 @@ void SoundManager::stopMusic()
     m_musicPlaying = false;
     m_musicGain.inHelpMusic = false;
     m_musicGain.inVictoryMusic = false;
+    m_musicGain.resonanceScale = 1.0f;
     m_currentMusicTrack = 0;
 }
 
 void SoundManager::setMusicDucked( bool ducked )
 {
     m_musicGain.ducked = ducked;
+}
+
+void SoundManager::setResonanceDuckScale( float scale )
+{
+    m_musicGain.resonanceScale = std::isfinite( scale ) ? std::clamp( scale, 0.5f, 1.0f ) : 1.0f;
 }
 
 void SoundManager::duckMusicTemporarily( double durationSec )
@@ -610,10 +617,10 @@ void SoundManager::playRocket() const
     alec( alSourcePlay( m_monoSource ) );
 }
 
-void SoundManager::playDestroyBrick()
+void SoundManager::playDestroyBrick( float pitch )
 {
     alec( alSourceStop( m_monoSource ) );
-    playStereoSource( sfxBuffer( SfxId::DestroyBrick ) );
+    playStereoSource( sfxBuffer( SfxId::DestroyBrick ), 1.f, pitch );
 }
 
 void SoundManager::playPing()
@@ -673,4 +680,9 @@ void SoundManager::playBallLost()
 void SoundManager::playCharShow()
 {
     playStereoSource( sfxBuffer( SfxId::CharShow ) );
+}
+
+void SoundManager::playRobotToggle( bool enabled )
+{
+    playStereoSource( sfxBuffer( SfxId::CharShow ), 0.55f, enabled ? 1.35f : 0.85f );
 }

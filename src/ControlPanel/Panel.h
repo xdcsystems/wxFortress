@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 
 #include "Counter.hpp"
@@ -22,6 +23,7 @@ namespace ControlPanel
                 const wxSize& size = wxDefaultSize,
                 long style = wxBORDER_NONE,
                 const wxString& name = wxASCII_STR( wxPanelNameStr ) );
+            ~Panel() override;
 
             bool AcceptsFocus() const override { return false; }
             bool AcceptsFocusFromKeyboard() const override { return false; }
@@ -29,10 +31,13 @@ namespace ControlPanel
             void paintLaunched();
             void activate();
             void reset();
+            bool addScore( uint32_t delta );
             void increaseScore();
             unsigned char decreaseLives();
             unsigned short increaseLevel();
             unsigned short currentLevel() const;
+            uint32_t currentScore() const { return m_score.value(); }
+            uint32_t hiScore() const { return m_hiScore.value(); }
 
         private:
             // Event Handlers
@@ -47,6 +52,8 @@ namespace ControlPanel
             void init();
             void render( wxDC& dc, const bitmapPtr& panel );
             void refreshDisplayValue( const Counter& counter );
+            void loadHiScore();
+            void saveHiScoreIfDirty();
 
             // Private data
             memoryDCPtr m_mdc;
@@ -61,6 +68,10 @@ namespace ControlPanel
             Counter m_score { 67, 267 };
             Counter m_lives { 67, 353 };
             Counter m_level { 67, 439 };
+
+            uint32_t m_runStartHiScore { 0 };
+            bool m_hiScoreDirty { false };
+            bool m_newRecordNotified { false };
 
             wxDECLARE_EVENT_TABLE();
     };
