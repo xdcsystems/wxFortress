@@ -27,7 +27,7 @@ class Video
         AVStream *m_stream { nullptr };
         AVCodecContextPtr m_codecCtx;
 
-        PacketQueue<14 * 1024 * 1024> m_packets;
+        PacketQueue m_packets { 14 * 1024 * 1024 };
 
         nanoseconds m_displayPts { 0 };
         microseconds m_displayPtsTime { microseconds::min() };

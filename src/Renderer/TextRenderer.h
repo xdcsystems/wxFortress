@@ -1,7 +1,16 @@
 #pragma once
 
 #include <map>
-#include <glm/glm.hpp>
+#include <memory>
+#include <string>
+#include <vector>
+
+#include <glm/vec2.hpp>
+#include <glm/vec3.hpp>
+#include <glm/vec4.hpp>
+#include <glm/mat4x4.hpp>
+
+#include "Common/NonCopyable.hpp"
 
 
 // Forward declarations
@@ -21,7 +30,7 @@ enum class TextRendererFont : unsigned char
     OLD,
 };
 
-class TextRenderer
+class TextRenderer : private NonCopyable
 {
     using texture2DPtr = std::shared_ptr<Texture2D>;
     using shaderPtr = std::shared_ptr<Shader>;
@@ -29,15 +38,11 @@ class TextRenderer
     public:
         TextRenderer( wxWindow* parent );
         ~TextRenderer();
-        TextRenderer( const TextRenderer& ) = delete;
-        TextRenderer& operator=( const TextRenderer& ) = delete;
-        TextRenderer( TextRenderer&& ) = delete;
-        TextRenderer& operator=( TextRenderer&& ) = delete;
 
         void resize( const glm::mat4& projection );
         void renderFrame();
-        void print( const std::string &text, int x, int y, const glm::vec2& size, glm::vec3 color = glm::vec3( 1.0f ) );
-        void drawProgressArc( float cx, float cy, float radius, float thickness, float progress, const glm::vec4& baseColor, const glm::vec4& fillColor );
+        void print( const std::string& text, const glm::vec2& pos, const glm::vec2& size, glm::vec3 color = glm::vec3( 1.0f ) );
+        void drawProgressArc( const glm::vec2& center, float radius, float thickness, float progress, const glm::vec4& baseColor, const glm::vec4& fillColor );
         void cleanup();
 
         void switchToFinishState( unsigned short stage );

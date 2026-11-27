@@ -9,11 +9,12 @@
 
 #include "FFmpeg.h"
 
-template <size_t SizeLimit>
 class PacketQueue
 {
     public:
-        PacketQueue() = default;
+        explicit PacketQueue( size_t sizeLimit )
+            : m_sizeLimit( sizeLimit )
+        {}
         ~PacketQueue()
         {
             m_packets.clear();
@@ -109,7 +110,7 @@ class PacketQueue
             {
                 std::unique_lock<std::mutex> lock { m_mutex };
                 m_spaceCv.wait( lock, [ this ]() {
-                    return m_totalSize < SizeLimit || m_aborted || m_finished;
+                    return m_totalSize < m_sizeLimit || m_aborted || m_finished;
                 } );
 
                 if ( m_aborted || m_finished )
@@ -131,7 +132,7 @@ class PacketQueue
             const size_t pktSize = static_cast<size_t>( std::max( pkt->size, 0 ) );
             {
                 std::lock_guard<std::mutex> lock { m_mutex };
-                if ( m_aborted || m_finished || m_totalSize >= SizeLimit )
+                if ( m_aborted || m_finished || m_totalSize >= m_sizeLimit )
                     return false;
 
                 m_packets.emplace_back( std::move( pkt ) );
@@ -147,6 +148,7 @@ class PacketQueue
         std::condition_variable m_cv;
         std::condition_variable m_spaceCv;
         std::deque<AVPacketPtr> m_packets;
+        size_t m_sizeLimit { 0 };
         size_t m_totalSize { 0 };
         bool m_finished { false };
         bool m_aborted { false };

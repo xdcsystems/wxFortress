@@ -4,20 +4,20 @@
 #include <string>
 #include <unordered_map>
 
-#include <glm/glm.hpp>
+#include <glm/vec2.hpp>
+#include <glm/vec3.hpp>
+#include <glm/vec4.hpp>
+#include <glm/mat4x4.hpp>
 
+#include "Common/NonCopyable.hpp"
 
 // General purpose shader object. Compiles from file, generates
-// compile/link-time error messages and hosts several utility 
+// compile/link-time error messages and hosts several utility
 // functions for easy management.
-class Shader
+class Shader : private NonCopyable
 {
     public:
         Shader() = default;
-        Shader( const Shader& ) = delete;
-        Shader& operator=( const Shader& ) = delete;
-        Shader( Shader&& ) = delete;
-        Shader& operator=( Shader&& ) = delete;
 
         // state
         unsigned int ID { 0 };
@@ -26,7 +26,7 @@ class Shader
         Shader& use();
 
         // compiles the shader from given source code
-        void compile( const char* vertexSource, const char* fragmentSource, const char* geometrySource = nullptr ); // note: geometry source code is optional 
+        void compile( const char* vertexSource, const char* fragmentSource, const char* geometrySource = nullptr );
 
         // utility functions
         void setFloat( const char* name, float value, bool useShader = false );
@@ -40,9 +40,12 @@ class Shader
         void setMatrix4( const char* name, const glm::mat4& matrix, bool useShader = false );
 
     private:
+        template <typename Fn>
+        void applyUniform( const char* name, bool useShader, Fn&& fn );
+
         int getUniformLocation( const char* name );
         // checks if compilation or linking failed and if so, print the error logs
-        bool checkCompileErrors( unsigned int object, const std::string &type );
+        bool checkCompileErrors( unsigned int object, const std::string& type );
 
         std::unordered_map<std::string, int> m_uniformCache;
 };

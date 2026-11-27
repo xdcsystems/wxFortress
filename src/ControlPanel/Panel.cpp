@@ -22,6 +22,14 @@ DEFINE_LOCAL_EVENT_TYPE( wxEVT_LAUNCH_CLICKED )
 
 using namespace ControlPanel;
 
+namespace
+{
+    // Red LAUNCH button on panel.png (208x729): center (104, 600), bezel radius ~36px.
+    constexpr int kLaunchCenterX = 104;
+    constexpr int kLaunchCenterY = 600;
+    constexpr int kLaunchRadius = 36;
+} // namespace
+
 // clang-format off
 BEGIN_EVENT_TABLE( Panel, wxWindow )
     EVT_PAINT( Panel::onPaint )
@@ -30,8 +38,8 @@ BEGIN_EVENT_TABLE( Panel, wxWindow )
 END_EVENT_TABLE()
 // clang-format on
 
-Panel::Panel( wxWindow *parent, wxWindowID id, const wxPoint &pos, const wxSize &size, long style, const wxString &name )
-  : wxWindow( parent, id, pos, size, style, name )
+Panel::Panel( wxWindow* parent, wxWindowID id, const wxPoint& pos, const wxSize& size, long style, const wxString& name )
+    : wxWindow( parent, id, pos, size, style, name )
 {
     SetCanFocus( false );
     Hide();
@@ -48,21 +56,7 @@ void Panel::init()
     m_bitmapControlBgBuffer = Tools::Instance().loadBitmap( "resources/images/ControlPanel/control/background.png" );
     m_numbers = Tools::Instance().loadBitmap( "resources/images/ControlPanel/control/numbers.png" );
 
-    // hi score counter
-    // rectangle( 67, 181, 78, 21 );
-    m_hiScore = std::make_shared< Counter<unsigned long> >( 67, 181 );
-
-    // score
-    // rectangle( 67, 267, 78, 21 );
-    m_score = std::make_shared< Counter<unsigned long> >( 67, 267 );
-
-    // lives
-    // rectangle( 67, 353, 78, 21 );
-    m_lives = std::make_shared< Counter<unsigned char> >( 67, 353, INITIAL_LIVES_VALUE );
-
-    // level
-    // rectangle( 67, 439, 78, 21 );
-    m_level = std::make_shared< Counter<unsigned short> >( 67, 439 );
+    m_lives.reset( INITIAL_LIVES_VALUE );
 }
 
 void Panel::activate()
@@ -80,16 +74,12 @@ void Panel::activate()
 
 bool Panel::isPointInLaunchButton( const wxPoint& pt ) const
 {
-    // Red LAUNCH button on panel.png (208x729): center (104, 600), visual radius ~27px (bezel ~36px)
-    constexpr int kLaunchCenterX = 104;
-    constexpr int kLaunchCenterY = 600;
-    constexpr int kLaunchRadiusSq = 36 * 36;
     const int dx = pt.x - kLaunchCenterX;
     const int dy = pt.y - kLaunchCenterY;
-    return ( dx * dx + dy * dy ) <= kLaunchRadiusSq;
+    return ( dx * dx + dy * dy ) <= ( kLaunchRadius * kLaunchRadius );
 }
 
-void Panel::onMouseMove( wxMouseEvent &event )
+void Panel::onMouseMove( wxMouseEvent& event )
 {
     const bool hover = isPointInLaunchButton( event.GetPosition() );
     if ( hover != m_hoverLaunch )
@@ -100,7 +90,7 @@ void Panel::onMouseMove( wxMouseEvent &event )
     event.Skip();
 }
 
-void Panel::onLeftDown( wxMouseEvent &event )
+void Panel::onLeftDown( wxMouseEvent& event )
 {
     if ( isPointInLaunchButton( event.GetPosition() ) )
     {
@@ -112,9 +102,10 @@ void Panel::onLeftDown( wxMouseEvent &event )
     event.Skip();
 }
 
-void Panel::onPaint( wxPaintEvent & )
+void Panel::onPaint( wxPaintEvent& )
 {
     wxPaintDC dc( this );
+    // Intentional equipment re-init effect: panel_launched.png zeroes counter windows on LAUNCH until activate() restores live values.
     render( dc, m_isLaunched ? m_bitmapPanelLaunchedBuffer : m_bitmapPanelBuffer );
 }
 
@@ -125,9 +116,9 @@ void Panel::paintLaunched()
     Update();
 }
 
-void Panel::render( wxDC &dc, const bitmapPtr &panel )
+void Panel::render( wxDC& dc, const bitmapPtr& panel )
 {
-    const auto &clientSize = GetClientSize();
+    const auto& clientSize = GetClientSize();
     if ( !panel || !panel->IsOk() || clientSize.x < 1 || clientSize.y < 1 )
         return;
 
@@ -170,8 +161,7 @@ void Panel::render( wxDC &dc, const bitmapPtr &panel )
     m_mdc->SelectObject( wxNullBitmap );
 }
 
-template <typename T>
-void Panel::refreshDisplayValue( counterPtr<T> counter )
+void Panel::refreshDisplayValue( const Counter& counter )
 {
     if ( !m_mdc || !m_numbersDC )
     {
@@ -181,52 +171,51 @@ void Panel::refreshDisplayValue( counterPtr<T> counter )
 
     m_mdc->SelectObject( *m_bitmapPanelBuffer );
 
-    counter->clear( m_bitmapControlBgBuffer, *m_mdc );
-
-    counter->render( m_mdc, m_numbersDC );
+    counter.clear( m_bitmapControlBgBuffer, *m_mdc );
+    counter.render( m_mdc, m_numbersDC );
 
     m_mdc->SelectObject( wxNullBitmap );
 
-    RefreshRect( counter->bounds(), false );
+    RefreshRect( counter.bounds(), false );
 }
 
 void Panel::increaseScore()
 {
-    m_score->increaseValue();
+    m_score.increaseValue();
     refreshDisplayValue( m_score );
 }
 
 unsigned short Panel::currentLevel() const
 {
-    return m_level->value();
+    return static_cast<unsigned short>( m_level.value() );
 }
 
 unsigned short Panel::increaseLevel()
 {
-    m_level->increaseValue();
-    m_hiScore->reset( m_hiScore->value() + m_score->value() );
-    m_score->reset();
+    m_level.increaseValue();
+    m_hiScore.reset( m_hiScore.value() + m_score.value() );
+    m_score.reset();
 
     if ( IsShown() )
     {
         activate();
     }
 
-    return m_level->value();
+    return static_cast<unsigned short>( m_level.value() );
 }
 
 unsigned char Panel::decreaseLives()
 {
-    m_lives->decreaseValue();
+    m_lives.decreaseValue();
     refreshDisplayValue( m_lives );
 
-    return m_lives->value();
+    return static_cast<unsigned char>( m_lives.value() );
 }
 
 void Panel::reset()
 {
     m_isLaunched = false;
-    m_lives->reset( INITIAL_LIVES_VALUE );
-    m_level->reset();
-    m_score->reset();
+    m_lives.reset( INITIAL_LIVES_VALUE );
+    m_level.reset();
+    m_score.reset();
 }

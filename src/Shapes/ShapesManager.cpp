@@ -16,6 +16,7 @@
 #include <glm/trigonometric.hpp>
 
 #include "Common/defs.h"
+#include "Common/ScopeExit.hpp"
 #include "Base.h"
 #include "Ball.h"
 #include "Brick.h"
@@ -366,20 +367,12 @@ void ShapesManager::renderFrame()
     const glm::vec2 interpBallCenter = glm::mix( m_prevBallCenter, m_ballState.center, alpha );
 
     // Restore authoritative physics positions on scope exit so no caller can ever read interpolated coords.
-    struct StateRestorer
-    {
-        ShapesManager& self;
-        float paddleX;
-        float paddleY;
-        float radius;
-        ~StateRestorer()
-        {
-            if ( self.m_paddleState.box.w > 0.0f )
-                self.m_board->moveTo( paddleX, paddleY );
-            if ( radius > 0.0f )
-                self.m_ball->moveTo( self.m_ballState.center - glm::vec2( radius ) );
-        }
-    } restorer { *this, authPaddleX, authPaddleY, r };
+    const auto restorer = makeScopeExit( [ this, authPaddleX, authPaddleY, r ]() {
+        if ( m_paddleState.box.w > 0.0f )
+            m_board->moveTo( authPaddleX, authPaddleY );
+        if ( r > 0.0f )
+            m_ball->moveTo( m_ballState.center - glm::vec2( r ) );
+    } );
 
     if ( m_paddleState.box.w > 0.0f )
         m_board->moveTo( interpPaddleX, authPaddleY );

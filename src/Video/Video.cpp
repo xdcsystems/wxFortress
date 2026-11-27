@@ -3,6 +3,7 @@
 #include <atomic>
 #include <condition_variable>
 
+#include "Common/ScopeExit.hpp"
 #include "Video.h"
 #include "Movie.h"
 
@@ -19,11 +20,9 @@ Video::Video( Movie &movie )
 
 int Video::start()
 {
-    struct QueueAbortGuard
-    {
-        decltype( m_packets )& queue;
-        ~QueueAbortGuard() { queue.abort(); }
-    } abortGuard { m_packets };
+    const auto abortGuard = makeScopeExit( [ this ]() {
+        m_packets.abort();
+    } );
 
     for ( const Picture &pic : m_pictQ )
     {

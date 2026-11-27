@@ -1,5 +1,11 @@
 #pragma once
 
+#include <memory>
+
+#include <glm/vec2.hpp>
+
+#include "Common/NonCopyable.hpp"
+
 namespace Shapes
 {
     enum class BrickType : unsigned char
@@ -15,31 +21,29 @@ namespace Shapes
         HALF,
     };
 
-    class Brick : public Base
+    class Brick : public Base, private NonCopyable
     {
         public:
-            Brick( const glm::vec2 &position, BrickType type, const glm::vec2 &texSize );
-            ~Brick();
-            Brick( const Brick& ) = delete;
-            Brick& operator=( const Brick& ) = delete;
-            Brick( Brick&& ) = delete;
-            Brick& operator=( Brick&& ) = delete;
+            Brick( const glm::vec2& position, BrickType type );
+            ~Brick() = default;
 
+            BrickType type() const { return m_type; }
             bool isAlive() const { return m_alive; }
             void kill() { m_alive = false; }
 
             static glm::vec2 SizeOf( BrickType type )
             {
                 if ( type == BrickType::HALF )
-                    return { s_defaultSize.x /2, s_defaultSize.y };
-                
+                    return { s_defaultSize.x / 2.0f, s_defaultSize.y };
+
                 return s_defaultSize;
             }
 
         private:
             static inline const glm::vec2 s_defaultSize { 57.f, 27.f };
+            BrickType m_type { BrickType::NONE };
             bool m_alive { true };
     };
-    
+
     using brickPtr = std::shared_ptr<Brick>;
 }

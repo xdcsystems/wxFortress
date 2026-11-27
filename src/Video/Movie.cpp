@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <condition_variable>
 
+#include "Common/ScopeExit.hpp"
 #include "Movie.h"
 #include "Audio.h"
 #include "Chronons.h"
@@ -428,11 +429,9 @@ int Movie::streamComponentOpen( unsigned int streamIndex )
 
 int Movie::start()
 {
-    struct QuitGuard
-    {
-        std::atomic<bool> &quit;
-        ~QuitGuard() { quit.store( true, std::memory_order_release ); }
-    } quitGuard { m_quit };
+    const auto quitGuard = makeScopeExit( [ this ]() {
+        m_quit.store( true, std::memory_order_release );
+    } );
 
     AVFormatContext *fmtctx = avformat_alloc_context();
     if ( !fmtctx )

@@ -1,13 +1,19 @@
 #pragma once
 
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
+#include <memory>
+#include <vector>
+
+#include <glm/vec2.hpp>
+#include <glm/vec3.hpp>
+#include <glm/mat4x4.hpp>
+
+#include "Common/NonCopyable.hpp"
 
 // Forward declarations
 class Texture2D;
 class Shader;
 
-class SpriteRenderer
+class SpriteRenderer : private NonCopyable
 {
     using texture2DPtr = std::shared_ptr<Texture2D>;
     using shaderPtr = std::shared_ptr<Shader>;
@@ -15,18 +21,14 @@ class SpriteRenderer
     public:
         SpriteRenderer();
         ~SpriteRenderer();
-        SpriteRenderer( const SpriteRenderer& ) = delete;
-        SpriteRenderer& operator=( const SpriteRenderer& ) = delete;
-        SpriteRenderer( SpriteRenderer&& ) = delete;
-        SpriteRenderer& operator=( SpriteRenderer&& ) = delete;
 
         void selectShader();
         void resize( const glm::mat4& projection );
 
         // Renders a defined quad textured with given sprite
         void drawSprite(
-            const glm::vec2& position, 
-            glm::vec2 size = glm::vec2( 10.0f, 10.0f ), 
+            const glm::vec2& position,
+            glm::vec2 size = glm::vec2( 10.0f, 10.0f ),
             glm::vec3 color = glm::vec3( 1.0f ) );
 
         void drawSprite(
@@ -45,9 +47,8 @@ class SpriteRenderer
         // Render state
         shaderPtr    m_shader;
         unsigned int m_VBO { 0 };
-        int m_attrVertex { 0 };
-        int m_locSize { -1 };
-        int m_locModel { -1 };
+        int m_attrVertex { -1 };
+        int m_locRect { -1 };
         int m_locSpriteColor { -1 };
 };
 

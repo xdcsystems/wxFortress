@@ -1,7 +1,11 @@
 #include <limits>
 #include <gtest/gtest.h>
 
+#include <type_traits>
 #include "FramePacer.hpp"
+#include "MathUtil.hpp"
+#include "NonCopyable.hpp"
+#include "ScopeExit.hpp"
 
 TEST( FramePacerTest, NominalPeriodClampAndReset )
 {
@@ -270,4 +274,62 @@ TEST( FramePacerTest, FixedStepAccumulatorSpiralOfDeathAndNonFiniteSafe )
     EXPECT_DOUBLE_EQ( st.accumulatorSec, 0.0 );
     EXPECT_GE( st.alpha, 0.0 );
     EXPECT_LE( st.alpha, 1.0 );
+}
+
+TEST( CommonUtilsTest, ScopeExitRunsAndDismisses )
+{
+    int count = 0;
+    {
+        auto guard = makeScopeExit( [ &count ]() { ++count; } );
+        (void)guard;
+    }
+    EXPECT_EQ( count, 1 );
+
+    {
+        auto guard = makeScopeExit( [ &count ]() { ++count; } );
+        guard.dismiss();
+    }
+    EXPECT_EQ( count, 1 );
+
+    // Lvalue functor and move-construction transfer ownership without double execution
+    auto inc = [ &count ]() { ++count; };
+    {
+        auto guard1 = makeScopeExit( inc );
+        auto guard2 = std::move( guard1 );
+        (void)guard2;
+    }
+    EXPECT_EQ( count, 2 );
+}
+
+TEST( CommonUtilsTest, MathUtilGuardsAndMoveToward )
+{
+    const float nan = std::numeric_limits<float>::quiet_NaN();
+    const float inf = std::numeric_limits<float>::infinity();
+
+    EXPECT_TRUE( MathUtil::isPositiveFinite( 0.016f ) );
+    EXPECT_FALSE( MathUtil::isPositiveFinite( 0.0f ) );
+    EXPECT_FALSE( MathUtil::isPositiveFinite( -1.0f ) );
+    EXPECT_FALSE( MathUtil::isPositiveFinite( nan ) );
+    EXPECT_FALSE( MathUtil::isPositiveFinite( inf ) );
+
+    EXPECT_FLOAT_EQ( MathUtil::clampFinite( 5.0f, 0.0f, 10.0f, 1.0f ), 5.0f );
+    EXPECT_FLOAT_EQ( MathUtil::clampFinite( nan, 0.0f, 10.0f, 1.0f ), 1.0f );
+    EXPECT_FLOAT_EQ( MathUtil::clampFinite( 5.0f, 10.0f, 2.0f, 1.0f ), 10.0f );
+    EXPECT_FLOAT_EQ( MathUtil::clampFinite( 5.0f, nan, 10.0f, 1.0f ), 1.0f );
+    EXPECT_FLOAT_EQ( MathUtil::clampFinite( 5.0f, 0.0f, nan, 1.0f ), 1.0f );
+
+    EXPECT_FLOAT_EQ( MathUtil::moveToward( 0.0f, 10.0f, 3.0f ), 3.0f );
+    EXPECT_FLOAT_EQ( MathUtil::moveToward( 9.0f, 10.0f, 3.0f ), 10.0f );
+    EXPECT_FLOAT_EQ( MathUtil::moveToward( 10.0f, 0.0f, 3.0f ), 7.0f );
+    EXPECT_FLOAT_EQ( MathUtil::moveToward( 5.0f, 10.0f, nan ), 5.0f );
+}
+
+TEST( CommonUtilsTest, NonCopyableTraits )
+{
+    struct Resource : private NonCopyable {};
+    static_assert( !std::is_copy_constructible_v<Resource> );
+    static_assert( !std::is_copy_assignable_v<Resource> );
+    static_assert( !std::is_move_constructible_v<Resource> );
+    static_assert( !std::is_move_assignable_v<Resource> );
+    EXPECT_EQ( sizeof( Resource ), 1u );
 }

@@ -7,38 +7,15 @@
     #include <wx/wx.h>
 #endif
 
-#include <memory>
-
-#include "Renderer/SpriteRenderer.h"
 #include "Base.h"
 #include "Brick.h"
 
 using namespace Shapes;
 
-Brick::Brick( const glm::vec2& position, BrickType type, const glm::vec2& texSize )
+Brick::Brick( const glm::vec2& position, BrickType type )
+    : m_type( type )
 {
-     m_size = SizeOf( type );
-     m_position = position;
-
-     m_alive = !( type == BrickType::NONE || type == BrickType::HALF );
-
-    if ( m_alive )
-    {
-        const float divisionScale = 1.f / texSize.x;
-        const float left = divisionScale * ( static_cast< unsigned char >( type ) - 1 ) * m_size.x; // left coord
-        const float right = left + divisionScale * m_size.x; // right coord
-
-        m_VBO = SpriteRenderer::generateBuffer( {
-            // pos      // tex
-            0.f, 0.f,   left,  1.f,
-            0.f, 1.f,   left,  0.f,
-            1.f, 0.f,   right, 1.f,
-            1.f, 1.f,   right, 0.f,
-        } );
-    }
-}
-
-Brick::~Brick()
-{
-    SpriteRenderer::clearBuffer( m_VBO );
+    m_size = SizeOf( type );
+    m_position = position;
+    m_alive = !( type == BrickType::NONE || type == BrickType::HALF );
 }

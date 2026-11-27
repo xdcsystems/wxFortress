@@ -7,12 +7,10 @@ attribute vec2 vertexUV;
 // Output data ; will be interpolated for each fragment.
 varying vec2 UV;
 
-uniform mat4 model;
 uniform mat4 projection;
 
 void main()
 {
-  gl_Position = projection * vec4( vertex, 0.0, 1.0 );
-  UV = vertexUV;
+    gl_Position = projection * vec4( vertex, 0.0, 1.0 );
+    UV = vec2( vertexUV.x, 1.0 - vertexUV.y );
 }
-

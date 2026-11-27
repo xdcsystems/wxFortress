@@ -31,6 +31,7 @@
 #include <unordered_map>
 #include <iterator>
 #include <algorithm>
+#include <cstring>
 
 // disable some warnings on Windows
 #if defined (_MSC_VER)
@@ -267,7 +268,10 @@ bool AudioFile<T>::writePCMToBuffer( std::vector<uint8_t>& fileData )
                 int32_t sampleAsInt;
 
                 if ( audioFormat == WavAudioFormat::IEEEFloat )
-                    sampleAsInt = ( int32_t ) reinterpret_cast< int32_t& > ( samples[ channel ][ i ] );
+                {
+                    float sampleAsFloat = static_cast<float>( samples[ channel ][ i ] );
+                    std::memcpy( &sampleAsInt, &sampleAsFloat, sizeof( sampleAsInt ) );
+                }
                 else // assume PCM
                     sampleAsInt = ( int32_t )( samples[ channel ][ i ] * std::numeric_limits<int32_t>::max() );
 
@@ -640,7 +644,11 @@ bool AudioFile<T>::decodeWaveFile( std::vector<uint8_t>& fileData )
                 T sample;
 
                 if ( audioFormat == WavAudioFormat::IEEEFloat )
-                    sample = ( T )reinterpret_cast< float& > ( sampleAsInt );
+                {
+                    float sampleFloat = 0.0f;
+                    std::memcpy( &sampleFloat, &sampleAsInt, sizeof( sampleFloat ) );
+                    sample = static_cast<T>( sampleFloat );
+                }
                 else // assume PCM
                     sample = ( T )sampleAsInt / static_cast< float > ( std::numeric_limits<std::int32_t>::max() );
 
@@ -779,7 +787,11 @@ bool AudioFile<T>::decodeAiffFile( std::vector<uint8_t>& fileData )
                 T sample;
 
                 if ( audioFormat == AIFFAudioFormat::Compressed )
-                    sample = ( T )reinterpret_cast< float& > ( sampleAsInt );
+                {
+                    float sampleFloat = 0.0f;
+                    std::memcpy( &sampleFloat, &sampleAsInt, sizeof( sampleFloat ) );
+                    sample = static_cast<T>( sampleFloat );
+                }
                 else // assume uncompressed
                     sample = ( T )sampleAsInt / static_cast< float > ( std::numeric_limits<std::int32_t>::max() );
 
@@ -939,7 +951,10 @@ bool AudioFile<T>::saveToWaveFile( std::string filePath )
                 int32_t sampleAsInt;
 
                 if ( audioFormat == WavAudioFormat::IEEEFloat )
-                    sampleAsInt = ( int32_t ) reinterpret_cast< int32_t& > ( samples[ channel ][ i ] );
+                {
+                    float sampleAsFloat = static_cast<float>( samples[ channel ][ i ] );
+                    std::memcpy( &sampleAsInt, &sampleAsFloat, sizeof( sampleAsInt ) );
+                }
                 else // assume PCM
                     sampleAsInt = ( int32_t )( samples[ channel ][ i ] * std::numeric_limits<int32_t>::max() );
 

@@ -1,14 +1,23 @@
 #pragma once
 
+#include <algorithm>
+#include <array>
+#include <functional>
+#include <memory>
+#include <vector>
+
+#include "Common/NonCopyable.hpp"
+
 // Forward declarations
-class Base;
-class Brick;
-class SpriteRenderer;
 class Texture2D;
+class SpriteRenderer;
 
 namespace Shapes
 {
-    class Bricks
+    class Base;
+    class Brick;
+
+    class Bricks : private NonCopyable
     {
         using brickPtr = std::shared_ptr<Brick>;
         using ballPtr = std::shared_ptr<Base>;
@@ -16,19 +25,25 @@ namespace Shapes
         using texture2DPtr = std::shared_ptr<Texture2D>;
 
         public:
+            static constexpr size_t kVisibleBrickTypeCount = 7; // AQUA..BLUE
+
             Bricks();
+            ~Bricks();
 
             void loadLevel( unsigned short level = 1 );
             void checkContact( const std::function<bool( brickPtr )>& checkIntersects ) const;
             const std::vector<brickPtr>& items() const { return m_bricks; }
-            bool empty() const {
-                return std::find_if( m_bricks.begin(), m_bricks.end(), []( const brickPtr &brick ) { 
-                    return brick->isAlive(); } ) == m_bricks.end();
-            };
-            void draw( const rendererPtr &renderer );
+            bool empty() const
+            {
+                return std::none_of( m_bricks.begin(), m_bricks.end(), []( const brickPtr& brick ) {
+                    return brick->isAlive();
+                } );
+            }
+            void draw( const rendererPtr& renderer );
 
         private:
-            std::vector< brickPtr> m_bricks;
+            std::vector<brickPtr> m_bricks;
             texture2DPtr m_bricksSprite;
+            std::array<unsigned int, kVisibleBrickTypeCount> m_typeVBOs {};
     };
 }

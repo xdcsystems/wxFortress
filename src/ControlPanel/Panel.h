@@ -2,22 +2,17 @@
 
 #include <memory>
 
+#include "Counter.hpp"
+
 DECLARE_LOCAL_EVENT_TYPE( wxEVT_LAUNCH_CLICKED, -1 )
 
 namespace ControlPanel
 {
-    // Forward declarations
-    template <typename T>
-    class Counter;
-
     class Panel final : public wxWindow
     {
         private:
             using bitmapPtr = std::shared_ptr<wxBitmap>;
             using memoryDCPtr = std::shared_ptr<wxMemoryDC>;
-            
-            template <typename T>
-            using counterPtr = std::shared_ptr< Counter <T> >;
 
         public:
             Panel(
@@ -40,7 +35,7 @@ namespace ControlPanel
             unsigned short currentLevel() const;
 
         private:
-             // Event Handlers
+            // Event Handlers
             void onPaint( wxPaintEvent& );
             void onLeftDown( wxMouseEvent& );
             void onMouseMove( wxMouseEvent& );
@@ -50,10 +45,8 @@ namespace ControlPanel
 
             // Helper functions
             void init();
-            void render( wxDC& dc, const bitmapPtr &panel );
-
-            template< typename T>
-            void refreshDisplayValue( counterPtr<T> counter );
+            void render( wxDC& dc, const bitmapPtr& panel );
+            void refreshDisplayValue( const Counter& counter );
 
             // Private data
             memoryDCPtr m_mdc;
@@ -64,10 +57,10 @@ namespace ControlPanel
             bitmapPtr m_bitmapControlBgBuffer;
             bitmapPtr m_numbers;
 
-            counterPtr<unsigned long> m_hiScore;
-            counterPtr<unsigned long> m_score;
-            counterPtr<unsigned char> m_lives;
-            counterPtr<unsigned short> m_level;
+            Counter m_hiScore { 67, 181 };
+            Counter m_score { 67, 267 };
+            Counter m_lives { 67, 353 };
+            Counter m_level { 67, 439 };
 
             wxDECLARE_EVENT_TABLE();
     };

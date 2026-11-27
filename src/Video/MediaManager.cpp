@@ -86,20 +86,21 @@ void MediaManager::showSkipMessage()
         : ( m_canvas ? m_canvas->GetClientSize().GetWidth() : m_videoRenderer->viewWidth() );
     const int textX = std::max( 0, logicalW - 230 );
 
+    const glm::vec2 textPos { static_cast<float>( textX ), static_cast<float>( kTextY ) };
     m_textRenderer->print( kSkipText,
-        textX,
-        kTextY,
+        textPos,
         kCharSize,
         glm::vec3( .6f, .6f, .6f ) );
 
     // Font18.png 'R' glyph ink spans x=2..10 (center 6.5) and top-down y=1..11 (GL bottom-up center 9.5)
     // with max luminance 128/255 (~0.502), so textColor=0.6 renders at ~0.301 on black.
-    const float cx = static_cast<float>( textX ) + static_cast<float>( kSkipKeyIndex ) * kCharSize.x + 6.5f;
-    const float cy = static_cast<float>( kTextY ) + 9.5f;
+    const glm::vec2 arcCenter {
+        textPos.x + static_cast<float>( kSkipKeyIndex ) * kCharSize.x + 6.5f,
+        textPos.y + 9.5f
+    };
     const float progress = m_skipHold.holding ? static_cast<float>( m_skipHold.progress ) : 0.0f;
     m_textRenderer->drawProgressArc(
-        cx,
-        cy,
+        arcCenter,
         12.5f,
         1.2f,
         progress,

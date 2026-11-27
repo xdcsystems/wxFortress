@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Common/NonCopyable.hpp"
+
 #include "IntroSkipHold.hpp"
 
 // Forward declarations
@@ -9,7 +11,7 @@ class VideoRenderer;
 class Movie;
 struct AVFrame;
 
-class MediaManager final
+class MediaManager final : private NonCopyable
 {
     using textRedererPtr = std::shared_ptr<TextRenderer>;
     using videoRedererPtr = std::shared_ptr<VideoRenderer>;
@@ -18,10 +20,6 @@ class MediaManager final
     public:
         MediaManager( wxGLCanvas* canvas, const textRedererPtr &textRenderer );
         ~MediaManager();
-        MediaManager( const MediaManager& ) = delete;
-        MediaManager& operator=( const MediaManager& ) = delete;
-        MediaManager( MediaManager&& ) = delete;
-        MediaManager& operator=( MediaManager&& ) = delete;
 
         void resize( const wxSize& size );
         void reset();
