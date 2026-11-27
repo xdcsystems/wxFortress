@@ -46,6 +46,9 @@ namespace Shapes
             // update all particles
             void update( float dt, const basePtr &object, unsigned int newParticles, glm::vec2 offset = glm::vec2( 0.f, 0.f ) );
 
+            // spawn a directional GPU spark burst (e.g. Skill Shot edge flash)
+            void spawnBurst( const glm::vec2& origin, float cutDirX, unsigned int count, const glm::vec4& color );
+
             // render all particles
             void draw();
 

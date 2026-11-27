@@ -8,6 +8,7 @@
 #endif
 
 #include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <random>
 
@@ -174,6 +175,32 @@ void ParticleGenerator::init()
         GL_CHECK( glBufferData( GL_ARRAY_BUFFER, maxBytes, nullptr, GL_STREAM_DRAW ) );
     }
     GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, 0 ) );
+}
+
+void ParticleGenerator::spawnBurst( const glm::vec2& origin, float cutDirX, unsigned int count, const glm::vec4& color )
+{
+    if ( m_particles.empty() || count == 0u ||
+         !std::isfinite( origin.x ) || !std::isfinite( origin.y ) )
+        return;
+
+    const float dirSign = ( std::isfinite( cutDirX ) && cutDirX < 0.0f ) ? -1.0f : 1.0f;
+    const unsigned int clampedCount = ( std::min )( count, static_cast<unsigned int>( m_particles.size() ) );
+    for ( unsigned int i = 0u; i < clampedCount; ++i )
+    {
+        const unsigned int idx = firstUnusedParticle();
+        Particle& pt = m_particles[ idx ];
+        const float frac = ( clampedCount > 1u )
+            ? ( static_cast<float>( i ) / static_cast<float>( clampedCount - 1u ) )
+            : 0.5f;
+        const float spreadX = dirSign * ( 75.0f + frac * 190.0f ) + ( frac - 0.5f ) * 60.0f;
+        const float spreadY = 90.0f + ( 1.0f - std::fabs( frac - 0.5f ) * 1.4f ) * 150.0f;
+
+        pt.Position = { origin.x - 5.0f + ( frac - 0.5f ) * 10.0f, origin.y - 2.0f };
+        // Note: ParticleGenerator::update() advances Position -= Velocity * dt, so negate world velocity.
+        pt.Velocity = { -spreadX, -spreadY };
+        pt.Color = color;
+        pt.Life = 0.28f + 0.14f * ( 1.0f - frac );
+    }
 }
 
 void ParticleGenerator::clear()

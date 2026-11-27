@@ -8,7 +8,6 @@
 #endif
 
 #include <algorithm>
-#include <map>
 #include <string>
 
 #include <GL/glew.h>
@@ -866,12 +865,18 @@ void RenderWindow::onScoreIncreased( wxCommandEvent &event )
 
 void RenderWindow::onPaddleContact( wxCommandEvent &event )
 {
-    static std::map<wxEventType, void ( SoundManager::* )()> s_contactSound = {
-      { wxEVT_PING,  &SoundManager::playPing },
-      { wxEVT_PONG, &SoundManager::playPong }
-    };
+    if ( !m_soundManager )
+        return;
 
-    ( m_soundManager.get()->*( s_contactSound[ event.GetEventType() ] ) )();
+    const int pitchPct = event.GetInt();
+    const float pitch = ( pitchPct > 0 )
+        ? std::clamp( static_cast<float>( pitchPct ) / 100.0f, 0.5f, 2.0f )
+        : 1.0f;
+
+    if ( event.GetEventType() == wxEVT_PING )
+        m_soundManager->playPing( pitch );
+    else if ( event.GetEventType() == wxEVT_PONG )
+        m_soundManager->playPong( pitch );
 }
 
 void RenderWindow::onArmorHit( wxCommandEvent& )

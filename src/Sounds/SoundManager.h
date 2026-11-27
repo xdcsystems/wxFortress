@@ -47,9 +47,9 @@ class SoundManager final : private NonCopyable
         void stopLaunchAudio();
         void playRocket() const;
         void playDestroyBrick( float pitch = 1.f );
-        void playPing();
+        void playPing( float pitch = 1.f );
         void playArmorHit( float pitch = 1.25f );
-        void playPong();
+        void playPong( float pitch = 1.f );
         void playLevelComplete();
         void playBallLost();
         void playCharShow();

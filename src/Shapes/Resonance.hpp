@@ -48,6 +48,17 @@ namespace Resonance
         return kPentatonicPitch[ static_cast<size_t>( mult - 1u ) ];
     }
 
+    // Maps paddle/wall impact speed (px/s) to OpenAL pitch, with an extra snap lift on Skill Shot.
+    inline float impactPitchForSpeed( float speed, bool isSkillShot = false ) noexcept
+    {
+        if ( !std::isfinite( speed ) || speed <= 0.0f )
+            return isSkillShot ? 1.15f : 0.95f;
+        const float t = std::clamp( ( speed - 187.5f ) / ( 650.0f - 187.5f ), 0.0f, 1.0f );
+        const float basePitch = 0.92f + t * 0.32f; // [0.92 .. 1.24]
+        const float lifted = isSkillShot ? ( basePitch + 0.18f ) : basePitch;
+        return std::clamp( lifted, 0.85f, 1.45f );
+    }
+
     inline float musicDuckScaleForMultiplier( unsigned int multiplier ) noexcept
     {
         if ( multiplier < 3u )

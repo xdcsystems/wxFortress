@@ -77,6 +77,11 @@ namespace Shapes::Physics
         float minAbsSinAngle { 0.1736f }; // ~10 deg minimum vertical slope to prevent horizontal lock
         float paddleAccel { 2200.0f };    // px/s^2
         float paddleMaxSpeed { 750.0f };  // px/s
+        float skillShotMinEdgeRatio { 0.45f };    // |u| >= 0.45 on paddle top
+        float skillShotMinPaddleVel { 180.0f };   // |effectivePaddleVelX| >= 180 px/s
+        float skillShotMaxSpinDeg { 12.0f };      // controlled angle bias (clamped to maxPaddleBounceDeg)
+        float skillShotSpeedMultiplier { 1.12f }; // +12% burst on deliberate edge cut
+        float skillShotMaxSpeed { 520.0f };       // playable speed ceiling for Skill Shot burst
     };
 
     enum class HitKind : std::uint8_t
@@ -91,7 +96,12 @@ namespace Shapes::Physics
     {
         bool hitWall { false };
         bool hitPaddle { false };
+        bool skillShot { false };
         bool ballLost { false };
+        Vec2 skillShotPos { 0.0f, 0.0f };
+        float skillShotDir { 0.0f };
+        float paddleImpactSpeed { 0.0f };
+        float wallImpactSpeed { 0.0f };
         std::vector<std::size_t> hitBricks;
     };
 
@@ -113,12 +123,45 @@ namespace Shapes::Physics
             float paddleCenterX,
             float paddleWidth,
             float speed,
-            float maxPaddleBounceDeg )
+            float maxPaddleBounceDeg,
+            float effectivePaddleVelX = 0.0f,
+            const ArenaConfig* cfg = nullptr,
+            bool* outSkillShot = nullptr,
+            float* outSkillDir = nullptr )
         {
-            const float halfW = std::max( 0.5f * paddleWidth, 1.0f );
+            const float halfW = ( std::max )( 0.5f * paddleWidth, 1.0f );
             const float u = std::clamp( ( ballCenterX - paddleCenterX ) / halfW, -1.0f, 1.0f );
-            const float theta = u * glm::radians( maxPaddleBounceDeg );
-            return { speed * std::sin( theta ), speed * std::cos( theta ) };
+            const float maxRad = glm::radians( maxPaddleBounceDeg );
+
+            float spinRad = 0.0f;
+            float outSpeed = speed;
+            bool isSkill = false;
+            float skillDir = 0.0f;
+
+            if ( cfg && std::isfinite( effectivePaddleVelX ) && cfg->paddleMaxSpeed > kEps )
+            {
+                const float clampedVel = std::clamp( effectivePaddleVelX, -cfg->paddleMaxSpeed, cfg->paddleMaxSpeed );
+                const float spinNorm = clampedVel / cfg->paddleMaxSpeed;
+                spinRad = spinNorm * glm::radians( cfg->skillShotMaxSpinDeg );
+
+                if ( std::fabs( u ) >= cfg->skillShotMinEdgeRatio &&
+                     std::fabs( clampedVel ) >= cfg->skillShotMinPaddleVel )
+                {
+                    isSkill = true;
+                    skillDir = ( clampedVel >= 0.0f ) ? 1.0f : -1.0f;
+                    const float arenaHi = ( std::max )( cfg->minSpeed, cfg->maxSpeed );
+                    const float skillCap = ( std::min )( arenaHi, ( std::max )( speed, cfg->skillShotMaxSpeed ) );
+                    outSpeed = std::clamp( speed * cfg->skillShotSpeedMultiplier, cfg->minSpeed, skillCap );
+                }
+            }
+
+            if ( outSkillShot )
+                *outSkillShot = isSkill;
+            if ( outSkillDir )
+                *outSkillDir = skillDir;
+
+            const float theta = std::clamp( u * maxRad + spinRad, -maxRad, maxRad );
+            return { outSpeed * std::sin( theta ), outSpeed * std::cos( theta ) };
         }
 
         // Static overlap resolution: circle at c with radius r vs AABB b.
@@ -339,13 +382,32 @@ namespace Shapes::Physics
 
     // Advances ball physics by dtSec using analytical swept-circle CCD (up to kMaxSubsteps).
     // Never throws, never produces NaN, never tunnels even at high speed.
+    // Exponentially smoothed effective paddle horizontal velocity (works identically for keyboard, mouse, and --robot).
+    inline float smoothPaddleVelX(
+        float prevSmoothedVelX,
+        float paddleDeltaX,
+        float dtSec,
+        float paddleMaxSpeed ) noexcept
+    {
+        const float safeMax = ( std::isfinite( paddleMaxSpeed ) && paddleMaxSpeed > 0.0f ) ? paddleMaxSpeed : 750.0f;
+        const float safePrev = std::isfinite( prevSmoothedVelX ) ? std::clamp( prevSmoothedVelX, -safeMax, safeMax ) : 0.0f;
+        if ( !std::isfinite( dtSec ) || dtSec <= detail::kEps || !std::isfinite( paddleDeltaX ) )
+            return safePrev;
+
+        const float instantVel = std::clamp( paddleDeltaX / dtSec, -safeMax, safeMax );
+        constexpr float kTauSec = 0.035f;
+        const float alpha = 1.0f - std::exp( -dtSec / kTauSec );
+        return std::clamp( safePrev + alpha * ( instantVel - safePrev ), -safeMax, safeMax );
+    }
+
     inline StepEvents stepBall(
         BallState& ball,
         const Aabb& paddle,
         std::vector<BrickItem>& bricks,
         float dtSec,
         const ArenaConfig& cfg,
-        float paddleDeltaX = 0.0f )
+        float paddleDeltaX = 0.0f,
+        float effectivePaddleVelX = std::numeric_limits<float>::quiet_NaN() )
     {
         StepEvents events;
         if ( !std::isfinite( dtSec ) || dtSec <= 0.0f ||
@@ -356,6 +418,11 @@ namespace Shapes::Physics
         const float clampedDt = std::min( dtSec, 0.05f );
         const float safePaddleDeltaX = std::isfinite( paddleDeltaX ) ? paddleDeltaX : 0.0f;
         const float paddleVelX = safePaddleDeltaX / clampedDt;
+        const float safeMaxPaddleVel = ( std::isfinite( cfg.paddleMaxSpeed ) && cfg.paddleMaxSpeed > 0.0f )
+            ? cfg.paddleMaxSpeed
+            : 0.0f;
+        const float rawSkillVelX = std::isfinite( effectivePaddleVelX ) ? effectivePaddleVelX : paddleVelX;
+        const float skillPaddleVelX = std::clamp( rawSkillVelX, -safeMaxPaddleVel, safeMaxPaddleVel );
         float curPaddleX = paddle.x - safePaddleDeltaX;
         float remTime = clampedDt;
 
@@ -455,12 +522,22 @@ namespace Shapes::Physics
                 const float spd = std::clamp( length( ball.vel ), cfg.minSpeed, cfg.maxSpeed );
                 if ( bestNormal.y > 0.15f )
                 {
-                    // Top/upper-corner bounce: angle determined smoothly across paddle width [-maxDeg, +maxDeg] from +Y.
+                    // Top/upper-corner bounce: angle + controlled Skill Shot spin/impulse from effective paddle velocity.
                     const float hitPaddleCenterX = hitPaddleX + 0.5f * paddle.w;
+                    bool isSkill = false;
+                    float skillDir = 0.0f;
                     ball.vel = detail::computePaddleTopBounceVel(
-                        ball.center.x, hitPaddleCenterX, paddle.w, spd, cfg.maxPaddleBounceDeg );
+                        ball.center.x, hitPaddleCenterX, paddle.w, spd, cfg.maxPaddleBounceDeg,
+                        skillPaddleVelX, &cfg, &isSkill, &skillDir );
                     if ( ball.center.y < paddle.top() + ball.radius )
                         ball.center.y = paddle.top() + ball.radius + detail::kPushOut;
+                    events.paddleImpactSpeed = length( ball.vel );
+                    if ( isSkill )
+                    {
+                        events.skillShot = true;
+                        events.skillShotPos = { ball.center.x, paddle.top() };
+                        events.skillShotDir = skillDir;
+                    }
                 }
                 else
                 {
@@ -474,6 +551,7 @@ namespace Shapes::Physics
                     ball.vel = detail::enforceMinVerticalSlope(
                         normalizeSafe( newVel, bestNormal ) * spd,
                         cfg.minAbsSinAngle );
+                    events.paddleImpactSpeed = length( ball.vel );
                 }
             }
             else if ( bestKind == HitKind::Wall )
@@ -482,6 +560,7 @@ namespace Shapes::Physics
                 if ( dot( ball.vel, bestNormal ) < 0.0f )
                     ball.vel = glm::reflect( ball.vel, bestNormal );
                 ball.vel = detail::enforceMinVerticalSlope( ball.vel, cfg.minAbsSinAngle );
+                events.wallImpactSpeed = length( ball.vel );
             }
             else if ( bestKind == HitKind::Brick )
             {
@@ -550,8 +629,18 @@ namespace Shapes::Physics
             if ( ball.center.y >= paddle.center().y )
             {
                 ball.center.y = paddle.top() + ball.radius + detail::kPushOut;
+                bool isSkill = false;
+                float skillDir = 0.0f;
                 ball.vel = detail::computePaddleTopBounceVel(
-                    ball.center.x, paddle.center().x, paddle.w, spd, cfg.maxPaddleBounceDeg );
+                    ball.center.x, paddle.center().x, paddle.w, spd, cfg.maxPaddleBounceDeg,
+                    skillPaddleVelX, &cfg, &isSkill, &skillDir );
+                events.paddleImpactSpeed = length( ball.vel );
+                if ( isSkill )
+                {
+                    events.skillShot = true;
+                    events.skillShotPos = { ball.center.x, paddle.top() };
+                    events.skillShotDir = skillDir;
+                }
             }
             else
             {
@@ -563,6 +652,7 @@ namespace Shapes::Physics
                 ball.center.x = std::clamp( ball.center.x, ball.radius, maxCenterX );
                 if ( ball.vel.x * pushDir < 0.0f )
                     ball.vel.x = -ball.vel.x;
+                events.paddleImpactSpeed = length( ball.vel );
             }
         }
 
