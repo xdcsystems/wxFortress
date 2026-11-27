@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cmath>
+#include <cstddef>
+
 namespace Shapes
 {
     class Explosion : public Base
@@ -7,15 +10,25 @@ namespace Shapes
         using basePtr = std::shared_ptr<Base>;
 
         public:
+            static constexpr float kFramesPerSec = 60.0f;
+
             Explosion( const basePtr &shape, const glm::vec2 &size );
 
-            bool isActive() const { return m_active; }
-            unsigned short current() { return m_current++; }
-            void kill() { m_active = false; }
+            bool isActive() const noexcept { return m_active; }
+            unsigned short currentFrame() const noexcept { return static_cast<unsigned short>( m_frameAccum ); }
+            void step( float dtSec, std::size_t totalFrames ) noexcept
+            {
+                if ( !m_active || !std::isfinite( dtSec ) || dtSec <= 0.0f )
+                    return;
+                m_frameAccum += dtSec * kFramesPerSec;
+                if ( static_cast<std::size_t>( m_frameAccum ) >= totalFrames )
+                    m_active = false;
+            }
+            void kill() noexcept { m_active = false; }
 
         private:
             bool m_active { true };
-            unsigned short m_current { 0 };
+            float m_frameAccum { 0.0f };
     };
     
     using explosionPtr = std::shared_ptr<Explosion>;

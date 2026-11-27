@@ -22,6 +22,7 @@
 #include "Renderer/Shader.h"
 #include "Renderer/ResourceManager.h"
 
+#include "Shapes/StageDirector.hpp"
 #include "TextRenderer.h"
 
 DEFINE_LOCAL_EVENT_TYPE( wxEVT_CHAR_SHOW )
@@ -229,6 +230,7 @@ void TextRenderer::switchToFinishState( unsigned short stage, unsigned int incid
         "The sample demonstrated high penetration and large",
         "aggregate power.",
         "Contour breach incidents recorded: " + std::to_string( incidents ) + ".",
+        StageDirector::finishAssessmentLine( m_stage, incidents ),
         "In order to improve the reliability of the product,",
         "additional tests are recommended.",
         "If confirmed, the test program will be restarted",

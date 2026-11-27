@@ -30,6 +30,7 @@ namespace Shapes
 
             void add( const basePtr& shape );
             void clear();
+            void update( float dtSec );
             void draw( const rendererPtr& renderer );
             bool empty() const;
 

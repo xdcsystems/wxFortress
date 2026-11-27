@@ -65,6 +65,7 @@ BEGIN_EVENT_TABLE( RenderWindow, wxGLCanvas )
     EVT_COMMAND( wxID_ANY, wxEVT_PONG, RenderWindow::onPaddleContact )
     EVT_COMMAND( wxID_ANY, wxEVT_ARMOR_HIT, RenderWindow::onArmorHit )
     EVT_COMMAND( wxID_ANY, wxEVT_PROTOCOL_ACTIVATED, RenderWindow::onProtocolActivated )
+    EVT_COMMAND( wxID_ANY, wxEVT_TELEMETRY_SIGNAL, RenderWindow::onTelemetrySignal )
     EVT_COMMAND( wxID_ANY, wxEVT_STAGE_FINISHED, RenderWindow::onStageFinished )
     EVT_COMMAND( wxID_ANY, wxEVT_CHAR_SHOW, RenderWindow::onTextCharShow )
 END_EVENT_TABLE()
@@ -238,6 +239,19 @@ void RenderWindow::loadLevel( unsigned short level )
     {
         m_shapesManager->loadLevel( level, m_stage );
         m_currentLevel = level;
+        m_newRecordInRound = false;
+        m_roundFinishedAwaitingNext = false;
+        m_highSpeedTriggeredInRound = false;
+        m_highSpeedCapture.reset();
+        if ( m_stage >= 1u && level == 1u && m_state != State::PLAY )
+        {
+            const std::string escMsg = m_telemetry.tryEmit(
+                StageDirector::TelemetryEvent::StageEscalation,
+                m_stage,
+                m_hudStatus.hasTransient() );
+            if ( !escMsg.empty() )
+                m_hudStatus.showTransient( escMsg, 2.4 );
+        }
         if ( m_soundManager && m_state != State::PLAY )
             m_soundManager->playMusic( level );
     }
@@ -256,6 +270,11 @@ void RenderWindow::resetBallSpeed()
         m_shapesManager->setStageIncidents( 0 );
     m_impactFeedback.reset();
     m_hudStatus.clearTransient();
+    m_highSpeedCapture.reset();
+    m_telemetry.reset();
+    m_newRecordInRound = false;
+    m_roundFinishedAwaitingNext = false;
+    m_highSpeedTriggeredInRound = false;
 }
 
 void RenderWindow::resetStage()
@@ -269,7 +288,15 @@ void RenderWindow::syncScoreTelemetry( uint32_t currentScore, uint32_t hiScore, 
     m_hiScore = hiScore;
     if ( newRecord )
     {
+        m_newRecordInRound = true;
         m_hudStatus.showTransient( "NEW RECORD", 2.6 );
+        if ( m_state == State::RUN && m_roundFinishedAwaitingNext && !m_highSpeedTriggeredInRound )
+        {
+            m_highSpeedCapture.trigger();
+            m_highSpeedTriggeredInRound = true;
+            if ( m_soundManager )
+                m_soundManager->duckMusicTemporarily( 0.6 );
+        }
     }
 }
 
@@ -291,6 +318,11 @@ void RenderWindow::start()
     m_state = State::NEWROUND;
     m_isRunning = true;
     m_impactFeedback.reset();
+    m_highSpeedCapture.reset();
+    m_telemetry.reset();
+    m_newRecordInRound = false;
+    m_roundFinishedAwaitingNext = false;
+    m_highSpeedTriggeredInRound = false;
     resetSimulationTiming();
     if ( m_soundManager )
         m_soundManager->playMusic( m_currentLevel );
@@ -323,6 +355,11 @@ void RenderWindow::stop()
     m_isRunning = false;
     m_impactFeedback.reset();
     m_hudStatus.clearTransient();
+    m_highSpeedCapture.reset();
+    m_telemetry.reset();
+    m_newRecordInRound = false;
+    m_roundFinishedAwaitingNext = false;
+    m_highSpeedTriggeredInRound = false;
     if ( m_mediaManager )
     {
         ensureContextCurrent();
@@ -442,6 +479,9 @@ void RenderWindow::onIdle( wxIdleEvent &event )
 
         m_impactFeedback.step( dtSec );
         m_hudStatus.step( dtSec );
+        m_telemetry.step( dtSec );
+        if ( m_state == State::RUN && !m_impactFeedback.isHitStopActive() )
+            m_highSpeedCapture.step( dtSec );
 
         if ( m_soundManager )
         {
@@ -500,11 +540,29 @@ void RenderWindow::onIdle( wxIdleEvent &event )
                m_state == State::COUNTDOWN || m_state == State::RUN ) )
         {
             constexpr FramePacing::FixedStepConfig kFixedCfg {};
-            const int fixedSteps = FramePacing::consumeFixedSteps( m_fixedStep, dtSec, kFixedCfg );
+            const double simDtSec = dtSec * m_highSpeedCapture.timeScale();
+            const int fixedSteps = FramePacing::consumeFixedSteps( m_fixedStep, simDtSec, kFixedCfg );
             const bool wasRunning = m_shapesManager->isRunning();
             for ( int step = 0; step < fixedSteps; ++step )
             {
                 m_shapesManager->update( kFixedCfg.fixedDtSec, fixedSteps - step );
+                bool lastKillChainBlast = false;
+                unsigned int finishResonance = 1u;
+                if ( m_shapesManager->consumeRoundFinishTelemetry( lastKillChainBlast, finishResonance ) )
+                {
+                    m_roundFinishedAwaitingNext = true;
+                    if ( StageDirector::shouldTriggerHighSpeedCapture(
+                             m_newRecordInRound,
+                             lastKillChainBlast,
+                             finishResonance ) )
+                    {
+                        m_highSpeedCapture.trigger();
+                        m_highSpeedTriggeredInRound = true;
+                        m_hudStatus.showTransient( StageDirector::kHighSpeedCaptureBanner, 2.2 );
+                        if ( m_soundManager )
+                            m_soundManager->duckMusicTemporarily( 0.6 );
+                    }
+                }
                 bool isMaxOrFinal = false;
                 if ( m_shapesManager->consumePendingImpact( isMaxOrFinal ) )
                 {
@@ -912,8 +970,20 @@ void RenderWindow::onProtocolActivated( wxCommandEvent &event )
         m_soundManager->playProtocolActivate( AiProtocols::isRiskyProtocol( kind ) );
 }
 
+void RenderWindow::onTelemetrySignal( wxCommandEvent &event )
+{
+    const auto ev = static_cast<StageDirector::TelemetryEvent>( event.GetInt() );
+    const std::string msg = m_telemetry.tryEmit( ev, m_stage, m_hudStatus.hasTransient() );
+    if ( !msg.empty() )
+        m_hudStatus.showTransient( msg, 2.2 );
+}
+
 void RenderWindow::onRoundCompleted( wxCommandEvent &event )
 {
+    m_highSpeedCapture.reset();
+    m_newRecordInRound = false;
+    m_roundFinishedAwaitingNext = false;
+    m_highSpeedTriggeredInRound = false;
     m_soundManager->playLevelComplete();
     m_state = State::NEWROUND;
     resetSimulationTiming();
@@ -930,6 +1000,9 @@ void RenderWindow::onBallLost( wxCommandEvent &event )
     ++m_stageIncidents;
     if ( m_shapesManager )
         m_shapesManager->setStageIncidents( m_stageIncidents );
+    m_highSpeedCapture.reset();
+    m_roundFinishedAwaitingNext = false;
+    m_highSpeedTriggeredInRound = false;
     m_impactFeedback.triggerBreachFlash();
     m_hudStatus.showTransient( "INCIDENT 1844/27: BREACH", 2.8 );
     m_soundManager->playBallLost();
@@ -948,6 +1021,11 @@ void RenderWindow::onTextCharShow( wxCommandEvent& )
 
 void RenderWindow::onStageFinished( wxCommandEvent& )
 {
+    m_highSpeedCapture.reset();
+    m_telemetry.reset();
+    m_newRecordInRound = false;
+    m_roundFinishedAwaitingNext = false;
+    m_highSpeedTriggeredInRound = false;
     m_textRenderer->selectFontType( TextRendererFont::OLD );
     m_textRenderer->switchToFinishState( ++m_stage, m_stageIncidents );
     m_state = State::FINISHED;

@@ -65,6 +65,30 @@ bool Explosions::empty() const
     } );
 }
 
+void Explosions::update( float dtSec )
+{
+    if ( m_explosions.empty() )
+        return;
+
+    const std::size_t frameCount = m_uvRects.size();
+    for ( const auto& explosion : m_explosions )
+    {
+        if ( !explosion->isActive() )
+            continue;
+        if ( frameCount == 0u )
+            explosion->kill();
+        else
+            explosion->step( dtSec, frameCount );
+    }
+
+    m_explosions.erase(
+        std::remove_if(
+            m_explosions.begin(),
+            m_explosions.end(),
+            []( const explosionPtr& explosion ) { return !explosion->isActive(); } ),
+        m_explosions.end() );
+}
+
 void Explosions::draw( const rendererPtr& renderer )
 {
     if ( !m_explosionsSprite )
@@ -76,20 +100,11 @@ void Explosions::draw( const rendererPtr& renderer )
     {
         if ( explosion->isActive() )
         {
-            const auto current = explosion->current();
+            const auto current = explosion->currentFrame();
             if ( current < m_uvRects.size() )
             {
                 renderer->drawSprite( explosion->position(), explosion->size(), glm::vec3( 1.0f ), m_uvRects[ current ] );
-                continue;
             }
-            explosion->kill();
         }
     }
-
-    m_explosions.erase(
-        std::remove_if(
-            m_explosions.begin(),
-            m_explosions.end(),
-            []( const explosionPtr& explosion ) { return !explosion->isActive(); } ),
-        m_explosions.end() );
 }
