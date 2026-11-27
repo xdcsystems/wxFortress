@@ -314,14 +314,14 @@ jobs:
             NOTES="Automated rolling build from \`master\` (\`${GITHUB_SHA:0:7}\`). Includes Windows x86 portable zip and Linux amd64 \`.deb\` package."
             if gh release view "$TAG" >/dev/null 2>&1; then
               gh api -X PATCH "repos/${GITHUB_REPOSITORY}/git/refs/tags/${TAG}" -f sha="${GITHUB_SHA}" -F force=true >/dev/null || true
-              gh release edit "$TAG" --title "wxFortress (latest)" --notes "$NOTES" --latest
+              gh release edit "$TAG" --title "wxFortress (latest)" --notes "$NOTES" --prerelease
               gh release upload "$TAG" release-assets/* --clobber
             else
               gh release create "$TAG" release-assets/* \
                 --target "${GITHUB_SHA}" \
                 --title "wxFortress (latest)" \
                 --notes "$NOTES" \
-                --latest
+                --prerelease
             fi
           fi
 
