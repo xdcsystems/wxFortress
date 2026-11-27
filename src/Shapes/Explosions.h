@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Common/NonCopyable.hpp"
+
 // Forward declarations
 class Base;
 class Explosion;
@@ -8,7 +10,7 @@ class Texture2D;
 
 namespace Shapes
 {
-    class Explosions
+    class Explosions : private NonCopyable
     {
         using basePtr = std::shared_ptr<Base>;
         using explosionPtr = std::shared_ptr<Explosion>;
@@ -18,10 +20,6 @@ namespace Shapes
         public:
             Explosions();
             ~Explosions();
-            Explosions( const Explosions& ) = delete;
-            Explosions& operator=( const Explosions& ) = delete;
-            Explosions( Explosions&& ) = delete;
-            Explosions& operator=( Explosions&& ) = delete;
 
             void add( const basePtr &shape );
             void clear();

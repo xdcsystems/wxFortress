@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Common/NonCopyable.hpp"
+
 #include <memory>
 #include <glm/mat4x4.hpp>
 
@@ -24,7 +26,7 @@ namespace Shapes
         STOPPED,
     };
 
-    class ShapesManager final
+    class ShapesManager final : private NonCopyable
     {
         using rendererPtr = std::shared_ptr<SpriteRenderer>;
         using particlesPtr = std::shared_ptr<ParticleGenerator>;
@@ -33,10 +35,6 @@ namespace Shapes
             ShapesManager( wxWindow* parent, const rendererPtr& spriteRenderer );
             ~ShapesManager() = default;
 
-            ShapesManager( const ShapesManager& ) = delete;
-            ShapesManager( ShapesManager&& ) = delete;
-            ShapesManager& operator= ( const ShapesManager& ) = delete;
-            ShapesManager& operator= ( ShapesManager&& ) = delete;
 
             void run( bool bNewRound = false );
             void pause() { m_state = State::PAUSED; }

@@ -11,6 +11,7 @@ if( TARGET GTest::gtest_main )
     target_include_directories(
         ut_BallPhysics
         PRIVATE
+        "${CMAKE_SOURCE_DIR}/src"
         "${CMAKE_SOURCE_DIR}/src/Common"
         "${CMAKE_SOURCE_DIR}/src/Shapes"
         "${CMAKE_SOURCE_DIR}/src/Video"

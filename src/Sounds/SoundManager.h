@@ -1,6 +1,9 @@
 #pragma once
 
+#include "Common/NonCopyable.hpp"
+
 #include <array>
+#include <memory>
 #include <string>
 
 #include <AL/al.h>
@@ -28,7 +31,7 @@
 template <class T>
 class AudioFile;
 
-class SoundManager final
+class SoundManager final : private NonCopyable
 {
     public:
         static constexpr size_t kMusicTrackCount = 5;
@@ -36,10 +39,6 @@ class SoundManager final
 
         SoundManager();
         ~SoundManager();
-        SoundManager( const SoundManager& ) = delete;
-        SoundManager& operator=( const SoundManager& ) = delete;
-        SoundManager( SoundManager&& ) = delete;
-        SoundManager& operator=( SoundManager&& ) = delete;
 
         int init();
         void playSiren();
@@ -76,9 +75,33 @@ class SoundManager final
         void cleanSources();
         ALuint playStereoSource( ALuint buffer, float gain = 1.f );
         void applyMusicGain( float gain );
+        void startMusicTrack( ALuint buffer, bool isHelp, bool isVictory );
 
-        ALCdevice* m_device { nullptr };
-        ALCcontext* m_context { nullptr };
+        struct AlDeviceDeleter
+        {
+            void operator()( ALCdevice* dev ) const noexcept
+            {
+                if ( dev )
+                    alcCloseDevice( dev );
+            }
+        };
+        struct AlContextDeleter
+        {
+            void operator()( ALCcontext* ctx ) const noexcept
+            {
+                if ( ctx )
+                {
+                    if ( alcGetCurrentContext() == ctx )
+                        alcMakeContextCurrent( nullptr );
+                    alcDestroyContext( ctx );
+                }
+            }
+        };
+
+        // Declared in strict teardown reverse order: context destroyed before device;
+        // ~SoundManager() deletes all sources/buffers before member destructors run.
+        std::unique_ptr<ALCdevice, AlDeviceDeleter> m_device;
+        std::unique_ptr<ALCcontext, AlContextDeleter> m_context;
         ALuint m_monoSoundBuffer { 0 };
 
         ALuint m_stereoLounchSoundBuffer { 0 };

@@ -82,22 +82,27 @@ SoundManager::SoundManager()
 {
     // find the default audio device
     const ALCchar* defaultDeviceString = alcGetString( /*device*/ nullptr, ALC_DEFAULT_DEVICE_SPECIFIER );
-    m_device = alcOpenDevice( defaultDeviceString );
+    m_device.reset( alcOpenDevice( defaultDeviceString ) );
     if ( !m_device )
     {
         std::cerr << "failed to get the default device for OpenAL" << std::endl;
         throw std::runtime_error { "failed to get the default device for OpenAL" };
     }
-    std::cout << "OpenAL Device: " << alcGetString( m_device, ALC_DEVICE_SPECIFIER ) << std::endl;
+    std::cout << "OpenAL Device: " << alcGetString( m_device.get(), ALC_DEVICE_SPECIFIER ) << std::endl;
 
     // Create an OpenAL audio context from the device
-    m_context = alcCreateContext( m_device, /*attrlist*/ nullptr );
+    m_context.reset( alcCreateContext( m_device.get(), /*attrlist*/ nullptr ) );
+    if ( !m_context )
+    {
+        std::cerr << "failed to create the OpenAL context" << std::endl;
+        throw std::runtime_error { "failed to create the OpenAL context" };
+    }
 
     // Activate this context so that OpenAL state modifications are applied to the context
-    if ( !alcMakeContextCurrent( m_context ) )
+    if ( !alcMakeContextCurrent( m_context.get() ) )
     {
         std::cerr << "failed to make the OpenAL context the current context" << std::endl;
-        throw std::runtime_error{ "failed to make the OpenAL context the current context" };
+        throw std::runtime_error { "failed to make the OpenAL context the current context" };
     }
 
     // Create a listener in 3d space (ie the player)
@@ -152,9 +157,8 @@ SoundManager::~SoundManager()
     alec( alDeleteBuffers( 1, &m_stereoBallLostSoundBuffer ) );
     alec( alDeleteBuffers( 1, &m_stereoCharShowSoundBuffer ) );
 
-    alcMakeContextCurrent( nullptr );
-    alcDestroyContext( m_context );
-    alcCloseDevice( m_device );
+    // m_context and m_device are released automatically in reverse declaration order
+    // after all sources and buffers above are deleted.
 }
 
 int SoundManager::loadBuffer( AudioFile<float>& soundFile, const std::string& name, ALuint* buffer )
@@ -490,6 +494,23 @@ void SoundManager::applyMusicGain( float gain )
         alec( alSourcef( m_musicSource, AL_GAIN, m_musicGain.currentGain ) );
 }
 
+void SoundManager::startMusicTrack( ALuint buffer, bool isHelp, bool isVictory )
+{
+    if ( m_musicSource == 0 || buffer == 0 )
+        return;
+
+    alec( alSourceStop( m_musicSource ) );
+    alec( alSourcei( m_musicSource, AL_BUFFER, static_cast<ALint>( buffer ) ) );
+    alec( alSourcei( m_musicSource, AL_LOOPING, AL_TRUE ) );
+
+    m_musicGain.inHelpMusic = isHelp;
+    m_musicGain.inVictoryMusic = isVictory;
+    applyMusicGain( MusicGain::computeTargetMusicGain( m_musicGain ) );
+    alec( alSourcePlay( m_musicSource ) );
+
+    m_musicPlaying = true;
+}
+
 void SoundManager::playMusic( unsigned short level )
 {
     if ( m_musicSource == 0 )
@@ -510,17 +531,8 @@ void SoundManager::playMusic( unsigned short level )
             return;
     }
 
-    alec( alSourceStop( m_musicSource ) );
-    alec( alSourcei( m_musicSource, AL_BUFFER, static_cast<ALint>( m_musicBuffers[ trackIdx ] ) ) );
-    alec( alSourcei( m_musicSource, AL_LOOPING, AL_TRUE ) );
-
-    m_musicGain.inHelpMusic = false;
-    m_musicGain.inVictoryMusic = false;
-    applyMusicGain( MusicGain::computeTargetMusicGain( m_musicGain ) );
-    alec( alSourcePlay( m_musicSource ) );
-
     m_currentMusicTrack = trackNum;
-    m_musicPlaying = true;
+    startMusicTrack( m_musicBuffers[ trackIdx ], false, false );
 }
 
 void SoundManager::playHelpMusic()
@@ -537,16 +549,7 @@ void SoundManager::playHelpMusic()
             return;
     }
 
-    alec( alSourceStop( m_musicSource ) );
-    alec( alSourcei( m_musicSource, AL_BUFFER, static_cast<ALint>( m_helpMusicBuffer ) ) );
-    alec( alSourcei( m_musicSource, AL_LOOPING, AL_TRUE ) );
-
-    m_musicGain.inHelpMusic = true;
-    m_musicGain.inVictoryMusic = false;
-    applyMusicGain( MusicGain::computeTargetMusicGain( m_musicGain ) );
-    alec( alSourcePlay( m_musicSource ) );
-
-    m_musicPlaying = true;
+    startMusicTrack( m_helpMusicBuffer, true, false );
 }
 
 void SoundManager::playVictoryMusic()
@@ -563,16 +566,7 @@ void SoundManager::playVictoryMusic()
             return;
     }
 
-    alec( alSourceStop( m_musicSource ) );
-    alec( alSourcei( m_musicSource, AL_BUFFER, static_cast<ALint>( m_victoryMusicBuffer ) ) );
-    alec( alSourcei( m_musicSource, AL_LOOPING, AL_TRUE ) );
-
-    m_musicGain.inHelpMusic = false;
-    m_musicGain.inVictoryMusic = true;
-    applyMusicGain( MusicGain::computeTargetMusicGain( m_musicGain ) );
-    alec( alSourcePlay( m_musicSource ) );
-
-    m_musicPlaying = true;
+    startMusicTrack( m_victoryMusicBuffer, false, true );
 }
 
 void SoundManager::stopMusic()

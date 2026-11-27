@@ -125,11 +125,13 @@ elseif( CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" )
     target_compile_options( ${PROJECT_NAME} PRIVATE -Wall -Wextra )
 endif()
 
-# Enforce pure scalar GLM codegen and zero-initialized vector constructors across all targets
-add_compile_definitions( GLM_FORCE_PURE GLM_FORCE_CTOR_INIT )
-
 # add external libs
 add_subdirectory( external )
+
+# Enforce pure scalar GLM codegen and zero-initialized vector constructors for GLM consumers only
+if( TARGET glm )
+    target_compile_definitions( glm INTERFACE GLM_FORCE_PURE GLM_FORCE_CTOR_INIT )
+endif()
 
 if( MINGW AND TARGET libglew_shared )
     target_link_libraries( libglew_shared PRIVATE msvcrt )

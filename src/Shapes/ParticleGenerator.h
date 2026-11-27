@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Common/NonCopyable.hpp"
+
 #include <array>
 #include <memory>
 #include <vector>
@@ -28,7 +30,7 @@ namespace Shapes
     // ParticleGenerator acts as a container for rendering a large number of 
     // particles by repeatedly spawning and updating particles and killing 
     // them after a given amount of time.
-    class ParticleGenerator
+    class ParticleGenerator : private NonCopyable
     {
         using basePtr = std::shared_ptr<Base>;
         using texture2DPtr = std::shared_ptr<Texture2D>;
@@ -37,10 +39,6 @@ namespace Shapes
         public:
             ParticleGenerator( unsigned int amount );
             ~ParticleGenerator();
-            ParticleGenerator( const ParticleGenerator& ) = delete;
-            ParticleGenerator& operator=( const ParticleGenerator& ) = delete;
-            ParticleGenerator( ParticleGenerator&& ) = delete;
-            ParticleGenerator& operator=( ParticleGenerator&& ) = delete;
 
             void resize( const glm::mat4& projection );
 

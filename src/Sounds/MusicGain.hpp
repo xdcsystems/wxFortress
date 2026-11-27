@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include "Common/MathUtil.hpp"
 
 namespace MusicGain
 {
@@ -60,7 +61,7 @@ namespace MusicGain
         double dtSec,
         const MusicGainConfig& cfg = {} ) noexcept
     {
-        if ( !std::isfinite( dtSec ) || dtSec <= 0.0 )
+        if ( !MathUtil::isPositiveFinite( dtSec ) )
             return false;
 
         const double clampedDt = ( std::min )( dtSec, cfg.maxDtSec );
@@ -75,9 +76,7 @@ namespace MusicGain
             return false;
 
         const float maxStep = cfg.slewPerSec * static_cast<float>( clampedDt );
-        state.currentGain = ( std::abs( diff ) <= maxStep )
-            ? target
-            : ( state.currentGain + ( diff > 0.0f ? maxStep : -maxStep ) );
+        state.currentGain = MathUtil::moveToward( state.currentGain, target, maxStep );
         return true;
     }
 } // namespace MusicGain

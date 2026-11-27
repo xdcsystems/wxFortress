@@ -11,6 +11,7 @@ extern "C"
 }
 
 #include <memory>
+#include <type_traits>
 
 #include "Chronons.h"
 
@@ -30,45 +31,27 @@ inline microseconds get_avtime()
     return microseconds { av_gettime() };
 }
 
-/* Define unique_ptrs to auto-cleanup associated ffmpeg objects. */
-struct AVIOContextDeleter
+/* C++17 NTTP deleter supporting both T* (sws_freeContext) and T** (av*_free/close) FFmpeg cleanup APIs. */
+template <auto Fn>
+struct FfmpegDeleter
 {
-        void operator() ( AVIOContext *ptr ) { avio_closep( &ptr ); }
-};
-using AVIOContextPtr = std::unique_ptr<AVIOContext, AVIOContextDeleter>;
+    template <typename T>
+    void operator()( T* ptr ) const noexcept
+    {
+        if ( !ptr )
+            return;
 
-struct AVFormatContextDeleter
-{
-        void operator() ( AVFormatContext *ptr ) { avformat_close_input( &ptr ); }
+        if constexpr ( std::is_invocable_v<decltype( Fn ), T*> )
+            Fn( ptr );
+        else
+            Fn( &ptr );
+    }
 };
-using AVFormatContextPtr = std::unique_ptr<AVFormatContext, AVFormatContextDeleter>;
 
-struct AVCodecContextDeleter
-{
-        void operator() ( AVCodecContext *ptr ) { avcodec_free_context( &ptr ); }
-};
-using AVCodecContextPtr = std::unique_ptr<AVCodecContext, AVCodecContextDeleter>;
-
-struct AVFrameDeleter
-{
-        void operator() ( AVFrame *ptr ) { av_frame_free( &ptr ); }
-};
-using AVFramePtr = std::unique_ptr<AVFrame, AVFrameDeleter>;
-
-struct AVPacketDeleter
-{
-        void operator() ( AVPacket *ptr ) { av_packet_free( &ptr ); }
-};
-using AVPacketPtr = std::unique_ptr<AVPacket, AVPacketDeleter>;
-
-struct SwrContextDeleter
-{
-        void operator() ( SwrContext *ptr ) { swr_free( &ptr ); }
-};
-using SwrContextPtr = std::unique_ptr<SwrContext, SwrContextDeleter>;
-
-struct SwsContextDeleter
-{
-        void operator() ( SwsContext *ptr ) { sws_freeContext( ptr ); }
-};
-using SwsContextPtr = std::unique_ptr<SwsContext, SwsContextDeleter>;
+using AVIOContextPtr     = std::unique_ptr<AVIOContext, FfmpegDeleter<avio_closep>>;
+using AVFormatContextPtr = std::unique_ptr<AVFormatContext, FfmpegDeleter<avformat_close_input>>;
+using AVCodecContextPtr  = std::unique_ptr<AVCodecContext, FfmpegDeleter<avcodec_free_context>>;
+using AVFramePtr         = std::unique_ptr<AVFrame, FfmpegDeleter<av_frame_free>>;
+using AVPacketPtr        = std::unique_ptr<AVPacket, FfmpegDeleter<av_packet_free>>;
+using SwrContextPtr      = std::unique_ptr<SwrContext, FfmpegDeleter<swr_free>>;
+using SwsContextPtr      = std::unique_ptr<SwsContext, FfmpegDeleter<sws_freeContext>>;

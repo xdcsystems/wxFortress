@@ -1,5 +1,4 @@
 #include <memory>
-#include <vector>
 #include <string>
 
 #include <GL/glew.h>
@@ -22,6 +21,8 @@ VideoRenderer::VideoRenderer()
     m_shader->setInteger( "textureY", 0, true );
     m_shader->setInteger( "textureU", 1 );
     m_shader->setInteger( "textureV", 2 );
+    // GLSL #version 110 forbids uniform initializers; initialize uScale explicitly on both programs.
+    m_shader->setVector2f( "uScale", 1.0f, 1.0f );
 
     m_shaderNV12 = ResourceManager::LoadShader(
         "resources/shaders/Video.vs",
@@ -31,17 +32,17 @@ VideoRenderer::VideoRenderer()
 
     m_shaderNV12->setInteger( "textureY", 0, true );
     m_shaderNV12->setInteger( "textureUV", 1 );
+    m_shaderNV12->setVector2f( "uScale", 1.0f, 1.0f );
 
     init();
 }
 
 VideoRenderer::~VideoRenderer()
 {
-    GL_CHECK( glDisableVertexAttribArray( m_attrVertex ) );
-    GL_CHECK( glDisableVertexAttribArray( m_attrUVs ) );
-
-    GL_CHECK( glDeleteBuffers( 1, &m_VBO ) );
-    GL_CHECK( glDeleteBuffers( 1, &m_EBO ) );
+    if ( m_VBO != 0 )
+        GL_CHECK( glDeleteBuffers( 1, &m_VBO ) );
+    if ( m_EBO != 0 )
+        GL_CHECK( glDeleteBuffers( 1, &m_EBO ) );
     GL_CHECK( glDeleteTextures( 3, m_texs ) );
 }
 
@@ -60,22 +61,36 @@ void VideoRenderer::init()
     };
     // clang-format on
 
-    GL_CHECK( m_attrVertex = glGetAttribLocation( m_shader->ID, "aPos" ) );
-    GL_CHECK( m_attrUVs = glGetAttribLocation( m_shader->ID, "aTexCoord" ) );
+    if ( m_shader && m_shader->ID != 0 )
+    {
+        GL_CHECK( m_attrVertex = glGetAttribLocation( m_shader->ID, "aPos" ) );
+        GL_CHECK( m_attrUVs = glGetAttribLocation( m_shader->ID, "aTexCoord" ) );
+        GL_CHECK( m_locScale = glGetUniformLocation( m_shader->ID, "uScale" ) );
+    }
+
+    if ( m_shaderNV12 && m_shaderNV12->ID != 0 )
+    {
+        GL_CHECK( m_attrVertexNV12 = glGetAttribLocation( m_shaderNV12->ID, "aPos" ) );
+        GL_CHECK( m_attrUVsNV12 = glGetAttribLocation( m_shaderNV12->ID, "aTexCoord" ) );
+        GL_CHECK( m_locScaleNV12 = glGetUniformLocation( m_shaderNV12->ID, "uScale" ) );
+    }
 
     GL_CHECK( glGenBuffers( 1, &m_VBO ) );
     GL_CHECK( glGenBuffers( 1, &m_EBO ) );
 
+    // Static unit quad [-1..1]; aspect ratio scaling is applied on GPU via uniform vec2 uScale.
     GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, m_VBO ) );
-    GL_CHECK( glBufferData( GL_ARRAY_BUFFER, sizeof( vertices ), vertices, GL_DYNAMIC_DRAW ) );
+    GL_CHECK( glBufferData( GL_ARRAY_BUFFER, sizeof( vertices ), vertices, GL_STATIC_DRAW ) );
     GL_CHECK( glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, m_EBO ) );
     GL_CHECK( glBufferData( GL_ELEMENT_ARRAY_BUFFER, sizeof( indices ), indices, GL_STATIC_DRAW ) );
+    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, 0 ) );
+    GL_CHECK( glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, 0 ) );
 
     GL_CHECK( glGenTextures( 3, m_texs ) );
-    for( const auto &tex : m_texs )
+    for ( const auto& tex : m_texs )
     {
         GL_CHECK( glBindTexture( GL_TEXTURE_2D, tex ) );
-        
+
         GL_CHECK( glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE ) );
         GL_CHECK( glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE ) );
 
@@ -99,7 +114,7 @@ void VideoRenderer::setViewport( int x, int y, int width, int height )
     GL_CHECK( glViewport( x, y, m_viewWidth, m_viewHeight ) );
 }
 
-bool VideoRenderer::bindBuffers( int width, int height )
+bool VideoRenderer::updateFrameGeometry( int width, int height, FrameFormat format )
 {
     bool changed { false };
     if ( m_texWidth != width )
@@ -112,129 +127,107 @@ bool VideoRenderer::bindBuffers( int width, int height )
         m_texHeight = height;
         changed = true;
     }
-
-    float tr = ( m_texHeight > 0 ) ? ( float )m_texWidth / m_texHeight : 1.0f;
-    float vr = ( m_viewHeight > 0 && m_viewWidth > 0 ) ? ( float )m_viewWidth / m_viewHeight : tr;
-    float r = ( vr > 0.0f ) ? tr / vr : 1.0f;
-    if ( r != m_ratio )
+    if ( m_lastFormat != format )
     {
-        m_ratio = r;
-        std::vector<float> vertices;
-        // clang-format off
-        if ( tr > vr )
-        {
-            float p = vr / tr;
-            vertices = {
-                 1.f,  p,  1.f, 0.f,
-                 1.f, -p,  1.f, 1.f,
-                -1.f, -p,  0.f, 1.f,
-                -1.f,  p,  0.f, 0.f,
-            };
-        }
-        else if ( tr < vr )
-        {
-            vertices = {
-                 r,  1.f,  1.f, 0.f,
-                 r, -1.f,  1.f, 1.f,
-                -r, -1.f,  0.f, 1.f,
-                -r,  1.f,  0.f, 0.f,
-            };
-        }
-        else
-        {
-            vertices = {
-                 1.f,  1.f,  1.f, 0.f,
-                 1.f, -1.f,  1.f, 1.f,
-                -1.f, -1.f,  0.f, 1.f,
-                -1.f,  1.f,  0.f, 0.f,
-            };
-        }
-        // clang-format on
-        GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, m_VBO ) );
-        GL_CHECK( glBufferSubData( GL_ARRAY_BUFFER, 0, vertices.size() * sizeof( float ), vertices.data() ) );
+        m_lastFormat = format;
+        changed = true;
     }
-    else    
-        GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, m_VBO ) );
 
-    GL_CHECK( glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, m_EBO ) );
+    const float tr = ( m_texHeight > 0 ) ? static_cast<float>( m_texWidth ) / static_cast<float>( m_texHeight ) : 1.0f;
+    const float vr = ( m_viewHeight > 0 && m_viewWidth > 0 ) ? static_cast<float>( m_viewWidth ) / static_cast<float>( m_viewHeight ) : tr;
 
-    GL_CHECK( glVertexAttribPointer( m_attrVertex, 2, GL_FLOAT, GL_FALSE, 4 * sizeof( float ), ( void* )nullptr ) );
-    GL_CHECK( glEnableVertexAttribArray( m_attrVertex ) );
-
-    GL_CHECK( glVertexAttribPointer( m_attrUVs, 2, GL_FLOAT, GL_FALSE, 4 * sizeof( float ), ( void* )( 2 * sizeof( float ) ) ) );
-    GL_CHECK( glEnableVertexAttribArray( m_attrUVs ) );
+    if ( tr > vr && tr > 0.0f )
+        m_scale = { 1.0f, vr / tr };
+    else if ( tr < vr && vr > 0.0f )
+        m_scale = { tr / vr, 1.0f };
+    else
+        m_scale = { 1.0f, 1.0f };
 
     return changed;
 }
 
-void VideoRenderer::draw( int width, int height, uint8_t** data, const int* linesize )
+void VideoRenderer::uploadPlane( int unit, unsigned int tex, int width, int height, int rowLengthTexels, unsigned int format, const uint8_t* data, bool alloc )
 {
-    if ( width <= 0 || height <= 0 || !data || !linesize )
+    if ( !data || width <= 0 || height <= 0 )
         return;
 
-    const bool changed = bindBuffers( width, height );
-    const GLsizei widths[ 3 ]  { width, width >> 1, width >> 1 };
-    const GLsizei heights[ 3 ] { height, height >> 1, height >> 1 };
+    GL_CHECK( glActiveTexture( static_cast<GLenum>( GL_TEXTURE0 + unit ) ) );
+    GL_CHECK( glBindTexture( GL_TEXTURE_2D, tex ) );
+    GL_CHECK( glPixelStorei( GL_UNPACK_ROW_LENGTH, rowLengthTexels > 0 ? rowLengthTexels : 0 ) );
+    if ( alloc )
+    {
+        GL_CHECK( glTexImage2D( GL_TEXTURE_2D, 0, static_cast<GLint>( format ), width, height, 0, format, GL_UNSIGNED_BYTE, data ) );
+    }
+    else
+    {
+        GL_CHECK( glTexSubImage2D( GL_TEXTURE_2D, 0, 0, 0, width, height, format, GL_UNSIGNED_BYTE, data ) );
+    }
+}
+
+void VideoRenderer::drawQuad( const shaderPtr& shader, int attrVertex, int attrUVs, int locScale )
+{
+    if ( !shader || shader->ID == 0 || attrVertex < 0 || attrUVs < 0 )
+        return;
+
+    shader->use();
+    if ( locScale >= 0 )
+        GL_CHECK( glUniform2f( locScale, m_scale.x, m_scale.y ) );
+
+    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, m_VBO ) );
+    GL_CHECK( glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, m_EBO ) );
+
+    GL_CHECK( glVertexAttribPointer( static_cast<GLuint>( attrVertex ), 2, GL_FLOAT, GL_FALSE, 4 * sizeof( float ), ( void* )nullptr ) );
+    GL_CHECK( glEnableVertexAttribArray( static_cast<GLuint>( attrVertex ) ) );
+
+    GL_CHECK( glVertexAttribPointer( static_cast<GLuint>( attrUVs ), 2, GL_FLOAT, GL_FALSE, 4 * sizeof( float ), ( void* )( 2 * sizeof( float ) ) ) );
+    GL_CHECK( glEnableVertexAttribArray( static_cast<GLuint>( attrUVs ) ) );
+
+    GL_CHECK( glDrawElements( GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr ) );
+
+    GL_CHECK( glDisableVertexAttribArray( static_cast<GLuint>( attrVertex ) ) );
+    GL_CHECK( glDisableVertexAttribArray( static_cast<GLuint>( attrUVs ) ) );
+    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, 0 ) );
+    GL_CHECK( glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, 0 ) );
+}
+
+void VideoRenderer::draw( int width, int height, uint8_t** data, const int* linesize )
+{
+    if ( width <= 0 || height <= 0 || !data || !linesize || !data[ 0 ] || !data[ 1 ] || !data[ 2 ] )
+        return;
+
+    const bool changed = updateFrameGeometry( width, height, FrameFormat::YUV420P );
+    const int chromaW = ( width + 1 ) >> 1;
+    const int chromaH = ( height + 1 ) >> 1;
+    const int widths[ 3 ]  { width, chromaW, chromaW };
+    const int heights[ 3 ] { height, chromaH, chromaH };
 
     GL_CHECK( glPixelStorei( GL_UNPACK_ALIGNMENT, 1 ) );
     for ( int i = 0; i < 3; ++i )
-    {
-        GL_CHECK( glActiveTexture( GL_TEXTURE0 + i ) );
-        GL_CHECK( glBindTexture( GL_TEXTURE_2D, m_texs[ i ] ) );
-        GL_CHECK( glPixelStorei( GL_UNPACK_ROW_LENGTH, linesize[ i ] > 0 ? linesize[ i ] : 0 ) );
-        if ( changed )
-        {
-            GL_CHECK( glTexImage2D( GL_TEXTURE_2D, 0, GL_LUMINANCE, widths[ i ], heights[ i ], 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, data[ i ] ) );
-        }
-        else
-        {
-            GL_CHECK( glTexSubImage2D( GL_TEXTURE_2D, 0, 0, 0, widths[ i ], heights[ i ], GL_LUMINANCE, GL_UNSIGNED_BYTE, data[ i ] ) );
-        }
-    }
+        uploadPlane( i, m_texs[ i ], widths[ i ], heights[ i ], linesize[ i ], GL_LUMINANCE, data[ i ], changed );
     GL_CHECK( glPixelStorei( GL_UNPACK_ROW_LENGTH, 0 ) );
+    GL_CHECK( glPixelStorei( GL_UNPACK_ALIGNMENT, 4 ) );
+    GL_CHECK( glActiveTexture( GL_TEXTURE0 ) );
 
-    m_shader->use();
-
-    GL_CHECK( glDrawElements( GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr ) );
+    drawQuad( m_shader, m_attrVertex, m_attrUVs, m_locScale );
 }
 
 void VideoRenderer::drawNV12( int width, int height, uint8_t** data, const int* linesize )
 {
-    if ( width <= 0 || height <= 0 || !data || !linesize )
+    if ( width <= 0 || height <= 0 || !data || !linesize || !data[ 0 ] || !data[ 1 ] )
         return;
 
-    const bool changed = bindBuffers( width, height );
+    const bool changed = updateFrameGeometry( width, height, FrameFormat::NV12 );
+    const int chromaW = ( width + 1 ) >> 1;
+    const int chromaH = ( height + 1 ) >> 1;
+    const int uvRowTexels = ( linesize[ 1 ] >= 2 ) ? ( linesize[ 1 ] >> 1 ) : 0;
 
     GL_CHECK( glPixelStorei( GL_UNPACK_ALIGNMENT, 1 ) );
-
-    GL_CHECK( glActiveTexture( GL_TEXTURE0 ) );
-    GL_CHECK( glBindTexture( GL_TEXTURE_2D, m_texs[ 0 ] ) );
-    GL_CHECK( glPixelStorei( GL_UNPACK_ROW_LENGTH, linesize[ 0 ] > 0 ? linesize[ 0 ] : 0 ) );
-    if ( changed )
-    {
-        GL_CHECK( glTexImage2D( GL_TEXTURE_2D, 0, GL_LUMINANCE, width, height, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, data[ 0 ] ) );
-    }
-    else
-    {
-        GL_CHECK( glTexSubImage2D( GL_TEXTURE_2D, 0, 0, 0, width, height, GL_LUMINANCE, GL_UNSIGNED_BYTE, data[ 0 ] ) );
-    }
-
-    GL_CHECK( glActiveTexture( GL_TEXTURE1 ) );
-    GL_CHECK( glBindTexture( GL_TEXTURE_2D, m_texs[ 1 ] ) );
+    uploadPlane( 0, m_texs[ 0 ], width, height, linesize[ 0 ], GL_LUMINANCE, data[ 0 ], changed );
     // UV plane has 2 bytes per texel (GL_LUMINANCE_ALPHA), so row length in texels is linesize[1] / 2.
-    GL_CHECK( glPixelStorei( GL_UNPACK_ROW_LENGTH, linesize[ 1 ] > 0 ? ( linesize[ 1 ] >> 1 ) : 0 ) );
-    if ( changed )
-    {
-        GL_CHECK( glTexImage2D( GL_TEXTURE_2D, 0, GL_LUMINANCE_ALPHA, width >> 1, height >> 1, 0, GL_LUMINANCE_ALPHA, GL_UNSIGNED_BYTE, data[ 1 ] ) );
-    }
-    else
-    {
-        GL_CHECK( glTexSubImage2D( GL_TEXTURE_2D, 0, 0, 0, width >> 1, height >> 1, GL_LUMINANCE_ALPHA, GL_UNSIGNED_BYTE, data[ 1 ] ) );
-    }
-
+    uploadPlane( 1, m_texs[ 1 ], chromaW, chromaH, uvRowTexels, GL_LUMINANCE_ALPHA, data[ 1 ], changed );
     GL_CHECK( glPixelStorei( GL_UNPACK_ROW_LENGTH, 0 ) );
+    GL_CHECK( glPixelStorei( GL_UNPACK_ALIGNMENT, 4 ) );
+    GL_CHECK( glActiveTexture( GL_TEXTURE0 ) );
 
-    m_shaderNV12->use();
-
-    GL_CHECK( glDrawElements( GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr ) );
+    drawQuad( m_shaderNV12, m_attrVertexNV12, m_attrUVsNV12, m_locScaleNV12 );
 }

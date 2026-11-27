@@ -39,7 +39,7 @@ class Audio
         AVStream *m_stream { nullptr };
         AVCodecContextPtr m_codecCtx;
 
-        PacketQueue<2 * 1024 * 1024> m_packets;
+        PacketQueue m_packets { 2 * 1024 * 1024 };
 
         nanoseconds m_currentPts { 0 };
         nanoseconds m_publishedPts { 0 };

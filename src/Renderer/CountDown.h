@@ -1,10 +1,17 @@
 #pragma once
 
+#include <map>
+#include <memory>
+
+#include <glm/vec2.hpp>
+
+#include "Common/NonCopyable.hpp"
+
 // Forward declarations
 class Texture2D;
 class SpriteRenderer;
 
-class CountDown
+class CountDown : private NonCopyable
 {
     using rendererPtr = std::shared_ptr<SpriteRenderer>;
     using texture2DPtr = std::shared_ptr<Texture2D>;
@@ -12,10 +19,6 @@ class CountDown
     public:
         CountDown();
         ~CountDown();
-        CountDown( const CountDown& ) = delete;
-        CountDown& operator=( const CountDown& ) = delete;
-        CountDown( CountDown&& ) = delete;
-        CountDown& operator=( CountDown&& ) = delete;
 
         void resize( const wxSize& size );
         void show( const rendererPtr& renderer, unsigned char count ) const;

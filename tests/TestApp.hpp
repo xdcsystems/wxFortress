@@ -90,8 +90,7 @@ class TestApp : public App
         {
             m_brick = std::make_shared<Shapes::Brick>(
                 glm::vec2 { 100.f, 100.f },
-                Shapes::BrickType::RED,
-                Shapes::Brick::SizeOf( Shapes::BrickType::RED ) );
+                Shapes::BrickType::RED );
         }
 
         void createBall()

@@ -247,7 +247,7 @@ void TextRenderer::switchToHelpState()
     };
 }
 
-void TextRenderer::print( const std::string& text, int x, int y, const glm::vec2& size, glm::vec3 color )
+void TextRenderer::print( const std::string& text, const glm::vec2& pos, const glm::vec2& size, glm::vec3 color )
 {
     if ( text.empty() )
         return;
@@ -263,11 +263,11 @@ void TextRenderer::print( const std::string& text, int x, int y, const glm::vec2
     const float fontRows = s_fontData.at( m_fontType ).first;
     for ( size_t i = 0; i < length; ++i )
     {
-        const float fi = static_cast<float>( i );
-        glm::vec2 vertexUpLeft    { x + fi * size.x,          y + size.y };
-        glm::vec2 vertexUpRight   { x + fi * size.x + size.x, y + size.y };
-        glm::vec2 vertexDownRight { x + fi * size.x + size.x, y };
-        glm::vec2 vertexDownLeft  { x + fi * size.x,          y };
+        const glm::vec2 origin { pos.x + static_cast<float>( i ) * size.x, pos.y };
+        const glm::vec2 vertexUpLeft    { origin.x,          origin.y + size.y };
+        const glm::vec2 vertexUpRight   { origin.x + size.x, origin.y + size.y };
+        const glm::vec2 vertexDownRight { origin.x + size.x, origin.y };
+        const glm::vec2 vertexDownLeft  { origin.x,          origin.y };
 
         m_vertices.emplace_back( vertexUpLeft );
         m_vertices.emplace_back( vertexDownLeft );
@@ -326,12 +326,12 @@ void TextRenderer::print( const std::string& text, int x, int y, const glm::vec2
     GL_CHECK( glDisableVertexAttribArray( m_attrUVs ) );
 }
 
-void TextRenderer::drawProgressArc( float cx, float cy, float radius, float thickness, float progress, const glm::vec4& baseColor, const glm::vec4& fillColor )
+void TextRenderer::drawProgressArc( const glm::vec2& center, float radius, float thickness, float progress, const glm::vec4& baseColor, const glm::vec4& fillColor )
 {
     if ( !m_arcShader || m_arcShader->ID == 0 || m_attrArcVertex < 0 || m_arcBufferID == 0 )
         return;
 
-    if ( !std::isfinite( cx ) || !std::isfinite( cy ) ||
+    if ( !std::isfinite( center.x ) || !std::isfinite( center.y ) ||
          !std::isfinite( radius ) || !std::isfinite( thickness ) ||
          !std::isfinite( progress ) ||
          radius <= 0.0f || thickness <= 0.0f )
@@ -341,7 +341,7 @@ void TextRenderer::drawProgressArc( float cx, float cy, float radius, float thic
     const float halfExtent = radius + thickness * 0.5f + 2.0f;
 
     m_arcShader->use();
-    m_arcShader->setVector2f( "uCenter", cx, cy );
+    m_arcShader->setVector2f( "uCenter", center );
     m_arcShader->setFloat( "uHalfExtent", halfExtent );
     m_arcShader->setFloat( "uRadius", radius );
     m_arcShader->setFloat( "uThickness", thickness );
@@ -365,7 +365,7 @@ void TextRenderer::renderFinishMessage()
 
     unsigned short countRow = 0;
     for ( ; countRow < m_row; ++countRow )
-        print( m_message[countRow], beginPos.x, beginPos.y - lineHeight * countRow, charSize );
+        print( m_message[ countRow ], { beginPos.x, beginPos.y - lineHeight * static_cast<float>( countRow ) }, charSize );
 
     if ( m_row >= m_message.size() || m_delay == 500 )
     {
@@ -374,7 +374,7 @@ void TextRenderer::renderFinishMessage()
             return;
 
         countRow -= 1;
-        print( "\x60", beginPos.x + m_message[countRow].length() * charSize.x, beginPos.y - lineHeight * countRow, charSize );
+        print( "\x60", { beginPos.x + static_cast<float>( m_message[ countRow ].length() ) * charSize.x, beginPos.y - lineHeight * static_cast<float>( countRow ) }, charSize );
 
         if ( elapsedTime >= 1000 )
         {
@@ -385,7 +385,7 @@ void TextRenderer::renderFinishMessage()
         return;
     }
 
-    print( m_message[ countRow ].substr( 0, m_col ) + '\x60', beginPos.x, beginPos.y - lineHeight * m_row, charSize );
+    print( m_message[ countRow ].substr( 0, m_col ) + '\x60', { beginPos.x, beginPos.y - lineHeight * static_cast<float>( m_row ) }, charSize );
 
     if ( m_timer->getElapsedTimeInMilliSec() >= m_delay )
     {
@@ -421,7 +421,7 @@ void TextRenderer::renderHelp()
 
     unsigned int i = 0;
     for ( ; i < m_message.size(); ++i )
-        print( m_message.at( i ), beginPos.x, beginPos.y - i * lineHeight, charSize );
+        print( m_message.at( i ), { beginPos.x, beginPos.y - static_cast<float>( i ) * lineHeight }, charSize );
 }
 
 void TextRenderer::renderFrame()

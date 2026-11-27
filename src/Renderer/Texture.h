@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Common/NonCopyable.hpp"
+
 #include <memory>
 
 // Forward declarations
@@ -7,15 +9,11 @@ class wxImage;
 
 // Texture2D is able to store and configure a texture in OpenGL.
 // It also hosts utility functions for easy management.
-class Texture2D
+class Texture2D : private NonCopyable
 {
     public:
         // constructor (sets default texture modes)
         Texture2D();
-        Texture2D( const Texture2D& ) = delete;
-        Texture2D& operator=( const Texture2D& ) = delete;
-        Texture2D( Texture2D&& ) = delete;
-        Texture2D& operator=( Texture2D&& ) = delete;
         
         // generates texture from image data
         void generate( const wxImage &image );
