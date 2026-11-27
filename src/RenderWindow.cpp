@@ -63,6 +63,7 @@ BEGIN_EVENT_TABLE( RenderWindow, wxGLCanvas )
     EVT_COMMAND( wxID_ANY, wxEVT_BALL_LOST, RenderWindow::onBallLost )
     EVT_COMMAND( wxID_ANY, wxEVT_PING, RenderWindow::onPaddleContact )
     EVT_COMMAND( wxID_ANY, wxEVT_PONG, RenderWindow::onPaddleContact )
+    EVT_COMMAND( wxID_ANY, wxEVT_ARMOR_HIT, RenderWindow::onArmorHit )
     EVT_COMMAND( wxID_ANY, wxEVT_STAGE_FINISHED, RenderWindow::onStageFinished )
     EVT_COMMAND( wxID_ANY, wxEVT_CHAR_SHOW, RenderWindow::onTextCharShow )
 END_EVENT_TABLE()
@@ -234,7 +235,7 @@ void RenderWindow::loadLevel( unsigned short level )
 {
     try
     {
-        m_shapesManager->loadLevel( level );
+        m_shapesManager->loadLevel( level, m_stage );
         m_currentLevel = level;
         if ( m_soundManager && m_state != State::PLAY )
             m_soundManager->playMusic( level );
@@ -252,6 +253,11 @@ void RenderWindow::resetBallSpeed()
     m_stageIncidents = 0;
     m_impactFeedback.reset();
     m_hudStatus.clearTransient();
+}
+
+void RenderWindow::resetStage()
+{
+    m_stage = 0;
 }
 
 void RenderWindow::syncScoreTelemetry( uint32_t currentScore, uint32_t hiScore, bool newRecord )
@@ -866,6 +872,12 @@ void RenderWindow::onPaddleContact( wxCommandEvent &event )
     };
 
     ( m_soundManager.get()->*( s_contactSound[ event.GetEventType() ] ) )();
+}
+
+void RenderWindow::onArmorHit( wxCommandEvent& )
+{
+    if ( m_soundManager )
+        m_soundManager->playArmorHit( 1.25f );
 }
 
 void RenderWindow::onRoundCompleted( wxCommandEvent &event )

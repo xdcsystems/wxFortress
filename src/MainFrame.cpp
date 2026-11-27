@@ -171,9 +171,11 @@ void MainFrame::onRoundCompleted( wxCommandEvent& )
     m_renderSurface->loadLevel( m_controlPanel->increaseLevel() );
 }
 
-void MainFrame::resetToFirstLevel()
+void MainFrame::resetToFirstLevel( bool resetStage )
 {
     m_controlPanel->reset();
+    if ( resetStage )
+        m_renderSurface->resetStage();
     m_renderSurface->resetBallSpeed();
     m_renderSurface->syncScoreTelemetry( m_controlPanel->currentScore(), m_controlPanel->hiScore(), false );
     m_renderSurface->loadLevel( m_controlPanel->increaseLevel() );
@@ -187,11 +189,13 @@ void MainFrame::onBallLost( wxCommandEvent& )
     }
     else
     {
-        resetToFirstLevel();
+        // Game Over: full reset back to Stage 1 (m_stage = 0)
+        resetToFirstLevel( true );
     }
 }
 
 void MainFrame::onReset( wxCommandEvent& )
 {
-    resetToFirstLevel();
+    // Stage progression (Stage 1 -> Stage 2 -> ...): preserve m_stage
+    resetToFirstLevel( false );
 }

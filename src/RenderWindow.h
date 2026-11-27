@@ -57,6 +57,7 @@ class RenderWindow final : public wxGLCanvas
         void playIntro();
         void loadLevel( unsigned short level );
         void resetBallSpeed();
+        void resetStage();
         void syncScoreTelemetry( uint32_t currentScore, uint32_t hiScore, bool newRecord );
         void start();
         void stop();
@@ -73,6 +74,7 @@ class RenderWindow final : public wxGLCanvas
         void onWndInitialized( wxCommandEvent& );
         void onScoreIncreased( wxCommandEvent& );
         void onPaddleContact( wxCommandEvent& );
+        void onArmorHit( wxCommandEvent& );
         void onRoundCompleted( wxCommandEvent& );
         void onBallLost( wxCommandEvent& );
         void onTextCharShow( wxCommandEvent& );
