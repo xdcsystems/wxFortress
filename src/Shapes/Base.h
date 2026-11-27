@@ -1,24 +1,14 @@
 #pragma once
 #include <memory>
 
-#include <glm/glm.hpp>
+#include "BallPhysics.hpp"
 
 // Forward declarations
 class Texture2D;
 class SpriteRenderer;
-class Rect;
 
 namespace Shapes
 {
-    enum class ContactPosition : unsigned char
-    {
-        Null,
-        Top,
-        Right,
-        Left,
-        Bottom
-    };
-
     class Base
     {
         using rendererPtr = std::shared_ptr<SpriteRenderer>;
@@ -34,7 +24,7 @@ namespace Shapes
             virtual inline glm::vec2 size() const { return m_size; }
             virtual inline glm::vec2 velocity() const { return m_velocity; }
             virtual glm::vec2 center() const;
-            virtual inline Rect  bounds() const { return { m_position, m_size }; }
+            virtual inline Physics::Aabb bounds() const { return { m_position.x, m_position.y, m_size.x, m_size.y }; }
             virtual unsigned int VBO() const { return m_VBO; }
 
             virtual void load( const texture2DPtr &sprite );

@@ -12,10 +12,10 @@
 #include <random>
 #include <vector>
 
-#include <glm/glm.hpp>
+#include <glm/common.hpp>
+#include <glm/trigonometric.hpp>
 
 #include "Common/defs.h"
-#include "Common/Rect.hpp"
 #include "Base.h"
 #include "Ball.h"
 #include "Brick.h"
@@ -78,20 +78,19 @@ void ShapesManager::resetBallSpeed()
     m_currentBallSpeed = kInitialBallSpeedPxPerSec;
 }
 
-Rect ShapesManager::updateBallPosition( const Rect& boardBounds, bool syncPrev )
+Physics::Aabb ShapesManager::updateBallPosition( const Physics::Aabb& boardBounds, bool syncPrev )
 {
     if ( m_size.x < 1 || m_size.y < 1 )
         return {};
 
     // set ball on board
-    const auto& ballBounds = m_ball->bounds();
+    const auto ballBounds = m_ball->bounds();
 
     m_ball->moveTo(
-        boardBounds.m_x + ( boardBounds.m_width - ballBounds.m_width ) / 2.0f,
-        boardBounds.m_y + boardBounds.m_height );
+        boardBounds.x + ( boardBounds.w - ballBounds.w ) / 2.0f,
+        boardBounds.top() );
 
-    const auto c = m_ball->center();
-    m_ballState.center = { c.x, c.y };
+    m_ballState.center = m_ball->center();
     m_ballState.radius = m_ball->radius();
     m_ballState.vel = { 0.0f, 0.0f };
     if ( syncPrev )
@@ -112,11 +111,11 @@ void ShapesManager::resize( const wxSize& size, const glm::mat4& projection )
 
     // set board position
     auto boardBounds = m_board->bounds();
-    m_board->moveTo( ( m_size.x - boardBounds.m_width ) / 2.0f, 15.0f );
+    m_board->moveTo( ( m_size.x - boardBounds.w ) / 2.0f, 15.0f );
 
     // set ball on board
     boardBounds = m_board->bounds();
-    m_paddleState.box = { boardBounds.m_x, boardBounds.m_y, boardBounds.m_width, boardBounds.m_height };
+    m_paddleState.box = boardBounds;
     m_paddleState.speed = 0.0f;
 
     updateBallPosition( boardBounds, true );
@@ -142,7 +141,7 @@ void ShapesManager::initBallVelocity()
         launchSpeed * std::cos( rad ),
         launchSpeed * std::sin( rad )
     };
-    m_ball->m_velocity = { m_ballState.vel.x, m_ballState.vel.y };
+    m_ball->m_velocity = m_ballState.vel;
 }
 
 void ShapesManager::run( bool bNewRound )
@@ -153,8 +152,7 @@ void ShapesManager::run( bool bNewRound )
     {
         m_isRoundCompleted = false;
         m_robotDryBounces = 0;
-        const auto c = m_ball->center();
-        m_ballState.center = { c.x, c.y };
+        m_ballState.center = m_ball->center();
         m_ballState.radius = m_ball->radius();
         initBallVelocity();
     }
@@ -263,8 +261,7 @@ void ShapesManager::update( double deltaTimeSec, int remainingSteps )
 
     if ( m_paddleState.box.w <= 0.0f || m_paddleState.box.h <= 0.0f )
     {
-        const auto boardBounds = m_board->bounds();
-        m_paddleState.box = { boardBounds.m_x, boardBounds.m_y, boardBounds.m_width, boardBounds.m_height };
+        m_paddleState.box = m_board->bounds();
         syncPreviousState();
     }
 
@@ -275,11 +272,7 @@ void ShapesManager::update( double deltaTimeSec, int remainingSteps )
         m_physBricks.reserve( brickList.size() );
         for ( const auto& brick : brickList )
         {
-            const auto b = brick->bounds();
-            m_physBricks.push_back( Physics::BrickItem {
-                Physics::Aabb { b.m_x, b.m_y, b.m_width, b.m_height },
-                brick->isAlive()
-            } );
+            m_physBricks.push_back( Physics::BrickItem { brick->bounds(), brick->isAlive() } );
         }
     }
 
@@ -306,8 +299,8 @@ void ShapesManager::update( double deltaTimeSec, int remainingSteps )
                 paddleDeltaX );
 
             const float r = m_ballState.radius;
-            m_ball->moveTo( m_ballState.center.x - r, m_ballState.center.y - r );
-            m_ball->m_velocity = { m_ballState.vel.x, m_ballState.vel.y };
+            m_ball->moveTo( m_ballState.center - glm::vec2( r ) );
+            m_ball->m_velocity = m_ballState.vel;
 
             if ( ev.hitWall )
                 m_eventHandler->QueueEvent( m_eventPong.Clone() );
@@ -367,11 +360,10 @@ void ShapesManager::renderFrame()
     const float alpha = m_renderAlpha;
     const float authPaddleX = m_paddleState.box.x;
     const float authPaddleY = m_paddleState.box.y;
-    const float interpPaddleX = m_prevPaddleX + ( authPaddleX - m_prevPaddleX ) * alpha;
+    const float interpPaddleX = glm::mix( m_prevPaddleX, authPaddleX, alpha );
 
     const float r = m_ballState.radius;
-    const float interpBallX = m_prevBallCenter.x + ( m_ballState.center.x - m_prevBallCenter.x ) * alpha;
-    const float interpBallY = m_prevBallCenter.y + ( m_ballState.center.y - m_prevBallCenter.y ) * alpha;
+    const glm::vec2 interpBallCenter = glm::mix( m_prevBallCenter, m_ballState.center, alpha );
 
     // Restore authoritative physics positions on scope exit so no caller can ever read interpolated coords.
     struct StateRestorer
@@ -385,14 +377,14 @@ void ShapesManager::renderFrame()
             if ( self.m_paddleState.box.w > 0.0f )
                 self.m_board->moveTo( paddleX, paddleY );
             if ( radius > 0.0f )
-                self.m_ball->moveTo( self.m_ballState.center.x - radius, self.m_ballState.center.y - radius );
+                self.m_ball->moveTo( self.m_ballState.center - glm::vec2( radius ) );
         }
     } restorer { *this, authPaddleX, authPaddleY, r };
 
     if ( m_paddleState.box.w > 0.0f )
         m_board->moveTo( interpPaddleX, authPaddleY );
     if ( r > 0.0f )
-        m_ball->moveTo( interpBallX - r, interpBallY - r );
+        m_ball->moveTo( interpBallCenter - glm::vec2( r ) );
 
     m_renderer->selectShader();
 

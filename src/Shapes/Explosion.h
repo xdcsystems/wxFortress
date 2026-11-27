@@ -2,15 +2,6 @@
 
 namespace Shapes
 {
-    enum class ExplosionType : unsigned char
-    {
-        NONE,
-        BASE,
-        RED,
-        YELLOW,
-        GREEN,
-    };
-
     class Explosion : public Base
     {
         using basePtr = std::shared_ptr<Base>;

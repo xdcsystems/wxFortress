@@ -10,7 +10,6 @@
 #include <memory>
 
 #include "Renderer/SpriteRenderer.h"
-#include "Common/Rect.hpp"
 #include "Base.h"
 #include "Brick.h"
 

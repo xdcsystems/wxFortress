@@ -9,6 +9,7 @@
 
 #include <iostream>
 #include <GL/glew.h>
+#include <glm/gtc/type_ptr.hpp>
 
 #include "Common/Tools.h"
 #include "Shader.h"

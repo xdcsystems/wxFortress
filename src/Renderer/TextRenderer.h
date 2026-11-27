@@ -52,7 +52,6 @@ class TextRenderer
         unsigned int m_vertexBufferID { 0 };
         unsigned int m_UVBufferID { 0 };
         unsigned int m_arcBufferID { 0 };
-        unsigned int m_uniformID { 0 };
         unsigned int m_attrVertex { 0 };
         unsigned int m_attrUVs { 0 };
         int m_attrArcVertex { -1 };

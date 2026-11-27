@@ -14,7 +14,6 @@
 #include <cstring>
 
 #include <GL/glew.h>
-#include <glm/gtc/matrix_transform.hpp>
 
 #include "Common/defs.h"
 #include "Common/Timer.h"

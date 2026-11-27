@@ -14,7 +14,6 @@
 
 #include "Common/defs.h"
 #include "Common/Tools.h"
-#include "Common/Rect.hpp"
 
 #include "Counter.hpp"
 #include "Panel.h"

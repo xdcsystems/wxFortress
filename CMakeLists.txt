@@ -125,6 +125,9 @@ elseif( CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" )
     target_compile_options( ${PROJECT_NAME} PRIVATE -Wall -Wextra )
 endif()
 
+# Enforce pure scalar GLM codegen and zero-initialized vector constructors across all targets
+add_compile_definitions( GLM_FORCE_PURE GLM_FORCE_CTOR_INIT )
+
 # add external libs
 add_subdirectory( external )
 
