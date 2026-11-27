@@ -6,6 +6,7 @@
 #include <glm/mat4x4.hpp>
 
 #include "BallPhysics.hpp"
+#include "Resonance.hpp"
 
 
 // Forward declarations
@@ -44,6 +45,16 @@ namespace Shapes
             bool isPaused() const { return m_state == State::PAUSED; }
             bool isStopped() const { return m_state == State::STOPPED; }
 
+            bool isRobotMode() const noexcept { return m_isRobot; }
+            bool toggleRobotMode() noexcept;
+
+            unsigned int resonanceMultiplier() const noexcept { return m_resonance.multiplier(); }
+            float resonanceMusicDuckScale() const noexcept
+            {
+                return Resonance::musicDuckScaleForMultiplier( m_resonance.multiplier() );
+            }
+            bool consumePendingImpact( bool& outMaxOrFinal ) noexcept;
+
             void update( double deltaTimeSec, int remainingSteps = 1 );
             void setPaddleMouseX( float mouseX );
             void setRenderAlpha( float alpha );
@@ -51,7 +62,7 @@ namespace Shapes
             void renderFrame();
 
             void resize( const wxSize& size, const glm::mat4& projection );
-            void loadLevel( unsigned short level ) const;
+            void loadLevel( unsigned short level );
             void resetBallSpeed();
 
         protected:
@@ -71,6 +82,11 @@ namespace Shapes
             bool m_isRoundCompleted { false };
             bool m_hasMouseTarget { false };
             float m_mouseTargetX { 0.0f };
+
+            Resonance::State m_resonance {};
+            Resonance::PaddleRecoil m_paddleRecoil {};
+            bool m_pendingImpact { false };
+            bool m_pendingImpactMaxOrFinal { false };
 
             Physics::ArenaConfig m_arenaCfg {};
             Physics::BallState m_ballState {};

@@ -54,3 +54,14 @@ inline void queueCommandEvent( wxEvtHandler* handler, wxEventType eventType )
     if ( handler )
         handler->QueueEvent( new wxCommandEvent( eventType ) );
 }
+
+inline void queueCommandEvent( wxEvtHandler* handler, wxEventType eventType, int intPayload, long extraPayload = 0 )
+{
+    if ( handler )
+    {
+        auto* ev = new wxCommandEvent( eventType );
+        ev->SetInt( intPayload );
+        ev->SetExtraLong( extraPayload );
+        handler->QueueEvent( ev );
+    }
+}

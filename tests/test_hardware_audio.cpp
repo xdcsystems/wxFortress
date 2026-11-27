@@ -173,3 +173,30 @@ TEST( MusicGainTest, IsTransitioningReflectsSlewTempDuckAndNonFiniteGuards )
     st.currentGain = std::numeric_limits<float>::quiet_NaN();
     EXPECT_FALSE( MusicGain::isMusicGainTransitioning( st, cfg ) );
 }
+
+TEST( MusicGainTest, ResonanceScaleAttenuatesNormalGameplayWithoutOverridingDucked )
+{
+    const MusicGain::MusicGainConfig cfg {};
+    MusicGain::MusicGainState st {};
+
+    st.resonanceScale = 0.70f;
+    EXPECT_NEAR( MusicGain::computeTargetMusicGain( st, cfg ), cfg.normalGain * 0.70f, 1e-6f );
+
+    // Extreme scale clamps to 0.5f and stays >= duckedGain
+    st.resonanceScale = 0.10f;
+    EXPECT_NEAR( MusicGain::computeTargetMusicGain( st, cfg ), cfg.normalGain * 0.50f, 1e-6f );
+
+    // Non-finite scale falls back cleanly to normalGain
+    st.resonanceScale = std::numeric_limits<float>::quiet_NaN();
+    EXPECT_FLOAT_EQ( MusicGain::computeTargetMusicGain( st, cfg ), cfg.normalGain );
+
+    // Binary ducked / tempDuckRemaining always takes precedence over resonanceScale
+    st.resonanceScale = 0.78f;
+    st.ducked = true;
+    EXPECT_FLOAT_EQ( MusicGain::computeTargetMusicGain( st, cfg ), cfg.duckedGain );
+
+    // Help / victory music ignores resonanceScale
+    st.ducked = false;
+    st.inHelpMusic = true;
+    EXPECT_FLOAT_EQ( MusicGain::computeTargetMusicGain( st, cfg ), cfg.helpGain );
+}

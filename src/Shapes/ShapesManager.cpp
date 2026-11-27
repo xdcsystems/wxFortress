@@ -63,8 +63,13 @@ ShapesManager::ShapesManager( wxWindow* parent, const rendererPtr& spriteRendere
     }
 }
 
-void ShapesManager::loadLevel( unsigned short level ) const
+void ShapesManager::loadLevel( unsigned short level )
 {
+    m_resonance.reset();
+    m_paddleRecoil.reset();
+    m_pendingImpact = false;
+    m_pendingImpactMaxOrFinal = false;
+
     // let's throw some bricks
     m_bricks->loadLevel( level );
 }
@@ -72,6 +77,23 @@ void ShapesManager::loadLevel( unsigned short level ) const
 void ShapesManager::resetBallSpeed()
 {
     m_currentBallSpeed = kInitialBallSpeedPxPerSec;
+}
+
+bool ShapesManager::toggleRobotMode() noexcept
+{
+    m_isRobot = !m_isRobot;
+    m_robotDryBounces = 0;
+    return m_isRobot;
+}
+
+bool ShapesManager::consumePendingImpact( bool& outMaxOrFinal ) noexcept
+{
+    if ( !m_pendingImpact )
+        return false;
+    outMaxOrFinal = m_pendingImpactMaxOrFinal;
+    m_pendingImpact = false;
+    m_pendingImpactMaxOrFinal = false;
+    return true;
 }
 
 Physics::Aabb ShapesManager::updateBallPosition( const Physics::Aabb& boardBounds, bool syncPrev )
@@ -148,6 +170,10 @@ void ShapesManager::run( bool bNewRound )
     {
         m_isRoundCompleted = false;
         m_robotDryBounces = 0;
+        m_resonance.reset();
+        m_paddleRecoil.reset();
+        m_pendingImpact = false;
+        m_pendingImpactMaxOrFinal = false;
         m_ballState.center = m_ball->center();
         m_ballState.radius = m_ball->radius();
         initBallVelocity();
@@ -164,6 +190,10 @@ void ShapesManager::stop()
     m_particleSpawnAccum = 0.0f;
     m_paddleState.speed = 0.0f;
     m_ballState.vel = { 0.0f, 0.0f };
+    m_resonance.reset();
+    m_paddleRecoil.reset();
+    m_pendingImpact = false;
+    m_pendingImpactMaxOrFinal = false;
     m_particles->clear();
     m_explosions->clear();
     syncPreviousState();
@@ -254,6 +284,7 @@ void ShapesManager::update( double deltaTimeSec, int remainingSteps )
     }
 
     const float dtSec = std::clamp( static_cast<float>( deltaTimeSec ), 0.0f, 0.05f );
+    m_paddleRecoil.step( dtSec );
 
     if ( m_paddleState.box.w <= 0.0f || m_paddleState.box.h <= 0.0f )
     {
@@ -304,6 +335,8 @@ void ShapesManager::update( double deltaTimeSec, int remainingSteps )
             if ( ev.hitPaddle )
             {
                 ++m_robotDryBounces;
+                m_resonance.onPaddleHit();
+                m_paddleRecoil.trigger();
                 queueCommandEvent( m_eventHandler, wxEVT_PING );
             }
 
@@ -314,6 +347,8 @@ void ShapesManager::update( double deltaTimeSec, int remainingSteps )
                     Physics::length( m_ballState.vel ),
                     m_arenaCfg.minSpeed,
                     m_arenaCfg.maxSpeed );
+                bool hitThreshold = false;
+                bool hitMax = false;
                 for ( const std::size_t idx : ev.hitBricks )
                 {
                     if ( idx < brickList.size() )
@@ -323,11 +358,28 @@ void ShapesManager::update( double deltaTimeSec, int remainingSteps )
                         {
                             brick->kill();
                             m_explosions->add( brick );
-                            queueCommandEvent( m_eventHandler, wxEVT_CURRENT_SCORE_INCREASED );
+                            const Resonance::HitResult hit = m_resonance.onBrickHit();
+                            if ( hit.crossedHitStopThreshold )
+                            {
+                                hitThreshold = true;
+                                if ( hit.multiplier >= Resonance::kMaxMultiplier )
+                                    hitMax = true;
+                            }
+                            queueCommandEvent(
+                                m_eventHandler,
+                                wxEVT_CURRENT_SCORE_INCREASED,
+                                static_cast<int>( hit.scoreDelta ),
+                                static_cast<long>( hit.streak ) );
                         }
                     }
                 }
-                m_isRoundCompleted = m_bricks->empty();
+                const bool justCompleted = m_bricks->empty();
+                m_isRoundCompleted = justCompleted;
+                if ( hitThreshold || justCompleted )
+                {
+                    m_pendingImpact = true;
+                    m_pendingImpactMaxOrFinal = m_pendingImpactMaxOrFinal || hitMax || justCompleted;
+                }
             }
 
             if ( ev.ballLost )
@@ -357,6 +409,7 @@ void ShapesManager::renderFrame()
     const float authPaddleX = m_paddleState.box.x;
     const float authPaddleY = m_paddleState.box.y;
     const float interpPaddleX = glm::mix( m_prevPaddleX, authPaddleX, alpha );
+    const float visualPaddleY = ( std::max )( 0.0f, authPaddleY - m_paddleRecoil.offsetY );
 
     const float r = m_ballState.radius;
     const glm::vec2 interpBallCenter = glm::mix( m_prevBallCenter, m_ballState.center, alpha );
@@ -370,7 +423,7 @@ void ShapesManager::renderFrame()
     } );
 
     if ( m_paddleState.box.w > 0.0f )
-        m_board->moveTo( interpPaddleX, authPaddleY );
+        m_board->moveTo( interpPaddleX, visualPaddleY );
     if ( r > 0.0f )
         m_ball->moveTo( interpBallCenter - glm::vec2( r ) );
 

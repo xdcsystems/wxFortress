@@ -1,4 +1,4 @@
-// For compilers that support precompilation, includes "wx/wx.h".
+// For compilers that support precompilation, includes "wx/wxprec.h".
 #include <wx/wxprec.h>
 
 // for all others, include the necessary headers (this file is usually all you
@@ -140,6 +140,26 @@ TextRenderer::TextRenderer( wxWindow* parent )
         }
     }
 
+    // Minimal GLSL #version 110 fullscreen 1-quad additive EM sensor flash (0 FBOs, ATI HD 3470 safe)
+    static constexpr const char* kFlashVertexSrc =
+        "#version 110\n"
+        "attribute vec2 vertex;\n"
+        "void main() {\n"
+        "    gl_Position = vec4( vertex, 0.0, 1.0 );\n"
+        "}\n";
+    static constexpr const char* kFlashFragmentSrc =
+        "#version 110\n"
+        "uniform vec4 uFlashColor;\n"
+        "void main() {\n"
+        "    gl_FragColor = vec4( uFlashColor.rgb * uFlashColor.a, 1.0 );\n"
+        "}\n";
+    m_flashShader = std::make_shared<Shader>();
+    m_flashShader->compile( kFlashVertexSrc, kFlashFragmentSrc );
+    if ( m_flashShader->ID != 0 )
+    {
+        GL_CHECK( m_attrFlashVertex = glGetAttribLocation( m_flashShader->ID, "vertex" ) );
+    }
+
     m_timer = std::make_shared<Timer>( false );
 }
 
@@ -158,6 +178,11 @@ void TextRenderer::cleanup()
         GL_CHECK( glDeleteProgram( m_arcShader->ID ) );
         m_arcShader->ID = 0;
     }
+    if ( m_flashShader && m_flashShader->ID != 0 )
+    {
+        GL_CHECK( glDeleteProgram( m_flashShader->ID ) );
+        m_flashShader->ID = 0;
+    }
     for ( auto& entry : s_fontData )
         entry.second.second.reset();
 }
@@ -171,7 +196,7 @@ void TextRenderer::resize( const glm::mat4& projection )
     }
 }
 
-void TextRenderer::switchToFinishState( unsigned short stage )
+void TextRenderer::switchToFinishState( unsigned short stage, unsigned int incidents )
 {
     static const std::map<unsigned short, std::string> s_stageName = {
         { 1, "First"  },
@@ -203,6 +228,7 @@ void TextRenderer::switchToFinishState( unsigned short stage )
         "Test Program " + stageLabel + " Stage Completed Successfully.",
         "The sample demonstrated high penetration and large",
         "aggregate power.",
+        "Contour breach incidents recorded: " + std::to_string( incidents ) + ".",
         "In order to improve the reliability of the product,",
         "additional tests are recommended.",
         "If confirmed, the test program will be restarted",
@@ -230,6 +256,8 @@ void TextRenderer::switchToHelpState()
         "To manipulator control use LEFT / RIGHT lever",
         "or pointer [ <left> <right> keys / mouse ].",
         " ",
+        "To toggle AI training manipulator, press [ <A> key ].",
+        " ",
         "To stop item movement, press the Launch button again.",
         "The chamber with the item will be transferred to stasis,",
         "the item will frozen.",
@@ -244,6 +272,10 @@ void TextRenderer::switchToHelpState()
 void TextRenderer::print( const std::string& text, const glm::vec2& pos, const glm::vec2& size, glm::vec3 color )
 {
     if ( text.empty() || !m_shader || m_shader->ID == 0 || m_attrVertex < 0 || m_attrUVs < 0 || !m_vertexBuffer || !m_uvBuffer )
+        return;
+
+    const auto& fontTex = s_fontData.at( m_fontType ).second;
+    if ( !fontTex )
         return;
 
     const size_t length = text.length();
@@ -298,7 +330,7 @@ void TextRenderer::print( const std::string& text, const glm::vec2& pos, const g
     m_shader->use();
 
     // Bind texture
-    s_fontData.at( m_fontType ).second->bind();
+    fontTex->bind();
 
     // Set text color
     m_shader->setVector3f( "textColor", color );
@@ -350,6 +382,32 @@ void TextRenderer::drawProgressArc( const glm::vec2& center, float radius, float
     GL_CHECK( glDrawArrays( GL_TRIANGLE_STRIP, 0, 4 ) );
     GL_CHECK( glDisableVertexAttribArray( static_cast<GLuint>( m_attrArcVertex ) ) );
     GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, 0 ) );
+}
+
+void TextRenderer::drawSensorFlash( const glm::vec3& color, float intensity )
+{
+    if ( !m_flashShader || m_flashShader->ID == 0 || m_attrFlashVertex < 0 || !m_arcBuffer )
+        return;
+
+    if ( !std::isfinite( intensity ) || intensity <= 0.001f ||
+         !std::isfinite( color.r ) || !std::isfinite( color.g ) || !std::isfinite( color.b ) )
+        return;
+
+    const float clamped = std::clamp( intensity, 0.0f, 1.0f );
+
+    GL_CHECK( glBlendFunc( GL_ONE, GL_ONE ) );
+
+    m_flashShader->use();
+    m_flashShader->setVector4f( "uFlashColor", glm::vec4( color, clamped ) );
+
+    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, m_arcBuffer.id() ) );
+    GL_CHECK( glVertexAttribPointer( static_cast<GLuint>( m_attrFlashVertex ), 2, GL_FLOAT, GL_FALSE, 0, nullptr ) );
+    GL_CHECK( glEnableVertexAttribArray( static_cast<GLuint>( m_attrFlashVertex ) ) );
+    GL_CHECK( glDrawArrays( GL_TRIANGLE_STRIP, 0, 4 ) );
+    GL_CHECK( glDisableVertexAttribArray( static_cast<GLuint>( m_attrFlashVertex ) ) );
+    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, 0 ) );
+
+    GL_CHECK( glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA ) );
 }
 
 void TextRenderer::renderFinishMessage()
@@ -432,4 +490,3 @@ void TextRenderer::renderFrame()
             break;
     }
 }
-

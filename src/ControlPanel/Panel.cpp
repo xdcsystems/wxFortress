@@ -7,10 +7,14 @@
     #include <wx/wx.h>
 #endif
 
+#include <algorithm>
 #include <memory>
 
 #include <wx/dc.h>
 #include <wx/dcbuffer.h>
+#include <wx/ffile.h>
+#include <wx/filename.h>
+#include <wx/stdpaths.h>
 
 #include "Common/defs.h"
 #include "Common/Tools.h"
@@ -28,6 +32,13 @@ namespace
     constexpr int kLaunchCenterX = 104;
     constexpr int kLaunchCenterY = 600;
     constexpr int kLaunchRadius = 36;
+
+#ifndef WXFORTRESS_TESTING
+    wxFileName hiScoreFilePath()
+    {
+        return wxFileName( wxStandardPaths::Get().GetUserDataDir(), wxS( "hiscore.dat" ) );
+    }
+#endif
 } // namespace
 
 // clang-format off
@@ -46,6 +57,11 @@ Panel::Panel( wxWindow* parent, wxWindowID id, const wxPoint& pos, const wxSize&
     init();
 }
 
+Panel::~Panel()
+{
+    saveHiScoreIfDirty();
+}
+
 void Panel::init()
 {
     SetBackgroundStyle( wxBG_STYLE_PAINT );
@@ -57,6 +73,52 @@ void Panel::init()
     m_numbers = Tools::Instance().loadBitmap( "resources/images/ControlPanel/control/numbers.png" );
 
     m_lives.reset( INITIAL_LIVES_VALUE );
+    loadHiScore();
+}
+
+void Panel::loadHiScore()
+{
+#ifndef WXFORTRESS_TESTING
+    const wxFileName path = hiScoreFilePath();
+    if ( path.FileExists() )
+    {
+        // wxFFile uses _wfopen on Windows so Unicode/Cyrillic user profile paths work reliably.
+        wxFFile file( path.GetFullPath(), wxS( "r" ) );
+        wxString contents;
+        if ( file.IsOpened() && file.ReadAll( &contents ) )
+        {
+            unsigned long long stored = 0;
+            if ( contents.Trim( true ).Trim( false ).ToULongLong( &stored ) )
+            {
+                const uint32_t clamped = static_cast<uint32_t>(
+                    ( std::min )( stored, static_cast<unsigned long long>( Counter::kMaxDisplayValue ) ) );
+                m_hiScore.reset( clamped );
+            }
+        }
+    }
+#endif
+    m_runStartHiScore = m_hiScore.value();
+    m_newRecordNotified = false;
+    m_hiScoreDirty = false;
+}
+
+void Panel::saveHiScoreIfDirty()
+{
+    if ( !m_hiScoreDirty )
+        return;
+
+#ifdef WXFORTRESS_TESTING
+    m_hiScoreDirty = false;
+#else
+    const wxFileName path = hiScoreFilePath();
+    const wxString dir = path.GetPath();
+    if ( !dir.empty() && !wxDirExists( dir ) )
+        wxFileName::Mkdir( dir, wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL );
+
+    wxFFile file( path.GetFullPath(), wxS( "w" ) );
+    if ( file.IsOpened() && file.Write( wxString::Format( wxS( "%u\n" ), m_hiScore.value() ) ) )
+        m_hiScoreDirty = false;
+#endif
 }
 
 void Panel::activate()
@@ -179,10 +241,34 @@ void Panel::refreshDisplayValue( const Counter& counter )
     RefreshRect( counter.bounds(), false );
 }
 
+bool Panel::addScore( uint32_t delta )
+{
+    if ( delta == 0u )
+        return false;
+
+    m_score.addValue( delta );
+    refreshDisplayValue( m_score );
+
+    bool justBrokePreviousRecord = false;
+    if ( m_score.value() > m_hiScore.value() )
+    {
+        m_hiScore.reset( m_score.value() );
+        m_hiScoreDirty = true;
+        refreshDisplayValue( m_hiScore );
+
+        if ( m_runStartHiScore > 0u && !m_newRecordNotified )
+        {
+            m_newRecordNotified = true;
+            justBrokePreviousRecord = true;
+        }
+    }
+
+    return justBrokePreviousRecord;
+}
+
 void Panel::increaseScore()
 {
-    m_score.increaseValue();
-    refreshDisplayValue( m_score );
+    addScore( 1u );
 }
 
 unsigned short Panel::currentLevel() const
@@ -193,8 +279,7 @@ unsigned short Panel::currentLevel() const
 unsigned short Panel::increaseLevel()
 {
     m_level.increaseValue();
-    m_hiScore.reset( m_hiScore.value() + m_score.value() );
-    m_score.reset();
+    saveHiScoreIfDirty();
 
     if ( IsShown() )
     {
@@ -207,6 +292,7 @@ unsigned short Panel::increaseLevel()
 unsigned char Panel::decreaseLives()
 {
     m_lives.decreaseValue();
+    saveHiScoreIfDirty();
     refreshDisplayValue( m_lives );
 
     return static_cast<unsigned char>( m_lives.value() );
@@ -214,8 +300,11 @@ unsigned char Panel::decreaseLives()
 
 void Panel::reset()
 {
+    saveHiScoreIfDirty();
     m_isLaunched = false;
     m_lives.reset( INITIAL_LIVES_VALUE );
     m_level.reset();
     m_score.reset();
+    m_runStartHiScore = m_hiScore.value();
+    m_newRecordNotified = false;
 }

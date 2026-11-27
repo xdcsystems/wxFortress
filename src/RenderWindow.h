@@ -1,10 +1,12 @@
 #pragma once
 
 #include <chrono>
+#include <cstdint>
 #include <memory> 
 #include <wx/glcanvas.h>
 
 #include "Common/FramePacer.hpp"
+#include "Shapes/Resonance.hpp"
 
 
 // Forward declarations
@@ -55,6 +57,7 @@ class RenderWindow final : public wxGLCanvas
         void playIntro();
         void loadLevel( unsigned short level );
         void resetBallSpeed();
+        void syncScoreTelemetry( uint32_t currentScore, uint32_t hiScore, bool newRecord );
         void start();
         void stop();
         void triggerLaunch();
@@ -80,6 +83,7 @@ class RenderWindow final : public wxGLCanvas
         void resize( const wxSize& size );
         void switchRun();
         bool render();
+        void renderHud();
         void initializeGLEW();
         void setupGraphics();
         void ensureContextCurrent();
@@ -103,6 +107,13 @@ class RenderWindow final : public wxGLCanvas
         double m_elapsedTime { 0 };
         FramePacing::State m_framePacer {};
         FramePacing::FixedStepState m_fixedStep {};
+        Resonance::ImpactFeedback m_impactFeedback {};
+        Resonance::HudStatus m_hudStatus {};
+
+        uint32_t m_currentScore { 0 };
+        uint32_t m_hiScore { 0 };
+        unsigned short m_stage { 0 };
+        unsigned int m_stageIncidents { 0 };
 
         bool m_isInitialized { false };
         bool m_isRunning { false };
